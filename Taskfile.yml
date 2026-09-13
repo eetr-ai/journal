@@ -189,6 +189,14 @@ tasks:
         --set-string auth.oidcSecret="$AUTH_OIDC_SECRET"
         --wait
 
+  cluster:proxy:
+    desc: Publish the cluster's Gateway on localhost:3000
+    cmds:
+      # Through Traefik rather than straight at the web Service, so what the
+      # browser exercises is the HTTPRoute and not a tunnel past it. Port 3000
+      # because that is the origin the issuer already knows.
+      - kubectl port-forward -n kube-system svc/traefik 3000:80
+
   undeploy:
     desc: Remove the release from the local cluster
     cmds:

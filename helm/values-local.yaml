@@ -11,10 +11,10 @@ web:
   image:
     repository: journal-web
     tag: local
-  # The origin the browser uses. The OIDC client registered at auth.eetr.app must
-  # list {this}/api/auth/callback/eetr as a redirect URI, or sign-in stops at the
-  # issuer.
-  authUrl: http://journal.localhost
+  # The origin the browser uses, and what OIDC callback URLs are built from.
+  # localhost:3000 on purpose: it is the redirect URI already registered with the
+  # issuer for local development, so the cluster needs no second one.
+  authUrl: http://localhost:3000
 
 image:
   # The image only exists in the cluster's own store.
@@ -25,4 +25,6 @@ gateway:
     name: local-gateway
     namespace: kube-system
   hostnames:
-    - journal.localhost
+    # Matched against the Host header without its port, so this covers
+    # localhost:3000 — which is where `task cluster:proxy` puts the Gateway.
+    - localhost
