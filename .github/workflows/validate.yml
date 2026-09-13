@@ -42,6 +42,22 @@ jobs:
   agent:
     name: agent
     runs-on: ubuntu-latest
+    # The flow suites exercise the real statements against a real Postgres. A
+    # mocked sql block would only assert the mock.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: journal
+          POSTGRES_PASSWORD: journal
+          POSTGRES_DB: journal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U journal -d journal"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -50,6 +66,17 @@ jobs:
       # dolphin drives a real octo per case, so both binaries have to be here.
       - run: go install github.com/juancavallotti/octo/runtime/octo@latest
       - run: go install github.com/juancavallotti/octo/runtime/dolphin@latest
+
+      - name: Apply the schema and the fixtures
+        run: |
+          for f in sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+          psql -v ON_ERROR_STOP=1 -f agent/testdata/seed.sql
+        env:
+          PGHOST: localhost
+          PGUSER: journal
+          PGPASSWORD: journal
+          PGDATABASE: journal
+
       # Runs each *_test.yaml against the whole flows directory, so a flow that
       # no longer parses or no longer returns what it promised fails the job.
       - run: dolphin test ./agent/flows --junit dolphin-report.xml

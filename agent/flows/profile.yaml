@@ -1,0 +1,63 @@
+# GET /profiles/{subject} -> the stored profile, 404 when there is none.
+# PUT /profiles/{subject} -> insert or replace it, and return what was stored.
+#
+# Persistence only. Nothing here decides whether a config value is meaningful:
+# the caller is trusted to have validated the body, and `subject` is taken from
+# the path rather than the body so a caller cannot write someone else's row.
+flows:
+  - name: profile
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /profiles/{subject}
+        methods: [GET, PUT]
+    process:
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "GET"'
+            process:
+              - type: sql
+                name: select-profile
+                settings:
+                  connector: db
+                  query: SELECT * FROM user_profile WHERE oidc_subject = $1
+                  args:
+                    - vars.subject
+                  single: true
+              - type: if
+                name: check-found
+                condition: 'body == null'
+                then:
+                  process:
+                    - type: set-variable
+                      settings: { name: httpStatus, value: "404" }
+                    - type: set-payload
+                      settings:
+                        value: '{"error": "profile not found"}'
+
+          - when: 'vars.method == "PUT"'
+            process:
+              # The row is the whole profile, so an update replaces config
+              # rather than merging into it. Partial edits are the caller's
+              # problem: it holds the full profile already.
+              - type: sql
+                name: upsert-profile
+                settings:
+                  connector: db
+                  query: |
+                    INSERT INTO user_profile (oidc_subject, email, name, config)
+                    VALUES ($1, $2, $3, $4::jsonb)
+                    ON CONFLICT (oidc_subject) DO UPDATE SET
+                      email = EXCLUDED.email,
+                      name = EXCLUDED.name,
+                      config = EXCLUDED.config,
+                      updated_at = now()
+                    RETURNING *
+                  args:
+                    - vars.subject
+                    - body.email
+                    - body.name
+                    - toJson(body.config)
+                  single: true

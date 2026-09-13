@@ -27,6 +27,10 @@ spec:
           env:
             - name: AUTH_URL
               value: {{ .Values.web.authUrl | quote }}
+            # In-cluster, so the agent is never exposed. The BFF is the only
+            # thing that talks to it, and the only thing enforcing the rules.
+            - name: AGENT_URL
+              value: "http://{{ include "journal.fullname" . }}-agent:{{ .Values.agent.service.port }}"
           # envFrom rather than named keys, so adding a provider is a secret
           # edit and not a chart edit.
           envFrom:

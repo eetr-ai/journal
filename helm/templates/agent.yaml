@@ -24,10 +24,16 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.agent.port }}
+            # The runtime's own admin port, which carries the probes. Separate
+            # from the flows' port so a probe can never collide with a route.
+            - name: admin
+              containerPort: {{ .Values.agent.adminPort }}
           env:
             - name: HTTP_PORT
               value: {{ .Values.agent.port | quote }}
-            - name: DATABASE_URL
+            - name: OCTO_OBSERVABILITY_ADDR
+              value: ":{{ .Values.agent.adminPort }}"
+            - name: POSTGRES_DSN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
@@ -43,10 +49,17 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          # Served by the runtime itself, so no flow has to provide them.
+          # /healthz answers while the process runs; /readyz reports starting
+          # and draining as well as ready.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: admin
           readinessProbe:
             httpGet:
-              path: /health
-              port: http
+              path: /readyz
+              port: admin
             initialDelaySeconds: 2
           resources:
             {{- toYaml .Values.agent.resources | nindent 12 }}

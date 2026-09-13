@@ -1,0 +1,138 @@
+# Everything the vault needs, which is three routes over two tables:
+#
+#   GET    /vaults/{subject}                         the vault and its passkeys
+#   PUT    /vaults/{subject}                         create or replace the vault
+#   POST   /vaults/{subject}/passkeys                enrol one passkey
+#   DELETE /vaults/{subject}/passkeys/{credential}   forget one
+#
+# Persistence only, and deliberately incurious: every value here was derived or
+# wrapped in a browser, and nothing stored is enough to decrypt anything.
+flows:
+  - name: vault
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /vaults/{subject}
+        methods: [GET, PUT]
+    process:
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "GET"'
+            process:
+              # A sql block replaces the body with its result, so each result is
+              # parked in a variable before the next statement runs.
+              - type: sql
+                name: select-vault
+                settings:
+                  connector: db
+                  query: SELECT * FROM user_vault WHERE oidc_subject = $1
+                  args:
+                    - vars.subject
+                  single: true
+              - type: set-variable
+                name: hold-vault
+                settings: { name: vault, value: body }
+              - type: sql
+                name: select-passkeys
+                settings:
+                  connector: db
+                  query: |
+                    SELECT credential_id, prf_salt, wrapped_key, label, created_at
+                    FROM user_vault_passkey
+                    WHERE oidc_subject = $1
+                    ORDER BY created_at
+                  args:
+                    - vars.subject
+              # Absent is an ordinary answer, not a 404: asking whether someone
+              # has a vault is the first thing the unlock screen does.
+              - type: set-payload
+                name: combine
+                settings:
+                  value: '{"vault": vars.vault, "passkeys": body}'
+
+          - when: 'vars.method == "PUT"'
+            process:
+              # Replacing the vault means re-wrapping the same data key under a
+              # new password. The passkeys carry their own wrapping of it, so
+              # they survive; a rotation that invalidates them deletes them
+              # explicitly.
+              - type: sql
+                name: upsert-vault
+                settings:
+                  connector: db
+                  query: |
+                    INSERT INTO user_vault (
+                      oidc_subject, kdf, kdf_salt, kdf_memory_kib, kdf_iterations,
+                      kdf_parallelism, verifier, wrapped_key
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (oidc_subject) DO UPDATE SET
+                      kdf = EXCLUDED.kdf,
+                      kdf_salt = EXCLUDED.kdf_salt,
+                      kdf_memory_kib = EXCLUDED.kdf_memory_kib,
+                      kdf_iterations = EXCLUDED.kdf_iterations,
+                      kdf_parallelism = EXCLUDED.kdf_parallelism,
+                      verifier = EXCLUDED.verifier,
+                      wrapped_key = EXCLUDED.wrapped_key,
+                      updated_at = now()
+                    RETURNING *
+                  args:
+                    - vars.subject
+                    - body.kdf
+                    - body.kdf_salt
+                    - body.kdf_memory_kib
+                    - body.kdf_iterations
+                    - body.kdf_parallelism
+                    - body.verifier
+                    - body.wrapped_key
+                  single: true
+
+  - name: vault-passkeys
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /vaults/{subject}/passkeys
+        methods: [POST]
+    process:
+      - type: sql
+        name: upsert-passkey
+        settings:
+          connector: db
+          query: |
+            INSERT INTO user_vault_passkey (
+              oidc_subject, credential_id, prf_salt, wrapped_key, label
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (oidc_subject, credential_id) DO UPDATE SET
+              prf_salt = EXCLUDED.prf_salt,
+              wrapped_key = EXCLUDED.wrapped_key,
+              label = EXCLUDED.label
+            RETURNING credential_id, prf_salt, wrapped_key, label, created_at
+          args:
+            - vars.subject
+            - body.credential_id
+            - body.prf_salt
+            - body.wrapped_key
+            - body.label
+          single: true
+
+  - name: vault-passkey
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /vaults/{subject}/passkeys/{credential}
+        methods: [DELETE]
+    process:
+      - type: sql
+        name: delete-passkey
+        settings:
+          connector: db
+          exec: true
+          query: DELETE FROM user_vault_passkey WHERE oidc_subject = $1 AND credential_id = $2
+          args:
+            - vars.subject
+            - vars.credential

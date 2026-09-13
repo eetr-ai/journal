@@ -1,8 +1,8 @@
 # Coding standards
 
-Guidelines for how this repo gets built. They describe the target shape, not
-work that is already done — the repo is currently a bootstrap with no business
-logic in it.
+Guidelines for how this repo gets built. They describe the target shape, which
+the profile slice under `web/src/features/profile` follows end to end and the
+mocked panels do not yet.
 
 ## Comments
 
@@ -39,7 +39,43 @@ Comments document **algorithms and contracts**, in the file they live in.
 - **Vertically sliced.** A feature owns its types, its client, its actions and
   its UI in one folder, rather than being spread across layer-named directories.
 - The session is the trust boundary: the tenant key comes from the session on
-  the server, never from the browser.
+  the server, never from the browser. A client that takes a subject as an
+  argument is a bug; the service layer reads it from `auth()` itself.
+- **The agent validates nothing.** It writes what it is handed. Every rule about
+  what a value may be lives in the BFF, in a pure module the form and the
+  server action both call, so the two can never disagree.
+
+## Private data
+
+Writing is encrypted under a key derived from the person's password. The threat
+model is specific, and the disclaimer in the app matches it exactly — change one
+and change the other.
+
+- **Encryption is not optional.** There is no vault-less path through the app and
+  no code that accommodates one: a person without a vault makes one before
+  anything renders. Do not add a way around it.
+- **The password is stretched in the browser, with Argon2id.** A password that
+  reaches the server is a key that reaches the server.
+- **Content is encrypted in the BFF**, because making an entry searchable means
+  reading it. What we hold is the ciphertext plus the keywords and embeddings
+  taken from it; what we never hold is anything that can derive the key.
+- **The key reaches the server only in the body of a request that needs it.** Not
+  in a cookie — not because the session cookie is readable, it is a JWE, but
+  because the server holds the key that decrypts it, so a key kept there would be
+  in the server process on every request, including the ones with nothing to do
+  with the vault.
+- **What we store is deliberately useless.** Salt, KDF parameters, a verifier
+  under its own HKDF label, and the data key wrapped under a key we never see.
+  The server's only judgement is refusing parameters weaker than the floor in
+  `features/vault/rules.ts`.
+- **Content is encrypted under the data key, not under the password.** Changing
+  the password re-wraps 32 bytes and touches no content, and every enrolled
+  passkey keeps working. There is no UI for it yet.
+- **What is tolerated, and must stay tolerated rather than grow:** plaintext and
+  the key in server memory for the length of a request the person initiated.
+  Never written down, never logged.
+- **What no wording should imply we protect against:** a memory dump, and a
+  deploy — we serve the client, so this is trust-on-deploy.
 
 ## Testing flows
 
@@ -88,6 +124,17 @@ than as arithmetic the rule cannot read.
 **These are floors, not targets.** Hitting the limit is a smell; the fix is
 smaller functions, not a bigger number. Raise a limit only with a reason, and
 never suppress a rule inline to land a change.
+
+## User-facing text
+
+- Every string a person reads comes from `web/src/i18n/en.ts`, and `es.ts` is
+  typed against it so a missing key fails the build. Nothing is hard-coded in a
+  component.
+- **A failure says what happened and who can fix it.** An internal code is a
+  reference to quote, never the explanation. Where a library hands us a coarse
+  code, we map it and log the real cause on the server.
+- Colours are named by role — `surface`, `muted`, `border`, `brand` — never by
+  value. The two palettes in `globals.css` are the only place a scheme exists.
 
 ## Naming
 

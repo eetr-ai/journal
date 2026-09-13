@@ -1,0 +1,53 @@
+# Run against a real Postgres holding sql/001_schema.sql and
+# agent/testdata/seed.sql. Cases run concurrently and share one database, so
+# each owns a subject nothing else touches.
+#
+# Nothing here asserts anything about cryptography, because the flow performs
+# none: what is worth proving is that opaque values survive the round trip
+# unchanged and that an absent vault is an ordinary answer.
+flow: vault
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a GET returns the vault together with its passkeys
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-vault-read }
+    expect:
+      that:
+        - body.vault.kdf == "argon2id"
+        - body.vault.kdf_memory_kib == 65536
+        - body.vault.wrapped_key == "c2VlZGVkLXdyYXA="
+        - body.passkeys.size() == 1
+        - body.passkeys[0].credential_id == "dolphin-credential"
+
+  - name: no vault is an ordinary answer rather than a 404
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-vault-absent }
+    expect:
+      body:
+        vault: null
+        passkeys: []
+      that:
+        - '!has(vars.httpStatus)'
+
+  - name: a PUT stores the derivation parameters exactly as given
+    input:
+      data:
+        kdf: argon2id
+        kdf_salt: dGVzdC1zYWx0
+        kdf_memory_kib: 131072
+        kdf_iterations: 4
+        kdf_parallelism: 1
+        verifier: dGVzdC12ZXJpZmllcg==
+        wrapped_key: dGVzdC13cmFw
+      vars: { method: PUT, subject: dolphin-vault-write }
+    expect:
+      that:
+        - body.kdf_memory_kib == 131072
+        - body.kdf_iterations == 4
+        - body.kdf_salt == "dGVzdC1zYWx0"
+        - body.verifier == "dGVzdC12ZXJpZmllcg=="
