@@ -4,6 +4,14 @@ export const locales = ["en", "es"] as const;
 
 export type Locale = (typeof locales)[number];
 
+// Where a chosen language is remembered for a request that arrives without one
+// in the path.
+export const LOCALE_COOKIE = "locale";
+
+// The proxy copies the resolved locale here so a layout or a page that has no
+// route params can still read it.
+export const LOCALE_HEADER = "x-locale";
+
 export const defaultLocale: Locale = "en";
 
 export function isLocale(value: string): value is Locale {

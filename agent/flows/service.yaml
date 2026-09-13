@@ -6,9 +6,17 @@ service:
 env:
   - name: HTTP_PORT
     default: "8080"
+  - name: POSTGRES_DSN
+    default: postgres://journal:journal@localhost:5432/journal?sslmode=disable
 
 connectors:
   - name: api
     type: http
     settings:
       port: ${HTTP_PORT}
+
+  - name: db
+    type: database
+    settings:
+      driver: postgres
+      dsn: ${POSTGRES_DSN}

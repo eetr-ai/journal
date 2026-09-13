@@ -1,8 +1,8 @@
 # Coding standards
 
-Guidelines for how this repo gets built. They describe the target shape, not
-work that is already done — the repo is currently a bootstrap with no business
-logic in it.
+Guidelines for how this repo gets built. They describe the target shape, which
+the profile slice under `web/src/features/profile` follows end to end and the
+mocked panels do not yet.
 
 ## Comments
 
@@ -39,7 +39,11 @@ Comments document **algorithms and contracts**, in the file they live in.
 - **Vertically sliced.** A feature owns its types, its client, its actions and
   its UI in one folder, rather than being spread across layer-named directories.
 - The session is the trust boundary: the tenant key comes from the session on
-  the server, never from the browser.
+  the server, never from the browser. A client that takes a subject as an
+  argument is a bug; the service layer reads it from `auth()` itself.
+- **The agent validates nothing.** It writes what it is handed. Every rule about
+  what a value may be lives in the BFF, in a pure module the form and the
+  server action both call, so the two can never disagree.
 
 ## Testing flows
 
@@ -88,6 +92,17 @@ than as arithmetic the rule cannot read.
 **These are floors, not targets.** Hitting the limit is a smell; the fix is
 smaller functions, not a bigger number. Raise a limit only with a reason, and
 never suppress a rule inline to land a change.
+
+## User-facing text
+
+- Every string a person reads comes from `web/src/i18n/en.ts`, and `es.ts` is
+  typed against it so a missing key fails the build. Nothing is hard-coded in a
+  component.
+- **A failure says what happened and who can fix it.** An internal code is a
+  reference to quote, never the explanation. Where a library hands us a coarse
+  code, we map it and log the real cause on the server.
+- Colours are named by role — `surface`, `muted`, `border`, `brand` — never by
+  value. The two palettes in `globals.css` are the only place a scheme exists.
 
 ## Naming
 

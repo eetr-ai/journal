@@ -1,7 +1,7 @@
-# journal
+# Eetr Journal
 
-A journal app: a Next.js web front end with Auth.js sign-in, an octo agent, and
-Postgres underneath. Driven by [go-task](https://taskfile.dev) from the root.
+A journal app: a Next.js BFF with OIDC sign-in, an octo agent holding the data,
+and Postgres underneath. Driven by [go-task](https://taskfile.dev) from the root.
 
 ```
 journal/
@@ -10,7 +10,7 @@ journal/
 ├── .env.example        # the shape of the .env every task reads
 ├── sql/                # the schema, idempotent, re-applied with `task db:migrate`
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
-├── agent/              # octo flows (one dir, many files) + dolphin suites
+├── agent/              # octo flows (one dir, many files) + dolphin suites + fixtures
 ├── helm/               # the chart that deploys web + agent to the home lab
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
@@ -22,23 +22,30 @@ journal/
 cp .env.example .env
 openssl rand -base64 32          # paste into AUTH_SECRET
 
-# Auth.js also needs a GitHub OAuth app before it will sign anyone in; the
-# model provider keys can stay empty until something uses them.
+# AUTH_OIDC_ID and AUTH_OIDC_SECRET come from the client registered at
+# auth.eetr.app, whose redirect URI must be
+#   http://localhost:3000/api/auth/callback/eetr
+# The last segment is the provider id in web/src/auth.ts. Model provider keys
+# can stay empty until something uses them.
 
 task install                     # root + web dependencies
 task dev                         # Postgres, then web and agent together
 ```
 
 - Web app: <http://localhost:3000>
-- Agent: <http://localhost:8080/hello> and `/health` — flows hot-reload on save
+- Agent: <http://localhost:8080/hello> and `/profiles/{subject}` — flows hot-reload on save
+- Agent probes: <http://localhost:39999/healthz> and `/readyz`, served by the
+  runtime itself on its own admin port
 - Octo visual editor (optional): `task agent:editor`, then <http://localhost:3100>
 - Postgres: `localhost:5432`, user/password/database all `journal`
 
 One `Ctrl-C` stops both apps; Postgres keeps running (`task db:down` stops it).
 
-This is boilerplate: sign in, sign out, switch language, and a hello-world flow.
-There is no application logic yet, and the database has no tables — `sql/` holds
-a `SELECT true` so `task db:migrate` proves the connection and nothing more.
+Sign in with OIDC, and the app shell opens: a left drawer of recent chats and
+journal entries, a chat panel, and today's entry. **Those three panels are
+mocked.** The one thing that is real end to end is the profile: it is created on
+first sign-in, edited on the settings page, validated by the BFF, and stored by
+the agent in Postgres.
 
 ### What is wired up
 
@@ -58,6 +65,15 @@ a `SELECT true` so `task db:migrate` proves the connection and nothing more.
   — and each flow gets its own file beside it. `task agent:dev` runs the
   directory with `--watch`, so editing a file, adding one, or deleting one all
   take effect without a restart.
+- **A light and a dark theme**, built from the mascot's palette. Components name
+  a role (`surface`, `muted`, `border`) and never a colour, so the two palettes
+  in `web/src/app/globals.css` are the only place either scheme is described.
+  The choice is a profile setting; a blocking script resolves "match my system"
+  before the first paint so nothing flashes.
+- **Sign-in failures say what happened.** Auth.js hands the browser one of a
+  fixed set of coarse codes and keeps the cause to itself; `web/src/features/auth`
+  turns each code into plain language in both locales, says whether trying again
+  could help, and prints the reference. The real cause is logged server-side.
 - Phosphor icons and `react-markdown` for the UI.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.
@@ -105,8 +121,8 @@ kubectl create secret generic journal-postgres \
 
 kubectl create secret generic journal-auth \
   --from-literal=AUTH_SECRET=... \
-  --from-literal=AUTH_GITHUB_ID=... \
-  --from-literal=AUTH_GITHUB_SECRET=...
+  --from-literal=AUTH_OIDC_ID=... \
+  --from-literal=AUTH_OIDC_SECRET=...
 
 # The agent runs the stock octo runtime image and reads its flows from a
 # ConfigMap, so push the flows before installing — and again whenever they change.

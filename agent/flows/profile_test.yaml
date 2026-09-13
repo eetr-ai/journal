@@ -1,0 +1,73 @@
+# Run against a real Postgres holding sql/001_schema.sql plus
+# agent/testdata/seed.sql. The flow is the persistence layer, so a suite that
+# mocked the sql blocks would be asserting the mocks; what is worth proving is
+# that the statements do what they claim.
+#
+# Cases run concurrently and share one database, so each one owns a subject
+# nothing else touches. A write case upserts its own row and asserts on what
+# came back; the read cases use the seeded row and never modify it.
+flow: profile
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a PUT stores the profile and answers with the row that was stored
+    input:
+      data:
+        email: created@example.com
+        name: Created
+        config: { theme: dark, language: es }
+      vars: { method: PUT, subject: dolphin-create }
+    expect:
+      that:
+        - body.oidc_subject == "dolphin-create"
+        - body.email == "created@example.com"
+        - body.id != ""
+
+  # RETURNING reads the column back out of the row, so this covers the ::jsonb
+  # cast on the way in and the decode on the way out in one case.
+  - name: config makes the round trip through jsonb intact
+    input:
+      data:
+        email: config@example.com
+        name: Config
+        config: { theme: light, pronouns: they/them, timezone: America/Vancouver }
+      vars: { method: PUT, subject: dolphin-config }
+    expect:
+      that:
+        - fromJson(body.config).theme == "light"
+        - fromJson(body.config).pronouns == "they/them"
+        - fromJson(body.config).timezone == "America/Vancouver"
+
+  - name: the subject comes from the path, so a body cannot write another row
+    input:
+      data:
+        oidc_subject: somebody-else
+        email: path@example.com
+        name: Path
+        config: {}
+      vars: { method: PUT, subject: dolphin-path }
+    expect:
+      that:
+        - body.oidc_subject == "dolphin-path"
+
+  - name: a GET returns the seeded profile
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-seeded }
+    expect:
+      that:
+        - body.email == "seeded@example.com"
+        - body.name == "Seeded Profile"
+        - fromJson(body.config).theme == "dark"
+        - '!has(vars.httpStatus)'
+
+  - name: an unknown subject is a 404 rather than an empty success
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-nobody }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: profile not found

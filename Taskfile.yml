@@ -76,6 +76,15 @@ tasks:
       # only way a schema edit reaches the database.
       - for f in sql/*.sql; do echo "applying $f..."; {{.PSQL}} -f "/docker-entrypoint-initdb.d/$(basename $f)"; done
 
+  db:seed:
+    desc: Load the flow suites' fixture rows
+    deps:
+      - db:up
+    cmds:
+      # Piped rather than -f: this one lives outside the directory compose mounts
+      # into the container.
+      - '{{.PSQL}} -q < agent/testdata/seed.sql'
+
   db:psql:
     desc: Open a psql shell against the running Postgres
     cmds:
@@ -98,7 +107,13 @@ tasks:
 
   test:
     desc: Run every module's tests
+    deps:
+      - db:up
     cmds:
+      # The flow suites talk to a real Postgres, so the schema and the fixtures
+      # have to be in it first.
+      - task: db:migrate
+      - task: db:seed
       - task: agent:test
 
   build:

@@ -31,6 +31,8 @@ agent:
     tag: latest
   # The port the flows' http connector binds, passed through as HTTP_PORT.
   port: 8080
+  # Where the runtime serves /healthz and /readyz. Its own default.
+  adminPort: 39999
   # The ConfigMap holding the flow YAML, mounted at /etc/octo/integrations where
   # the runtime looks for it. Built from agent/flows by `task helm:flows`, and
   # kept outside the chart so the flows have one home in the repo.
@@ -49,11 +51,11 @@ postgres:
   secretKey: url
 
 auth:
-  # Same reasoning. Holds AUTH_SECRET and the AUTH_GITHUB_* pair.
+  # Same reasoning. Holds AUTH_SECRET and the AUTH_OIDC_* pair.
   #   kubectl create secret generic journal-auth \
   #     --from-literal=AUTH_SECRET=... \
-  #     --from-literal=AUTH_GITHUB_ID=... \
-  #     --from-literal=AUTH_GITHUB_SECRET=...
+  #     --from-literal=AUTH_OIDC_ID=... \
+  #     --from-literal=AUTH_OIDC_SECRET=...
   existingSecret: journal-auth
 
 ingress:
