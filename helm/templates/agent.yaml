@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "journal.fullname" . }}-agent
+  labels:
+    {{- include "journal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  replicas: {{ .Values.agent.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "journal.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        {{- include "journal.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: agent
+    spec:
+      containers:
+        - name: agent
+          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.secretKey }}
+          volumeMounts:
+            # Flow YAML lives here. emptyDir for now, so flows saved in the
+            # cluster do not survive a restart.
+            - name: flows
+              mountPath: /work
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+      volumes:
+        - name: flows
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "journal.fullname" . }}-agent
+  labels:
+    {{- include "journal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.agent.service.port }}
+      targetPort: http
+  selector:
+    {{- include "journal.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent

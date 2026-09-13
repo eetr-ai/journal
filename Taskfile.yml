@@ -1,0 +1,117 @@
+version: '3'
+
+# The journal monorepo. Module taskfiles are imported under a namespace, so
+# `task web:build` and `task agent:dev` work from anywhere in the tree.
+
+# Exported into the environment of every command below, so no module has to own
+# the file. Start from .env.example; a missing .env is not an error to Task.
+dotenv: ['.env']
+
+includes:
+  web:
+    taskfile: ./web/Taskfile.yml
+    dir: ./web
+  agent:
+    taskfile: ./agent/Taskfile.yml
+    dir: ./agent
+
+vars:
+  # Spelled out rather than interpolated: compose owns these credentials, and
+  # this is the one place they are duplicated.
+  PSQL: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U journal -d journal
+
+tasks:
+  default:
+    desc: Show the available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install every module's dependencies
+    cmds:
+      - npm install
+      - task: web:install
+
+  dev:
+    desc: Bring up Postgres, then run the web app and the agent editor together
+    deps:
+      - db:up
+    cmds:
+      # concurrently over backgrounding: one Ctrl-C takes both down, and every
+      # output line says which side produced it.
+      - >-
+        npx concurrently
+        --kill-others
+        --prefix "[{name}]"
+        --names "web,agent"
+        --prefix-colors "cyan,magenta"
+        "task web:dev"
+        "task agent:dev"
+
+  db:up:
+    desc: Start Postgres and wait for it to accept connections
+    cmds:
+      # --wait blocks on the healthcheck, so the first query after this lands.
+      - docker compose up -d --wait postgres
+
+  db:down:
+    desc: Stop Postgres, keeping the data volume
+    cmds:
+      - docker compose down
+
+  db:reset:
+    desc: Destroy the Postgres volume and rebuild it from sql/
+    prompt: This drops the journal database and everything in it. Continue?
+    cmds:
+      - docker compose down -v
+      - task: db:up
+
+  db:migrate:
+    desc: Re-apply sql/ against the running Postgres
+    deps:
+      - db:up
+    cmds:
+      # Idempotent, so it is safe to re-run. Once the volume exists, this is the
+      # only way a schema edit reaches the database.
+      - for f in sql/*.sql; do echo "applying $f..."; {{.PSQL}} -f "/docker-entrypoint-initdb.d/$(basename $f)"; done
+
+  db:psql:
+    desc: Open a psql shell against the running Postgres
+    cmds:
+      - docker compose exec postgres psql -U journal -d journal
+
+  lint:
+    desc: Lint every module
+    cmds:
+      - task: web:lint
+
+  format:
+    desc: Format every module
+    cmds:
+      - task: web:format
+
+  format:check:
+    desc: Check formatting across every module
+    cmds:
+      - task: web:format:check
+
+  test:
+    desc: Run every module's tests
+    cmds:
+      # Nothing to run yet; kept so CI has a stable target from day one.
+      - echo "no tests yet"
+
+  build:
+    desc: Build every module
+    cmds:
+      - task: web:build
+
+  helm:lint:
+    desc: Lint the Helm chart
+    cmds:
+      - helm lint helm
+
+  helm:template:
+    desc: Render the Helm chart to stdout
+    cmds:
+      - helm template journal helm

@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+
+# The real one is yours and holds secrets; .env.example is the committed shape.
+.env
+
+# The octo editor's scratch space when a flow is run from the CLI.
+octo-store/
+.octo-run/
+
+.DS_Store
+*.log

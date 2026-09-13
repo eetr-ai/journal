@@ -1,0 +1,26 @@
+# Local dependencies only. The apps run on the host, not in here, so their hot
+# reload is not fighting a bind mount.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: journal-postgres
+    environment:
+      POSTGRES_USER: journal
+      POSTGRES_PASSWORD: journal
+      POSTGRES_DB: journal
+    ports:
+      - '5432:5432'
+    volumes:
+      - journal-pgdata:/var/lib/postgresql/data
+      # Postgres runs these on first boot only, against an empty data
+      # directory. An existing volume ignores any later edit to them.
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    # `--wait` blocks on this, so a caller can assume the first query lands.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U journal -d journal']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  journal-pgdata:

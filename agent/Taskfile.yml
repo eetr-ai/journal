@@ -1,0 +1,27 @@
+version: '3'
+
+# Tasks for the journal agent. Nothing to build: the flows are YAML and the
+# runtime that executes them ships inside the image.
+
+vars:
+  IMAGE: juancavallotti/octo
+  # Not 3000: that port is taken under `task dev`.
+  PORT: 3100
+
+tasks:
+  dev:
+    desc: Run the octo standalone editor against ./flows
+    cmds:
+      # The image reads and writes flow YAML under /work, so Save lands in the
+      # repo rather than in the container.
+      - docker run --rm -p {{.PORT}}:3000 -v "$PWD/flows:/work" --name journal-agent {{.IMAGE}}
+
+  pull:
+    desc: Pull the latest octo standalone image
+    cmds:
+      - docker pull {{.IMAGE}}
+
+  invoke:
+    desc: 'Invoke one flow with the local octo CLI, e.g. task agent:invoke -- greet'
+    cmds:
+      - octo invoke --config ./flows --flow {{.CLI_ARGS}}

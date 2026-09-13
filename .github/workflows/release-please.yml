@@ -1,0 +1,21 @@
+name: release-please
+
+# Runs on every push to main: opens (or updates) the release PR, and when that
+# PR merges, cuts the tag and the GitHub release.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

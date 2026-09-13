@@ -1,0 +1,9 @@
+{
+  "name": "journal",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Root manifest. It exists to hold concurrently, which task dev uses to run web and agent side by side under one Ctrl-C.",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

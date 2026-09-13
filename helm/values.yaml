@@ -1,0 +1,53 @@
+# Deliberately thin: two deployments and an optional ingress, pointed at a
+# Postgres that already exists in the cluster. HPA, PDB, network policy and
+# resource tuning are absent on purpose and get added when we want them.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  pullPolicy: IfNotPresent
+
+web:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/eetr-ai/journal-web
+    # Empty falls back to the chart's appVersion. Set it to pin a build.
+    tag: ""
+  service:
+    port: 3000
+  # Must be the URL the browser uses: OAuth callback URLs are built from it.
+  authUrl: http://journal.local
+  resources: {}
+
+agent:
+  replicaCount: 1
+  image:
+    repository: juancavallotti/octo
+    tag: latest
+  service:
+    port: 3000
+  resources: {}
+
+postgres:
+  # An existing secret, not a templated value: values end up in `helm get
+  # values`, in shell history, and in the release object. Create it by hand:
+  #   kubectl create secret generic journal-postgres \
+  #     --from-literal=url='postgres://journal:...@postgres:5432/journal'
+  existingSecret: journal-postgres
+  secretKey: url
+
+auth:
+  # Same reasoning. Holds AUTH_SECRET and the AUTH_GITHUB_* pair.
+  #   kubectl create secret generic journal-auth \
+  #     --from-literal=AUTH_SECRET=... \
+  #     --from-literal=AUTH_GITHUB_ID=... \
+  #     --from-literal=AUTH_GITHUB_SECRET=...
+  existingSecret: journal-auth
+
+ingress:
+  enabled: false
+  className: ""
+  host: journal.local
+  annotations: {}
+  tls: []

@@ -1,0 +1,41 @@
+version: "3"
+
+# Tasks for the journal web app (Next.js + Auth.js). Imported from the root
+# Taskfile under the `web:` namespace, so these run as `task web:dev`,
+# `task web:build`, and so on.
+
+tasks:
+  install:
+    desc: Install the web app dependencies
+    cmds:
+      - npm install
+
+  dev:
+    desc: Run the Next.js dev server
+    cmds:
+      - npm run dev
+
+  build:
+    desc: Build the web app for production
+    cmds:
+      - npm run build
+
+  lint:
+    desc: Lint the web app
+    cmds:
+      - npm run lint
+
+  typecheck:
+    desc: Type-check the web app without emitting
+    cmds:
+      - npm run typecheck
+
+  format:
+    desc: Format the web app with oxfmt
+    cmds:
+      - npm run format
+
+  format:check:
+    desc: Check formatting without writing
+    cmds:
+      - npm run format:check
