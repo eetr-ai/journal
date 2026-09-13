@@ -5,8 +5,8 @@
 # The database is genuinely outside the cluster — it is the compose Postgres on
 # your host, which k3d reaches at host.k3d.internal.
 #
-# The image is built and imported rather than pulled — nothing has been published
-# to ghcr yet, and a local build is what we are testing.
+# Both images are built and imported rather than pulled: a local build is what we
+# are testing, and the cluster has no credentials for ghcr.
 web:
   image:
     repository: journal-web
@@ -16,8 +16,18 @@ web:
   # issuer for local development, so the cluster needs no second one.
   authUrl: http://localhost:3000
 
+agent:
+  image:
+    repository: journal-agent
+    tag: local
+
+postgres:
+  # The compose Postgres on your host, which k3d reaches at this name.
+  host: host.k3d.internal
+  sslmode: disable
+
 image:
-  # The image only exists in the cluster's own store.
+  # The images only exist in the cluster's own store.
   pullPolicy: IfNotPresent
 
 gateway:

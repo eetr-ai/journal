@@ -1,0 +1,16 @@
+# Everything else is the chart's default: the Secrets are journal-db
+# (username, password) and journal-auth, on port 5432, database journal,
+# sslmode require. Neither Secret is created by the chart.
+
+postgres:
+  host: eetr01
+
+web:
+  authUrl: https://journal.inflightproject.com
+
+gateway:
+  parentRef:
+    name: FILL_IN
+    namespace: FILL_IN
+  hostnames:
+    - journal.inflightproject.com

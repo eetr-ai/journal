@@ -10,7 +10,7 @@ journal/
 ├── .env.example        # the shape of the .env every task reads
 ├── sql/                # the schema, idempotent, re-applied with `task db:migrate`
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
-├── agent/              # octo flows (one dir, many files) + dolphin suites + fixtures
+├── agent/              # octo flows (one dir, many files) + dolphin suites + the image
 ├── helm/               # the chart that deploys web + agent to the home lab
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
@@ -116,7 +116,8 @@ is a deliberate call for when the shape stops moving.
 The tag publishes two OCI artifacts to this repo's GitHub Container Registry:
 
 ```
-ghcr.io/eetr-ai/journal-web         # the web image (amd64 + arm64)
+ghcr.io/eetr-ai/journal-web          # the web image (amd64 + arm64)
+ghcr.io/eetr-ai/journal-agent        # the octo runtime with our flows in it
 oci://ghcr.io/eetr-ai/charts/journal # the Helm chart
 ```
 
@@ -142,10 +143,17 @@ registered for, so sign-in needs nothing added at the issuer. The proxy goes
 through Traefik rather than straight at the Service, so what the browser
 exercises is the real `HTTPRoute`.
 
-`task deploy` creates the Secrets from your `.env`, builds the web image, imports
-it into the cluster, pushes the flows as a ConfigMap and installs the chart. The
-database is genuinely external: the agent reaches your host's Postgres at
-`host.k3d.internal`, which is the same shape as the real thing.
+`task deploy` creates the Secrets from your `.env`, builds both images, imports
+them into the cluster and installs the chart. The database is genuinely external:
+the agent reaches your host's Postgres at `host.k3d.internal`, which is the same
+shape as the real thing.
+
+**The agent image is the flows.** `agent/Dockerfile` copies `agent/flows` onto a
+pinned `juancavallotti/octo-runtime`, which already starts
+`octo run --config /etc/octo/integrations`. So a release carries the integration
+it is a release of, and installing the chart needs nothing applied beside it. The
+dolphin suites are left out of the image — they test the flows, they are not part
+of them.
 
 ### Secrets
 
@@ -154,16 +162,21 @@ names two that must already exist, and refuses to render without the names:
 
 | Secret | Keys |
 | --- | --- |
-| `postgres.existingSecret` | `url` — the whole DSN, password included |
+| `postgres.existingSecret` | `username`, `password` |
 | `auth.existingSecret` | `AUTH_SECRET`, `AUTH_OIDC_ID`, `AUTH_OIDC_SECRET` |
+
+Only the credential is a secret. Where the server is — `postgres.host`, `port`,
+`database`, `sslmode` — are values, and the kubelet assembles the DSN from both.
+A password containing any of `: / ? # @` has to be percent-encoded in the Secret.
 
 A credential passed as a value is readable afterwards through `helm get values`
 and sits in the release object in the cluster, where it outlives the reason it
 was there. So it is applied straight to the cluster instead:
 
 ```bash
-kubectl create secret generic journal-postgres -n journal \
-  --from-literal=url='postgres://journal:...@postgres.internal:5432/journal'
+kubectl create secret generic journal-db -n journal \
+  --from-literal=username=journal \
+  --from-literal=password='...'
 
 kubectl create secret generic journal-auth -n journal \
   --from-literal=AUTH_SECRET=... \
@@ -180,7 +193,8 @@ Routing is Gateway API, not Ingress. The chart brings an `HTTPRoute` and
 **references** a Gateway — a Gateway belongs to whoever runs the cluster, not to
 an app deployed onto it — so point `gateway.parentRef` at one that exists.
 `deploy/local/traefik-gateway.yaml` is the other half for the local cluster, and
-`task cluster:gateway` applies it.
+`task cluster:gateway` applies it. `deploy/homelab/values.yaml` is the real
+deployment's knobs, and holds nothing secret.
 
 The agent is never exposed: it holds the data and trusts its caller, so the route
 only fronts the web app. Reach the agent with `kubectl port-forward` when you
