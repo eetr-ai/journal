@@ -8,3 +8,10 @@ declare module "next-auth" {
     } & DefaultSession["user"];
   }
 }
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    /** The issuer's `sub`, copied off the account at sign-in. See auth.ts. */
+    subject?: string;
+  }
+}

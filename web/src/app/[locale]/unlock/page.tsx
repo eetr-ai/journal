@@ -35,19 +35,13 @@ export default async function Unlock(options: UnlockOptions) {
   const t = dictionary(locale);
 
   return (
-    <>
-      {/* These screens come before the app, so the menu that normally
-          carries this is not on them. Being unable to leave is a trap. */}
-      <div className="absolute right-6 top-6">
-        <SignOutButton label={t.signOut} locale={locale} />
-      </div>
-      <UnlockScreen
-        identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
-        locale={locale}
-        passkeys={stored.passkeys}
-        t={t}
-        vault={stored.vault!}
-      />
-    </>
+    <UnlockScreen
+      identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
+      locale={locale}
+      passkeys={stored.passkeys}
+      t={t}
+      vault={stored.vault!}
+      signOut={<SignOutButton label={t.signOut} locale={locale} />}
+    />
   );
 }

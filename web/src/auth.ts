@@ -40,10 +40,25 @@ const config: NextAuthConfig = {
     },
   },
   callbacks: {
+    jwt({ token, account }) {
+      // `token.sub` is NOT the issuer's subject: with no adapter, Auth.js mints
+      // a fresh UUID for `user.id` on every sign-in and that is what lands
+      // there. The issuer's `sub` survives as `account.providerAccountId`, and
+      // only on the sign-in pass, so it is copied onto the token once and read
+      // from there afterwards.
+      if (account?.providerAccountId) {
+        token.subject = account.providerAccountId;
+      }
+
+      // A token from before this claim existed identifies nobody. Returning
+      // null drops the session rather than leaving someone signed in as no one,
+      // which the pages can only answer by bouncing them between each other.
+      return token.subject ? token : null;
+    },
     session({ session, token }) {
       // The trust boundary: the subject is read off the server-side token and
       // never off anything the browser sent.
-      session.user.subject = token.sub ?? "";
+      session.user.subject = typeof token.subject === "string" ? token.subject : "";
 
       return session;
     },

@@ -28,6 +28,8 @@ export interface UnlockScreenOptions {
   identity: VaultIdentity;
   vault: Vault;
   passkeys: VaultPasskey[];
+  /** Rendered on the server and passed in, so this stays a client component. */
+  signOut: React.ReactNode;
 }
 
 function Body(options: UnlockScreenOptions) {
@@ -46,47 +48,52 @@ function Body(options: UnlockScreenOptions) {
   }, [state.status, router, options.locale]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <Image alt="" height={MASCOT_SIZE} priority src="/mascot.png" width={MASCOT_SIZE} />
+    <div className="flex min-h-screen flex-col">
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-8 pb-16">
+        <Image alt="" height={MASCOT_SIZE} priority src="/mascot.png" width={MASCOT_SIZE} />
 
-      <div className="text-center">
-        <h1 className="text-xl font-semibold">{t.unlockTitle}</h1>
-        <p className="mt-1 max-w-sm text-sm text-muted">{t.unlockPrompt}</p>
-      </div>
+        <div className="text-center">
+          <h1 className="text-xl font-semibold">{t.unlockTitle}</h1>
+          <p className="mt-1 max-w-sm text-sm text-muted">{t.unlockPrompt}</p>
+        </div>
 
-      <div className="flex w-full max-w-xs flex-col gap-3">
-        <VaultField
-          autoComplete="current-password"
-          id="vault-gate"
-          label={t.password}
-          onChange={setPassword}
-          value={password}
-        />
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <VaultField
+            autoComplete="current-password"
+            id="vault-gate"
+            label={t.password}
+            onChange={setPassword}
+            value={password}
+          />
 
-        <VaultError t={options.t} />
+          <VaultError t={options.t} />
 
-        <button
-          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-on-brand disabled:opacity-50"
-          disabled={state.busy}
-          onClick={() => void byPassword(password)}
-          type="button"
-        >
-          {state.busy ? t.unlocking : t.unlock}
-        </button>
+          <div className="flex items-center gap-5">
+            <button
+              className="flex-1 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-on-brand disabled:opacity-50"
+              disabled={state.busy}
+              onClick={() => void byPassword(password)}
+              type="button"
+            >
+              {state.busy ? t.unlocking : t.unlock}
+            </button>
+            {options.signOut}
+          </div>
 
-        {state.passkeys.length > 0 && (
-          <button
-            className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
-            disabled={state.busy}
-            onClick={() => void byPasskey()}
-            type="button"
-          >
-            <FingerprintIcon size={ICON_SIZE} weight="fill" />
-            {t.unlockWithPasskey}
-          </button>
-        )}
-      </div>
-    </main>
+          {state.passkeys.length > 0 && (
+            <button
+              className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
+              disabled={state.busy}
+              onClick={() => void byPasskey()}
+              type="button"
+            >
+              <FingerprintIcon size={ICON_SIZE} weight="fill" />
+              {t.unlockWithPasskey}
+            </button>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
 

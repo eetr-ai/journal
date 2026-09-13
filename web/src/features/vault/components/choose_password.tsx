@@ -12,6 +12,8 @@ export interface ChoosePasswordOptions {
   t: Dictionary;
   identity: VaultIdentity;
   onChosen: (password: string) => void;
+  /** Beside the action, because this screen is the only way forward. */
+  signOut: React.ReactNode;
 }
 
 export default function ChoosePassword(options: ChoosePasswordOptions) {
@@ -56,14 +58,17 @@ export default function ChoosePassword(options: ChoosePasswordOptions) {
 
       <VaultError t={options.t} />
 
-      <button
-        className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
-        disabled={state.busy}
-        onClick={() => void submit()}
-        type="button"
-      >
-        {state.busy ? t.creating : t.create}
-      </button>
+      <div className="flex items-center gap-5">
+        <button
+          className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
+          disabled={state.busy}
+          onClick={() => void submit()}
+          type="button"
+        >
+          {state.busy ? t.creating : t.create}
+        </button>
+        {options.signOut}
+      </div>
     </>
   );
 }

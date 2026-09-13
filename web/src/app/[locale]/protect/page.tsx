@@ -32,17 +32,11 @@ export default async function Protect(options: ProtectOptions) {
   const t = dictionary(locale);
 
   return (
-    <>
-      {/* These screens come before the app, so the menu that normally
-          carries this is not on them. Being unable to leave is a trap. */}
-      <div className="absolute right-6 top-6">
-        <SignOutButton label={t.signOut} locale={locale} />
-      </div>
-      <ProtectScreen
-        identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
-        locale={locale}
-        t={t}
-      />
-    </>
+    <ProtectScreen
+      identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
+      locale={locale}
+      t={t}
+      signOut={<SignOutButton label={t.signOut} locale={locale} />}
+    />
   );
 }

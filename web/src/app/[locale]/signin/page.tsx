@@ -27,7 +27,9 @@ export default async function SignIn(options: SignInOptions) {
 
   const session = await auth();
 
-  if (session?.user) {
+  // Not `session?.user`: a session carrying no subject identifies nobody, and
+  // sending it onward only starts a loop with the pages that need one.
+  if (session?.user?.subject) {
     redirect(`/${locale}`);
   }
 
