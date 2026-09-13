@@ -1,0 +1,14 @@
+# Files kept beside the chart for this repo's own use, which have no business
+# inside the artifact someone else pulls.
+
+# Points at a locally built image and the k3d Gateway. Shipping it would offer a
+# consumer a values file that cannot work anywhere but this laptop.
+values-local.yaml
+
+# Throwaway names so `helm lint` and `helm template` can render a chart that
+# refuses to render without them.
+ci/
+
+.git/
+.DS_Store
+*.tgz
