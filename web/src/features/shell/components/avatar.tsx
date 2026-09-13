@@ -20,14 +20,18 @@ export interface AvatarOptions {
 export default function Avatar(options: AvatarOptions) {
   const [broken, setBroken] = useState(false);
 
+  // The size is set inline as well as by attribute: the preflight's
+  // `img { height: auto }` beats the height attribute, and a non-square photo
+  // then renders as an oval.
   if (options.hasImage && !broken) {
     return (
       <Image
         alt=""
-        className="rounded-full object-cover"
+        className="shrink-0 rounded-full object-cover"
         height={options.size}
         onError={() => setBroken(true)}
         src="/api/avatar"
+        style={{ width: options.size, height: options.size }}
         unoptimized
         width={options.size}
       />

@@ -14,6 +14,7 @@ const es: Dictionary = {
 
   signOut: "Cerrar sesión",
   settings: "Ajustes",
+  close: "Cerrar",
   backToJournal: "Volver al diario",
 
   errors: {
@@ -90,7 +91,8 @@ const es: Dictionary = {
     email: "Correo electrónico",
     preferences: "Preferencias",
     pronouns: "Pronombres",
-    pronounsHint: "Como prefieras que se refieran a vos, por ejemplo ella.",
+    pronounsHint: "Elegí uno o escribí el tuyo.",
+    pronounOptions: ["ella", "él", "elle", "ella/elle", "él/elle"],
     sex: "Sexo",
     treatment: "Trato preferido",
     treatmentHint: "El género gramatical que el diario usa cuando te escribe.",

@@ -1,10 +1,11 @@
 import ChatPanel from "./chat_panel";
+import DetectPreferences from "@/features/profile/components/detect_preferences";
 import LeftDrawer from "./left_drawer";
 import ShellHeader from "./shell_header";
 import TodayPanel from "./today_panel";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
-import type { Profile } from "@/features/profile/types";
+import { needsDetection, type Profile } from "@/features/profile/types";
 
 export interface AppShellOptions {
   t: Dictionary;
@@ -18,6 +19,7 @@ export interface AppShellOptions {
 export default function AppShell(options: AppShellOptions) {
   return (
     <div className="flex h-screen flex-col">
+      <DetectPreferences needed={needsDetection(options.profile.config)} />
       <ShellHeader
         email={options.profile.email}
         hasImage={options.hasImage}

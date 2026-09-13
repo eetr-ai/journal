@@ -12,6 +12,7 @@ const en = {
 
   signOut: "Sign out",
   settings: "Settings",
+  close: "Close",
   backToJournal: "Back to the journal",
 
   errors: {
@@ -88,7 +89,8 @@ const en = {
     email: "Email",
     preferences: "Preferences",
     pronouns: "Pronouns",
-    pronounsHint: "However you would like to be referred to, for example she/her.",
+    pronounsHint: "Pick one or write your own.",
+    pronounOptions: ["she/her", "he/him", "they/them", "she/they", "he/they", "ze/hir"],
     sex: "Sex",
     treatment: "Preferred treatment",
     treatmentHint: "The grammatical gender the journal uses when it writes to you.",

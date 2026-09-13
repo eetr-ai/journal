@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { THEME_COOKIE } from "@/theme/config";
 import { LOCALE_COOKIE } from "@/i18n/config";
-import { saveProfile, updateConfig, type SaveOutcome } from "./service";
+import { detectPreferences, saveProfile, updateConfig, type SaveOutcome } from "./service";
 import { clampTodayWidth } from "./types";
 import type { ProfileDraft } from "./rules";
 
@@ -36,4 +36,12 @@ export async function saveProfileAction(draft: ProfileDraft): Promise<SaveOutcom
  */
 export async function saveTodayWidthAction(width: number): Promise<void> {
   await updateConfig({ todayWidth: clampTodayWidth(width) });
+}
+
+/** Store what the browser could tell us about fields nobody has chosen yet. */
+export async function detectPreferencesAction(detected: {
+  timezone: string;
+  location: string;
+}): Promise<void> {
+  await detectPreferences(detected);
 }

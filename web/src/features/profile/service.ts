@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { auth } from "@/auth";
-import { defaultLocale } from "@/i18n/config";
+import { requestLocale } from "@/i18n/server";
 import { profileClient } from "./client";
 import { configFromDraft, validateProfile, type ProfileDraft, type ProfileIssues } from "./rules";
 import { defaultConfig, type Profile, type ProfileConfig } from "./types";
@@ -28,12 +28,14 @@ export const currentProfile = cache(async (): Promise<Profile | null> => {
     return existing;
   }
 
-  // First sign-in. Seed from the claims the provider gave us, and let the
-  // person correct any of it in settings.
+  // First sign-in. Seed from the claims the provider gave us and the language
+  // this request resolved to, and let the person correct any of it in settings.
+  // The time zone is left empty for the browser to fill in; nothing here can
+  // know it.
   return profileClient.save(subject, {
     email: session.user.email ?? "",
     name: session.user.name ?? "",
-    config: { ...defaultConfig, language: defaultLocale },
+    config: { ...defaultConfig, language: await requestLocale() },
   });
 });
 
@@ -56,6 +58,37 @@ export async function updateConfig(patch: Partial<ProfileConfig>): Promise<void>
     name: current.name,
     config: { ...current.config, ...patch },
   });
+}
+
+/**
+ * Adopt what the browser could tell us, for the fields nobody has chosen yet.
+ *
+ * Guarded field by field on the server: a value a person set is never replaced
+ * by a detected one, however often the browser offers.
+ */
+export async function detectPreferences(detected: {
+  timezone: string;
+  location: string;
+}): Promise<void> {
+  const current = await currentProfile();
+
+  if (!current) {
+    return;
+  }
+
+  const patch: Partial<ProfileConfig> = {};
+
+  if (current.config.timezone === "" && detected.timezone !== "") {
+    patch.timezone = detected.timezone;
+  }
+
+  if (current.config.location === "" && detected.location !== "") {
+    patch.location = detected.location;
+  }
+
+  if (Object.keys(patch).length > 0) {
+    await updateConfig(patch);
+  }
 }
 
 export type SaveOutcome =

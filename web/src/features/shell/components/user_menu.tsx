@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { GearSixIcon, SignOutIcon } from "@phosphor-icons/react";
 import Avatar from "./avatar";
-import LanguagePicker from "@/components/language_picker";
+import LanguageOptions from "./language_options";
+import MenuRow from "./menu_row";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
 const AVATAR_SIZE = 32;
-const ICON_SIZE = 16;
+const MENU_AVATAR_SIZE = 36;
+const ICON_SIZE = 15;
 
 export interface UserMenuOptions {
   name: string;
@@ -50,42 +51,36 @@ function useDismiss(onDismiss: () => void) {
   return ref;
 }
 
-function MenuItems(options: UserMenuOptions) {
+function MenuBody(options: UserMenuOptions) {
   const t = options.t;
 
   return (
     <>
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <Avatar hasImage={options.hasImage} name={options.name} size={AVATAR_SIZE} />
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        <Avatar hasImage={options.hasImage} name={options.name} size={MENU_AVATAR_SIZE} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{options.name}</p>
-          <p className="truncate text-xs text-muted">{options.email}</p>
+          <p className="truncate text-sm font-medium leading-tight">{options.name}</p>
+          <p className="truncate text-xs leading-tight text-muted">{options.email}</p>
         </div>
       </div>
 
-      <div className="p-1.5">
-        <Link
-          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-surface-muted"
-          href={`/${options.locale}/settings`}
-        >
-          <GearSixIcon size={ICON_SIZE} weight="fill" />
+      <div className="border-t border-border p-1">
+        <MenuRow href={`/${options.locale}/settings`} icon={<GearSixIcon size={ICON_SIZE} />}>
           {t.settings}
-        </Link>
-
-        <div className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-sm">
-          <span>{t.language}</span>
-          <LanguagePicker current={options.locale} label={t.language} />
-        </div>
+        </MenuRow>
       </div>
 
-      <form action={options.signOutAction} className="border-t border-border p-1.5">
-        <button
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-surface-muted"
-          type="submit"
-        >
-          <SignOutIcon size={ICON_SIZE} weight="fill" />
+      <div className="border-t border-border p-1">
+        <p className="px-2 pb-0.5 pt-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+          {t.language}
+        </p>
+        <LanguageOptions current={options.locale} />
+      </div>
+
+      <form action={options.signOutAction} className="border-t border-border p-1">
+        <MenuRow icon={<SignOutIcon size={ICON_SIZE} />} submit>
           {t.signOut}
-        </button>
+        </MenuRow>
       </form>
     </>
   );
@@ -101,7 +96,7 @@ export default function UserMenu(options: UserMenuOptions) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={options.name}
-        className="flex rounded-full ring-offset-2 ring-offset-surface focus:outline-none focus:ring-2 focus:ring-brand"
+        className="flex rounded-full ring-1 ring-border transition hover:ring-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         onClick={() => setOpen(!open)}
         type="button"
       >
@@ -110,10 +105,10 @@ export default function UserMenu(options: UserMenuOptions) {
 
       {open && (
         <div
-          className="absolute right-0 top-full z-10 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
+          className="absolute right-0 top-full z-20 mt-2 w-60 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
           role="menu"
         >
-          <MenuItems {...options} />
+          <MenuBody {...options} />
         </div>
       )}
     </div>

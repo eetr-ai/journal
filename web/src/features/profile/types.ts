@@ -60,7 +60,9 @@ export const defaultConfig: ProfileConfig = {
   treatment: "neutral",
   language: defaultLocale,
   location: "",
-  timezone: "UTC",
+  // Empty rather than "UTC": only the browser knows, and a wrong-but-plausible
+  // default is worse than an obviously absent one. See `needsDetection`.
+  timezone: "",
   theme: defaultTheme,
   todayWidth: DEFAULT_TODAY_WIDTH,
 };
@@ -110,6 +112,11 @@ export function configFromJson(raw: string): ProfileConfig {
         ? clampTodayWidth(parsed.todayWidth)
         : defaultConfig.todayWidth,
   };
+}
+
+/** Whether anything on this profile is still waiting on the browser to fill in. */
+export function needsDetection(config: ProfileConfig): boolean {
+  return config.timezone === "";
 }
 
 export function profileFromEntity(entity: ProfileEntity): Profile {

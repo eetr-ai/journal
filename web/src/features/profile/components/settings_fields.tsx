@@ -59,6 +59,7 @@ function Preferences(options: SettingsFieldsOptions) {
         field="pronouns"
         hint={t.profile.pronounsHint}
         label={t.profile.pronouns}
+        suggestions={t.profile.pronounOptions}
       />
       <SelectField
         error={error("sex")}

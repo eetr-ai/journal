@@ -17,3 +17,15 @@ export function timezoneOptions(current: string): string[] {
 export function detectedTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
+
+/**
+ * A rough place name from a time zone: `America/Vancouver` becomes `Vancouver`.
+ *
+ * A guess offered as a starting point, not a location. The real thing needs a
+ * permission prompt, and this field is for context rather than for tracking.
+ */
+export function locationFromTimezone(zone: string): string {
+  const city = zone.split("/").at(-1) ?? "";
+
+  return city.replaceAll("_", " ");
+}
