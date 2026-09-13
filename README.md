@@ -10,7 +10,7 @@ journal/
 ├── .env.example        # the shape of the .env every task reads
 ├── sql/                # the schema, idempotent, re-applied with `task db:migrate`
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
-├── agent/              # octo flows + their dolphin test suites
+├── agent/              # octo flows (one dir, many files) + dolphin suites
 ├── helm/               # the chart that deploys web + agent to the home lab
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
@@ -30,7 +30,7 @@ task dev                         # Postgres, then web and agent together
 ```
 
 - Web app: <http://localhost:3000>
-- Agent: <http://localhost:8080/hello> — flows hot-reload on save
+- Agent: <http://localhost:8080/hello> and `/health` — flows hot-reload on save
 - Octo visual editor (optional): `task agent:editor`, then <http://localhost:3100>
 - Postgres: `localhost:5432`, user/password/database all `journal`
 
@@ -51,7 +51,13 @@ a `SELECT true` so `task db:migrate` proves the connection and nothing more.
   `@eetr/react-reducer-utils`, `@eetr/ts-dnd-utils`.
 - **Flow tests from day one.** `task test` runs [dolphin](https://juancavallotti.github.io/octo/),
   octo's test runner: a flow is tested by the `*_test.yaml` suite beside it, the
-  way `orders.go` is tested by `orders_test.go`.
+  way `orders.go` is tested by `orders_test.go`. It drives the real `octo`
+  binary, so a case exercises the runtime that will actually serve the flow.
+- **The whole `agent/flows` directory is the config**, not one integration file.
+  `service.yaml` declares the identity and shared connectors — only one file may
+  — and each flow gets its own file beside it. `task agent:dev` runs the
+  directory with `--watch`, so editing a file, adding one, or deleting one all
+  take effect without a restart.
 - Phosphor icons and `react-markdown` for the UI.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.

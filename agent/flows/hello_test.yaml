@@ -1,5 +1,5 @@
-# The suite for hello-world.yaml. Sources are not started under test, so the
-# case supplies whatever the http source would normally have put on the message.
+# Sources are not started under test, so a case supplies whatever the http
+# source would have put on the message.
 flow: hello
 cases:
   - name: the endpoint answers with the greeting

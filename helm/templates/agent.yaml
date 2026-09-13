@@ -45,7 +45,7 @@ spec:
               drop: ["ALL"]
           readinessProbe:
             httpGet:
-              path: /hello
+              path: /health
               port: http
             initialDelaySeconds: 2
           resources:

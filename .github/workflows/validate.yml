@@ -47,10 +47,11 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27'
-      # dolphin is octo's test runner: it loads the config and runs each
-      # *_test.yaml suite against the flows beside it, so a flow that no longer
-      # parses or no longer returns what it promised fails the job.
+      # dolphin drives a real octo per case, so both binaries have to be here.
+      - run: go install github.com/juancavallotti/octo/runtime/octo@latest
       - run: go install github.com/juancavallotti/octo/runtime/dolphin@latest
+      # Runs each *_test.yaml against the whole flows directory, so a flow that
+      # no longer parses or no longer returns what it promised fails the job.
       - run: dolphin test ./agent/flows --junit dolphin-report.xml
 
       - if: always()
