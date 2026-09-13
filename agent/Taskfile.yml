@@ -10,9 +10,12 @@ vars:
 
 tasks:
   install:
-    desc: Install the latest octo binary into GOBIN
+    desc: Install the latest octo binary into the Go bin directory
     cmds:
       - go install {{.OCTO_PKG}}
+      # go install writes to GOBIN (or GOPATH/bin) and changes no PATH of its
+      # own, so say where the binary landed rather than assume it is reachable.
+      - 'echo "installed $(go env GOBIN || echo $(go env GOPATH)/bin)/octo"'
 
   dev:
     desc: Run the flows with hot reload

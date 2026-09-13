@@ -64,7 +64,8 @@ idempotent so that task is safe to run as often as you like.
 - [Docker](https://docs.docker.com/get-docker/), for Postgres
 - Go 1.27+, to install the octo binary
 - Node 22+
-- The octo binary on your `PATH` — `task agent:install` puts it there
+- The octo binary — `task agent:install` builds it into your Go bin directory
+  (`go env GOBIN`, else `$(go env GOPATH)/bin`), which needs to be on your `PATH`
 
 ## Releasing
 
