@@ -1,7 +1,7 @@
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr";
 import { signOut } from "@/auth";
 
-const ICON_SIZE = 14;
+const ICON_SIZE = 16;
 
 export interface SignOutButtonOptions {
   locale: string;
@@ -23,7 +23,7 @@ export default function SignOutButton(options: SignOutButtonOptions) {
       }}
     >
       <button
-        className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground"
+        className="flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-muted transition hover:border-muted hover:text-foreground"
         type="submit"
       >
         <SignOutIcon size={ICON_SIZE} weight="fill" />

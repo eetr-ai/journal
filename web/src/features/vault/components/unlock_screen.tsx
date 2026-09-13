@@ -57,7 +57,7 @@ function Body(options: UnlockScreenOptions) {
           <p className="mt-1 max-w-sm text-sm text-muted">{t.unlockPrompt}</p>
         </div>
 
-        <div className="flex w-full max-w-xs flex-col gap-3">
+        <div className="flex w-full max-w-sm flex-col gap-3">
           <VaultField
             autoComplete="current-password"
             id="vault-gate"
@@ -70,7 +70,7 @@ function Body(options: UnlockScreenOptions) {
 
           <div className="flex items-center gap-5">
             <button
-              className="flex-1 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-on-brand disabled:opacity-50"
+              className="flex-1 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
               disabled={state.busy}
               onClick={() => void byPassword(password)}
               type="button"
@@ -82,7 +82,7 @@ function Body(options: UnlockScreenOptions) {
 
           {state.passkeys.length > 0 && (
             <button
-              className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition hover:border-muted disabled:opacity-50"
               disabled={state.busy}
               onClick={() => void byPasskey()}
               type="button"
