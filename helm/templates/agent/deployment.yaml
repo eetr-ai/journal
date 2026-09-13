@@ -67,19 +67,3 @@ spec:
         - name: flows
           configMap:
             name: {{ .Values.agent.flowsConfigMap }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "journal.fullname" . }}-agent
-  labels:
-    {{- include "journal.labels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
-spec:
-  ports:
-    - name: http
-      port: {{ .Values.agent.service.port }}
-      targetPort: http
-  selector:
-    {{- include "journal.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
