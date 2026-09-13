@@ -24,6 +24,7 @@
   --color-brand-strong: var(--brand-strong);
   --color-on-brand: var(--on-brand);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
   --color-highlight: var(--highlight);
 
   --font-sans:
@@ -43,6 +44,7 @@
   --brand-strong: #18693b;
   --on-brand: #ffffff;
   --accent: #d6336c;
+  --on-accent: #ffffff;
   --highlight: #fcb00a;
 }
 
@@ -57,6 +59,7 @@
   --brand-strong: #9ed36f;
   --on-brand: #10160d;
   --accent: #ff7aa0;
+  --on-accent: #10160d;
   --highlight: #fcb00a;
 }
 

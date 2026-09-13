@@ -23,7 +23,7 @@ export default function SignOutButton(options: SignOutButtonOptions) {
       }}
     >
       <button
-        className="flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-muted transition hover:border-muted hover:text-foreground"
+        className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-on-accent transition hover:opacity-90"
         type="submit"
       >
         <SignOutIcon size={ICON_SIZE} weight="fill" />
