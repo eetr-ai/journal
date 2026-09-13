@@ -35,7 +35,7 @@ spec:
           # edit and not a chart edit.
           envFrom:
             - secretRef:
-                name: {{ .Values.auth.existingSecret }}
+                name: {{ include "journal.authSecretName" . }}
           # / answers as soon as the server is listening, which is all we check
           # for now. Replace with a real health endpoint when there is one.
           readinessProbe:
@@ -45,19 +45,3 @@ spec:
             initialDelaySeconds: 5
           resources:
             {{- toYaml .Values.web.resources | nindent 12 }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "journal.fullname" . }}-web
-  labels:
-    {{- include "journal.labels" . | nindent 4 }}
-    app.kubernetes.io/component: web
-spec:
-  ports:
-    - name: http
-      port: {{ .Values.web.service.port }}
-      targetPort: http
-  selector:
-    {{- include "journal.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: web

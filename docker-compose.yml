@@ -11,7 +11,10 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - journal-pgdata:/var/lib/postgresql/data
+      # A directory in the repo rather than a named volume: it survives
+      # `docker compose down -v`, it can be inspected and backed up with the
+      # tools you already have, and it is obvious where the data went. Gitignored.
+      - ./data/postgres:/var/lib/postgresql/data
       # Postgres runs these on first boot only, against an empty data
       # directory. An existing volume ignores any later edit to them.
       - ./sql:/docker-entrypoint-initdb.d:ro
@@ -21,6 +24,3 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
-
-volumes:
-  journal-pgdata:

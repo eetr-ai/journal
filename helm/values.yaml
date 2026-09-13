@@ -1,6 +1,6 @@
-# Deliberately thin: two deployments and an optional ingress, pointed at a
-# Postgres that already exists in the cluster. HPA, PDB, network policy and
-# resource tuning are absent on purpose and get added when we want them.
+# Deliberately thin: two deployments, an HTTPRoute, and a Postgres that lives
+# outside the cluster. HPA, PDB, network policy and resource tuning are absent on
+# purpose and get added when we want them.
 
 nameOverride: ""
 fullnameOverride: ""
@@ -16,7 +16,8 @@ web:
     tag: ""
   service:
     port: 3000
-  # Must be the URL the browser uses: OAuth callback URLs are built from it.
+  # Must be the URL the browser uses: OIDC callback URLs are built from it, and
+  # the issuer compares what it gets against what is registered.
   authUrl: http://journal.local
   resources: {}
 
@@ -39,28 +40,46 @@ agent:
   flowsConfigMap: journal-flows
   service:
     port: 8080
+  # The agent trusts its caller, so the only thing keeping it to the BFF is this.
+  # Turn it off only for a cluster whose CNI does not enforce policy, where it
+  # would be a promise nothing keeps.
+  networkPolicy:
+    enabled: true
   resources: {}
 
 postgres:
-  # Consumed by the agent only; the web app holds no database connection today.
-  # An existing secret, not a templated value: values end up in `helm get
-  # values`, in shell history, and in the release object. Create it by hand:
+  # The database is not in this chart and not in this cluster. A DSN is all the
+  # agent needs, and splitting it into parts here would only mean reassembling
+  # it there.
+  #
+  # The Secret is created before the release, by whoever holds the credential.
+  # The chart reads it and never writes one, because anything passed as a value
+  # ends up in `helm get values` and in the release object.
+  #
   #   kubectl create secret generic journal-postgres \
-  #     --from-literal=url='postgres://journal:...@postgres:5432/journal'
+  #     --from-literal=url='postgres://journal:...@postgres.internal:5432/journal'
   existingSecret: journal-postgres
   secretKey: url
 
 auth:
-  # Same reasoning. Holds AUTH_SECRET and the AUTH_OIDC_* pair.
+  # Holds AUTH_SECRET and the AUTH_OIDC_* pair, mounted with envFrom so its keys
+  # are the environment variable names the web app reads. Same reasoning as
+  # above: created before the release, never by it.
+  #
   #   kubectl create secret generic journal-auth \
   #     --from-literal=AUTH_SECRET=... \
   #     --from-literal=AUTH_OIDC_ID=... \
   #     --from-literal=AUTH_OIDC_SECRET=...
   existingSecret: journal-auth
 
-ingress:
-  enabled: false
-  className: ""
-  host: journal.local
-  annotations: {}
-  tls: []
+# Gateway API rather than Ingress. The chart brings the route; the Gateway itself
+# belongs to the cluster, so it is referenced and never created here.
+gateway:
+  enabled: true
+  parentRef:
+    name: ""
+    namespace: ""
+    # The listener on that Gateway, when it has more than one.
+    sectionName: ""
+  hostnames:
+    - journal.local

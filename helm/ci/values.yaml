@@ -1,0 +1,13 @@
+# Values for rendering the chart in CI, where nothing is deployed. The chart
+# names the Secrets it reads and refuses to render without them, so CI supplies
+# names — and nothing else, because no credential passes through values.
+postgres:
+  existingSecret: ci-postgres
+
+auth:
+  existingSecret: ci-auth
+
+gateway:
+  parentRef:
+    name: ci-gateway
+    namespace: ci

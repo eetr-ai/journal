@@ -1,0 +1,30 @@
+# Overrides for the local k3d cluster. Nothing secret is in here or anywhere else
+# in a value: `task cluster:secrets` creates the two Secrets from .env before the
+# chart is installed, and the chart only ever names them.
+#
+# The database is genuinely outside the cluster — it is the compose Postgres on
+# your host, which k3d reaches at host.k3d.internal.
+#
+# The image is built and imported rather than pulled — nothing has been published
+# to ghcr yet, and a local build is what we are testing.
+web:
+  image:
+    repository: journal-web
+    tag: local
+  # The origin the browser uses, and what OIDC callback URLs are built from.
+  # localhost:3000 on purpose: it is the redirect URI already registered with the
+  # issuer for local development, so the cluster needs no second one.
+  authUrl: http://localhost:3000
+
+image:
+  # The image only exists in the cluster's own store.
+  pullPolicy: IfNotPresent
+
+gateway:
+  parentRef:
+    name: local-gateway
+    namespace: kube-system
+  hostnames:
+    # Matched against the Host header without its port, so this covers
+    # localhost:3000 — which is where `task cluster:proxy` puts the Gateway.
+    - localhost

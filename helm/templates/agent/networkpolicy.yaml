@@ -1,0 +1,42 @@
+{{- if .Values.agent.networkPolicy.enabled -}}
+{{/*
+  The agent authenticates nobody.
+
+  It is the persistence layer: it writes what it is handed, and the BFF is what
+  decides whether a caller may ask. That is a deliberate split, and it only holds
+  while the BFF is the only thing that can reach it — otherwise any pod in the
+  cluster can read or replace another person's vault wrapper, or delete the
+  passkeys that open it.
+
+  A ClusterIP Service is not that restriction; it is only an address. This is.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "journal.fullname" . }}-agent
+  labels:
+    {{- include "journal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "journal.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent
+  policyTypes:
+    - Ingress
+  ingress:
+    # The web app, and nothing else in the cluster.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "journal.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: web
+      ports:
+        - port: {{ .Values.agent.port }}
+          protocol: TCP
+    # The runtime's probes come from the kubelet, which is not a pod and so
+    # matches no selector above. Left open by port rather than by source.
+    - ports:
+        - port: {{ .Values.agent.adminPort }}
+          protocol: TCP
+{{- end }}

@@ -36,8 +36,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: azure/setup-helm@v4
-      - run: helm lint helm
-      - run: helm template journal helm
+      - run: helm lint helm -f helm/ci/values.yaml
+      # The chart refuses to render without its secrets, so CI supplies
+      # throwaway ones.
+      - run: helm template journal helm -f helm/ci/values.yaml
 
   agent:
     name: agent
