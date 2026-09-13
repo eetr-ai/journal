@@ -1,0 +1,52 @@
+# Cluster-side setup for the local k3d cluster, not part of the chart.
+#
+# k3s ships Traefik and the Gateway API CRDs, but not the provider that joins
+# them, and not a Gateway for a route to attach to. This is the other half of
+# what the chart expects: the chart brings an HTTPRoute and references a Gateway,
+# because a Gateway belongs to whoever runs the cluster rather than to an app
+# deployed onto it.
+#
+# Both halves live in the repo so the local cluster can be rebuilt from it.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  # k3s re-runs its bundled Traefik chart when this changes, which restarts
+  # Traefik with --providers.kubernetesgateway.
+  valuesContent: |-
+    providers:
+      kubernetesGateway:
+        enabled: true
+---
+# Declared here rather than left to the Traefik chart's own toggles: this is the
+# contract the HTTPRoute attaches to, and it should be visible.
+#
+# Named `local-gateway` rather than `traefik-gateway`, which is the name the
+# Traefik chart uses for its own: sharing it means the chart resets whatever is
+# set here on its next reconcile, and `from: All` is exactly what it resets.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: traefik
+spec:
+  controllerName: traefik.io/gateway-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: local-gateway
+  namespace: kube-system
+spec:
+  gatewayClassName: traefik
+  listeners:
+    - name: web
+      # Traefik's `web` entrypoint inside the pod. The Service in front of it is
+      # what publishes 80.
+      port: 8000
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          # The app's route lives in its own namespace, not in kube-system.
+          from: All

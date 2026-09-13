@@ -1,6 +1,6 @@
-# Deliberately thin: two deployments and an optional ingress, pointed at a
-# Postgres that already exists in the cluster. HPA, PDB, network policy and
-# resource tuning are absent on purpose and get added when we want them.
+# Deliberately thin: two deployments, an HTTPRoute, and a Postgres that lives
+# outside the cluster. HPA, PDB, network policy and resource tuning are absent on
+# purpose and get added when we want them.
 
 nameOverride: ""
 fullnameOverride: ""
@@ -16,7 +16,8 @@ web:
     tag: ""
   service:
     port: 3000
-  # Must be the URL the browser uses: OAuth callback URLs are built from it.
+  # Must be the URL the browser uses: OIDC callback URLs are built from it, and
+  # the issuer compares what it gets against what is registered.
   authUrl: http://journal.local
   resources: {}
 
@@ -42,25 +43,37 @@ agent:
   resources: {}
 
 postgres:
-  # Consumed by the agent only; the web app holds no database connection today.
-  # An existing secret, not a templated value: values end up in `helm get
-  # values`, in shell history, and in the release object. Create it by hand:
-  #   kubectl create secret generic journal-postgres \
-  #     --from-literal=url='postgres://journal:...@postgres:5432/journal'
-  existingSecret: journal-postgres
+  # The database is not in this chart and not in this cluster. A DSN is all the
+  # agent needs, and splitting it into parts here would only mean reassembling
+  # it there.
+  #
+  # Locally, k3d reaches the host at host.k3d.internal, so the compose Postgres
+  # on your machine stands in for the real external one:
+  #   postgres://journal:journal@host.k3d.internal:5432/journal?sslmode=disable
+  url: ""
+  # Set this to a secret you created yourself and `url` is ignored and no secret
+  # is rendered. For anywhere that is not a laptop.
+  existingSecret: ""
   secretKey: url
 
 auth:
-  # Same reasoning. Holds AUTH_SECRET and the AUTH_OIDC_* pair.
-  #   kubectl create secret generic journal-auth \
-  #     --from-literal=AUTH_SECRET=... \
-  #     --from-literal=AUTH_OIDC_ID=... \
-  #     --from-literal=AUTH_OIDC_SECRET=...
-  existingSecret: journal-auth
+  # AUTH_SECRET signs the session cookie: openssl rand -base64 32
+  secret: ""
+  # The OIDC client registered with the issuer. Its redirect URI must be
+  # {web.authUrl}/api/auth/callback/eetr
+  oidcId: ""
+  oidcSecret: ""
+  # Same as postgres.existingSecret: name one and nothing is rendered.
+  existingSecret: ""
 
-ingress:
-  enabled: false
-  className: ""
-  host: journal.local
-  annotations: {}
-  tls: []
+# Gateway API rather than Ingress. The chart brings the route; the Gateway itself
+# belongs to the cluster, so it is referenced and never created here.
+gateway:
+  enabled: true
+  parentRef:
+    name: ""
+    namespace: ""
+    # The listener on that Gateway, when it has more than one.
+    sectionName: ""
+  hostnames:
+    - journal.local

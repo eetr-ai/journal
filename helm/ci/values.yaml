@@ -1,0 +1,15 @@
+# Values for rendering the chart in CI, where nothing is deployed and no value
+# here is real. The chart now refuses to render without its secrets, which is the
+# point — so CI has to supply throwaway ones.
+postgres:
+  url: postgres://journal:journal@postgres.example:5432/journal?sslmode=require
+
+auth:
+  secret: ci-only-not-a-real-secret
+  oidcId: ci-only-client-id
+  oidcSecret: ci-only-client-secret
+
+gateway:
+  parentRef:
+    name: ci-gateway
+    namespace: ci

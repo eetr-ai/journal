@@ -19,6 +19,10 @@ vars:
   # Spelled out rather than interpolated: compose owns these credentials, and
   # this is the one place they are duplicated.
   PSQL: docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U journal -d journal
+  # The local cluster the deploy tasks below talk to.
+  K3D_CLUSTER: journal-dev
+  NAMESPACE: journal
+  WEB_IMAGE: journal-web:local
 
 tasks:
   default:
@@ -61,10 +65,12 @@ tasks:
       - docker compose down
 
   db:reset:
-    desc: Destroy the Postgres volume and rebuild it from sql/
+    desc: Destroy the local Postgres data directory and rebuild it from sql/
     prompt: This drops the journal database and everything in it. Continue?
     cmds:
-      - docker compose down -v
+      - docker compose down
+      # The data is a bind mount now, so `down -v` does not touch it.
+      - rm -rf data/postgres
       - task: db:up
 
   db:migrate:
@@ -124,7 +130,9 @@ tasks:
   helm:lint:
     desc: Lint the Helm chart
     cmds:
-      - helm lint helm
+      # The chart refuses to render without its secrets, which is the point, so
+      # linting supplies throwaway ones.
+      - helm lint helm -f helm/ci/values.yaml
 
   helm:flows:
     desc: Apply agent/flows to the cluster as the ConfigMap the chart mounts
@@ -132,9 +140,56 @@ tasks:
       # Generated rather than templated into the chart: Helm can only read files
       # inside the chart directory, and copying the flows in would give them two
       # homes that drift.
-      - kubectl create configmap journal-flows --from-file=agent/flows --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create configmap journal-flows --from-file=agent/flows -n {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
 
   helm:template:
     desc: Render the Helm chart to stdout
     cmds:
-      - helm template journal helm
+      - helm template journal helm -f helm/ci/values.yaml
+
+  cluster:gateway:
+    desc: Enable Traefik's Gateway API provider on the local cluster
+    cmds:
+      # k3s ships the CRDs and Traefik but not the provider that joins them, so
+      # without this an HTTPRoute has nothing to attach to.
+      - kubectl apply -f deploy/local/traefik-gateway.yaml
+
+  image:web:
+    desc: Build the web image for the local cluster
+    cmds:
+      - docker build -t {{.WEB_IMAGE}} web
+
+  cluster:import:
+    desc: Push the locally built web image into the k3d cluster
+    deps:
+      - image:web
+    cmds:
+      # Nothing is published to ghcr yet, and a local build is what we are
+      # testing anyway.
+      - k3d image import {{.WEB_IMAGE}} -c {{.K3D_CLUSTER}}
+
+  deploy:
+    desc: Install or upgrade the chart on the local cluster
+    deps:
+      - cluster:import
+    cmds:
+      - kubectl create namespace {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
+      - task: helm:flows
+      # The secrets come from .env and never touch a committed file. They do
+      # reach `helm get values` and the release object, which is the trade the
+      # chart's own comments spell out; a real cluster names an existing secret
+      # instead.
+      - >-
+        helm upgrade --install journal helm
+        --namespace {{.NAMESPACE}}
+        -f helm/values-local.yaml
+        --set-string postgres.url="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@host.k3d.internal:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
+        --set-string auth.secret="$AUTH_SECRET"
+        --set-string auth.oidcId="$AUTH_OIDC_ID"
+        --set-string auth.oidcSecret="$AUTH_OIDC_SECRET"
+        --wait
+
+  undeploy:
+    desc: Remove the release from the local cluster
+    cmds:
+      - helm uninstall journal --namespace {{.NAMESPACE}}

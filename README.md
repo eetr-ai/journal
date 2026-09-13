@@ -119,26 +119,61 @@ oci://ghcr.io/eetr-ai/charts/journal # the Helm chart
 
 ## Deploying
 
-The chart expects two secrets to exist already, because values end up in `helm
-get values` and in shell history and neither is a place for credentials:
+The chart is deliberately thin: two Deployments, two Services, an HTTPRoute, and
+a Postgres that lives **outside** the cluster. It grows as we need it to.
+
+### Locally, on k3d
+
+The whole loop, against a cluster on your machine:
+
+```bash
+k3d cluster create journal-dev -p "80:80@loadbalancer"   # 80 is what makes it reachable
+task cluster:gateway                                     # Traefik's Gateway provider + a Gateway
+task db:up                                               # the "external" Postgres, on your host
+task deploy                                              # build, import, install
+```
+
+Then <http://journal.localhost>. `*.localhost` resolves to 127.0.0.1 on its own,
+so there is nothing to add to `/etc/hosts`.
+
+`task deploy` builds the web image, imports it into the cluster, pushes the flows
+as a ConfigMap and installs the chart, taking the database URL and the auth
+credentials from your `.env`. The database is genuinely external: the agent
+reaches your host's Postgres at `host.k3d.internal`, which is the same shape as
+the real thing.
+
+**Sign-in will stop at the issuer** until the OIDC client at auth.eetr.app lists
+`http://journal.localhost/api/auth/callback/eetr` as a redirect URI. The origin
+is whatever `web.authUrl` says, and the issuer compares exactly.
+
+### Secrets
+
+The chart renders them from values, so an install needs `postgres.url`,
+`auth.secret`, `auth.oidcId` and `auth.oidcSecret`, and refuses to render without
+them. **Those values reach `helm get values`, the release object in the cluster,
+and whatever shell history put them there** — fine for a laptop, and the reason
+`task deploy` passes them from `.env` rather than a committed file.
+
+Anywhere that is not a laptop, create the secret yourself and name it instead;
+the chart then renders none and reads yours:
 
 ```bash
 kubectl create secret generic journal-postgres \
-  --from-literal=url='postgres://journal:...@postgres:5432/journal'
-
-kubectl create secret generic journal-auth \
-  --from-literal=AUTH_SECRET=... \
-  --from-literal=AUTH_OIDC_ID=... \
-  --from-literal=AUTH_OIDC_SECRET=...
-
-# The agent runs the stock octo runtime image and reads its flows from a
-# ConfigMap, so push the flows before installing — and again whenever they change.
-task helm:flows
+  --from-literal=url='postgres://journal:...@postgres.internal:5432/journal'
 
 helm install journal oci://ghcr.io/eetr-ai/charts/journal \
-  --set ingress.enabled=true --set ingress.host=journal.home
+  --set postgres.existingSecret=journal-postgres \
+  --set auth.existingSecret=journal-auth
 ```
 
-The chart is deliberately thin — two Deployments, two Services, an optional
-Ingress — and points at a Postgres that already exists in the cluster. It grows
-as we need it to.
+### The Gateway
+
+Routing is Gateway API, not Ingress. The chart brings an `HTTPRoute` and
+**references** a Gateway — a Gateway belongs to whoever runs the cluster, not to
+an app deployed onto it — so point `gateway.parentRef` at one that exists.
+`deploy/local/traefik-gateway.yaml` is the other half for the local cluster, and
+`task cluster:gateway` applies it.
+
+The agent is never exposed: it holds the data and trusts its caller, so the route
+only fronts the web app. Reach the agent with `kubectl port-forward` when you
+need to.

@@ -36,7 +36,7 @@ spec:
             - name: POSTGRES_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.postgres.existingSecret }}
+                  name: {{ include "journal.postgresSecretName" . }}
                   key: {{ .Values.postgres.secretKey }}
           volumeMounts:
             - name: flows
