@@ -34,10 +34,7 @@ function open(): Promise<IDBDatabase | null> {
   return settled(request);
 }
 
-async function run<T>(
-  mode: IDBTransactionMode,
-  work: (store: IDBObjectStore) => IDBRequest<T>,
-): Promise<T | null> {
+async function read<T>(work: (store: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
   try {
     const database = await open();
 
@@ -45,11 +42,39 @@ async function run<T>(
       return null;
     }
 
-    return await settled(work(database.transaction(STORE, mode).objectStore(STORE)));
+    return await settled(work(database.transaction(STORE, "readonly").objectStore(STORE)));
   } catch {
     // Private windows and storage-blocking settings both land here. Losing the
     // cached key means unlocking again, not losing anything.
     return null;
+  }
+}
+
+/** Resolves on the transaction, not on the request: a request can succeed and
+ *  the transaction still abort, which would leave nothing written down. */
+function committed(transaction: IDBTransaction): Promise<boolean> {
+  return new Promise((resolve) => {
+    transaction.addEventListener("complete", () => resolve(true));
+    transaction.addEventListener("abort", () => resolve(false));
+    transaction.addEventListener("error", () => resolve(false));
+  });
+}
+
+async function write(work: (store: IDBObjectStore) => IDBRequest): Promise<boolean> {
+  try {
+    const database = await open();
+
+    if (!database) {
+      return false;
+    }
+
+    const transaction = database.transaction(STORE, "readwrite");
+
+    work(transaction.objectStore(STORE));
+
+    return await committed(transaction);
+  } catch {
+    return false;
   }
 }
 
@@ -63,24 +88,31 @@ function setMarker(present: boolean) {
     : `${UNLOCKED_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
-export async function rememberKey(subject: string, key: CryptoKey): Promise<void> {
-  await run("readwrite", (store) => store.put(key, subject));
-  setMarker(true);
+/** False when this browser will not keep the key — the marker is left unset so
+ *  the server does not render a journal the next page load cannot open. */
+export async function rememberKey(subject: string, key: CryptoKey): Promise<boolean> {
+  const stored = await write((store) => store.put(key, subject));
+
+  setMarker(stored);
+
+  return stored;
 }
 
 export async function recallKey(subject: string): Promise<CryptoKey | null> {
-  const value = await run<CryptoKey>("readonly", (store) => store.get(subject));
+  const value = await read<CryptoKey>((store) => store.get(subject));
 
   return value instanceof CryptoKey ? value : null;
 }
 
+// Locking clears the marker whether or not the delete went through: a browser
+// that cannot store the key has none to hand back anyway.
 export async function forgetKey(subject: string): Promise<void> {
-  await run("readwrite", (store) => store.delete(subject));
+  await write((store) => store.delete(subject));
   setMarker(false);
 }
 
 /** Everything, for sign-out: whoever signs in next is not this person. */
 export async function forgetEveryKey(): Promise<void> {
-  await run("readwrite", (store) => store.clear());
+  await write((store) => store.clear());
   setMarker(false);
 }

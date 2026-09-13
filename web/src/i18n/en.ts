@@ -128,7 +128,7 @@ const en = {
   vault: {
     title: "Private storage",
     summary:
-      "Your journal is encrypted with this password, and we cannot read it. Lose the password and your writing is effectively gone — tap for what that means.",
+      "Your journal is stored encrypted with this password, and what we keep cannot be read without it. Lose the password and your writing is effectively gone — tap for what that means.",
     protectTitle: "Protect your journal",
     protectPrompt:
       "Choose a password before you write anything. It is what encrypts your journal, and the only thing that can open it.",
@@ -169,6 +169,8 @@ const en = {
       passkeyUnsupported: "This browser or device cannot keep a key in a passkey.",
       passkeyFailed: "Your device did not finish that. Nothing changed.",
       rejected: "Those settings were refused as too weak to store.",
+      noStorage:
+        "This browser will not let us keep your key, so the journal cannot stay open. Private browsing and blocked site data both do this.",
       failed: "That did not save. Nothing changed.",
     },
   },

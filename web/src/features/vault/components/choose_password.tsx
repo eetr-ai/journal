@@ -23,11 +23,12 @@ export default function ChoosePassword(options: ChoosePasswordOptions) {
   const [confirm, setConfirm] = useState("");
   const t = options.t.vault;
 
+  // The password is handed on only once the vault is stored and open; every
+  // other outcome left an error on the state for this screen to show.
   async function submit() {
-    await create(password, confirm);
-    // `create` only reaches unlocked when it stored the vault; anything else
-    // left an error on the state and this hands nothing on.
-    options.onChosen(password);
+    if (await create(password, confirm)) {
+      options.onChosen(password);
+    }
   }
 
   return (

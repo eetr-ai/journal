@@ -46,8 +46,21 @@ CREATE TABLE IF NOT EXISTS user_vault (
   verifier        text        NOT NULL,
   wrapped_key     text        NOT NULL,
   created_at      timestamptz NOT NULL DEFAULT now(),
-  updated_at      timestamptz NOT NULL DEFAULT now()
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT user_vault_kdf_supported CHECK (kdf = 'argon2id')
 );
+
+-- The same constraint for a table that predates it. The BFF already refuses any
+-- other KDF; this is what stops a row written around it being read back as if
+-- Argon2id had produced it.
+DO $$
+BEGIN
+  ALTER TABLE user_vault ADD CONSTRAINT user_vault_kdf_supported CHECK (kdf = 'argon2id');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END
+$$;
 
 -- One row per passkey a person has enrolled for quick unlock.
 --

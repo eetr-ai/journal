@@ -1,5 +1,6 @@
 "use client";
 
+import { describedBy } from "./field_aria";
 import { SettingsActionType, useSettings } from "../settings_state";
 import type { ProfileDraft } from "../rules";
 
@@ -26,8 +27,9 @@ export default function SelectField(options: SelectFieldOptions) {
         {options.label}
       </label>
       <select
-        aria-describedby={options.hint ? `${id}-hint` : undefined}
-        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+        aria-describedby={describedBy(id, options)}
+        aria-invalid={options.error ? true : undefined}
+        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 aria-[invalid]:border-accent"
         id={id}
         onChange={(event) =>
           dispatch({
@@ -43,12 +45,16 @@ export default function SelectField(options: SelectFieldOptions) {
           </option>
         ))}
       </select>
-      {options.hint && (
+      {options.hint && !options.error && (
         <p className="text-xs text-muted" id={`${id}-hint`}>
           {options.hint}
         </p>
       )}
-      {options.error && <p className="text-xs text-accent">{options.error}</p>}
+      {options.error && (
+        <p className="text-xs text-accent" id={`${id}-error`}>
+          {options.error}
+        </p>
+      )}
     </div>
   );
 }

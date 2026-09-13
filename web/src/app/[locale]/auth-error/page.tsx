@@ -37,7 +37,7 @@ export default async function AuthError(options: AuthErrorOptions) {
           {t.errors.signIn.retry}
         </Link>
       ) : (
-        <Link className="text-sm text-muted hover:text-foreground" href={`/${locale}/signin`}>
+        <Link className="text-sm text-muted hover:text-foreground" href={`/${locale}`}>
           {t.errors.home}
         </Link>
       )}
