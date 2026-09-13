@@ -7,27 +7,37 @@ vars:
   # The runtime is a Go binary installed from the octo repo. Pinned to latest
   # for now; pin a tag here once we care which version we are running.
   OCTO_PKG: github.com/juancavallotti/octo/runtime/octo@latest
+  # Where `go install` puts things. `go env GOBIN` is empty and still exits 0
+  # when unset, so the fallback is selected on the output rather than the status.
+  GO_BIN:
+    sh: go env GOBIN | grep . || echo "$(go env GOPATH)/bin"
+  # Invoked by full path: `go install` adds nothing to PATH, so a machine whose
+  # Go bin directory is not already on it would otherwise get "command not found".
+  OCTO: '{{.GO_BIN}}/octo'
 
 tasks:
   install:
     desc: Install the latest octo binary into the Go bin directory
     cmds:
       - go install {{.OCTO_PKG}}
-      # go install writes to GOBIN (or GOPATH/bin) and changes no PATH of its
-      # own, so say where the binary landed rather than assume it is reachable.
-      - 'echo "installed $(go env GOBIN || echo $(go env GOPATH)/bin)/octo"'
+      - 'echo "installed {{.OCTO}}"'
 
   dev:
     desc: Run the flows with hot reload
     cmds:
       # --watch reloads the config when a file under flows/ changes, so editing
       # a flow does not mean restarting the stack.
-      - octo run --config ./flows --watch
+      - '{{.OCTO}} run --config ./flows --watch'
 
   invoke:
     desc: 'Invoke one flow directly, e.g. task agent:invoke -- hello'
+    vars:
+      # octo reads the request body from stdin when --data is omitted, which
+      # makes a bodyless invoke hang. Default it to an empty object; override
+      # with DATA='{"k":"v"}'.
+      DATA: '{{.DATA | default "{}"}}'
     cmds:
-      - octo invoke --config ./flows --flow {{.CLI_ARGS}}
+      - "{{.OCTO}} invoke --config ./flows --flow {{.CLI_ARGS}} --data '{{.DATA}}'" 
 
   editor:
     desc: Open the octo standalone visual editor against ./flows

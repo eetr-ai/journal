@@ -65,7 +65,8 @@ idempotent so that task is safe to run as often as you like.
 - Go 1.27+, to install the octo binary
 - Node 22+
 - The octo binary — `task agent:install` builds it into your Go bin directory
-  (`go env GOBIN`, else `$(go env GOPATH)/bin`), which needs to be on your `PATH`
+  (`go env GOBIN`, else `$(go env GOPATH)/bin`). The agent tasks call it by full
+  path, so that directory does not have to be on your `PATH`.
 
 ## Releasing
 
