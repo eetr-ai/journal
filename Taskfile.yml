@@ -31,9 +31,10 @@ tasks:
     cmds:
       - npm install
       - task: web:install
+      - task: agent:install
 
   dev:
-    desc: Bring up Postgres, then run the web app and the agent editor together
+    desc: Bring up Postgres, then run the web app and the agent together
     deps:
       - db:up
     cmds:

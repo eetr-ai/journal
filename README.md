@@ -10,7 +10,7 @@ journal/
 ├── .env.example        # the shape of the .env every task reads
 ├── sql/                # the schema, idempotent, re-applied with `task db:migrate`
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
-├── agent/              # octo flows, edited in the octo standalone editor
+├── agent/              # octo flows, run by the octo binary with hot reload
 ├── helm/               # the chart that deploys web + agent to the home lab
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
@@ -18,16 +18,20 @@ journal/
 ## Quick start
 
 ```bash
-# Auth.js needs a signing key and a GitHub OAuth app before it will sign anyone in.
+# .env at the repo root is the single source of truth: every task reads it.
 cp .env.example .env
 openssl rand -base64 32          # paste into AUTH_SECRET
+
+# Auth.js also needs a GitHub OAuth app before it will sign anyone in; the
+# model provider keys can stay empty until something uses them.
 
 task install                     # root + web dependencies
 task dev                         # Postgres, then web and agent together
 ```
 
 - Web app: <http://localhost:3000>
-- Octo editor: <http://localhost:3100> — the `hello-world` flow is already there
+- Agent: <http://localhost:8080/hello> — flows hot-reload on save
+- Octo visual editor (optional): `task agent:editor`, then <http://localhost:3100>
 - Postgres: `localhost:5432`, user/password/database all `journal`
 
 One `Ctrl-C` stops both apps; Postgres keeps running (`task db:down` stops it).
@@ -57,10 +61,10 @@ idempotent so that task is safe to run as often as you like.
 ### Prerequisites
 
 - [go-task](https://taskfile.dev/installation/) — `brew install go-task`
-- [Docker](https://docs.docker.com/get-docker/), for Postgres and the octo editor
+- [Docker](https://docs.docker.com/get-docker/), for Postgres
+- Go 1.27+, to install the octo binary
 - Node 22+
-- [octo](https://juancavallotti.github.io/octo/) on your `PATH`, only if you want
-  `task agent:invoke` — the editor carries its own runtime
+- The octo binary on your `PATH` — `task agent:install` puts it there
 
 ## Releasing
 

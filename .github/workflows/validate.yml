@@ -49,8 +49,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27'
-      # There is no build step for YAML flows, so the check that matters is that
-      # the runtime will actually load them. `octo invoke` parses the whole
-      # config before it runs anything, which makes a bad flow a failed job.
+      # No build step for YAML flows, so the check that matters is that the
+      # runtime loads them: invoke parses the whole config before running.
       - run: go install github.com/juancavallotti/octo/runtime/octo@latest
-      - run: octo invoke --config ./agent/flows --flow greet --data '{"date":"ci"}' --envelope
+      - run: octo invoke --config ./agent/flows --flow hello --data '{}' --envelope

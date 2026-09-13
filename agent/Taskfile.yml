@@ -1,27 +1,34 @@
 version: '3'
 
-# Tasks for the journal agent. Nothing to build: the flows are YAML and the
-# runtime that executes them ships inside the image.
+# Tasks for the journal agent. Nothing to build: the flows are YAML and octo
+# executes them directly.
 
 vars:
-  IMAGE: juancavallotti/octo
-  # Not 3000: that port is taken under `task dev`.
-  PORT: 3100
+  # The runtime is a Go binary installed from the octo repo. Pinned to latest
+  # for now; pin a tag here once we care which version we are running.
+  OCTO_PKG: github.com/juancavallotti/octo/runtime/octo@latest
 
 tasks:
-  dev:
-    desc: Run the octo standalone editor against ./flows
+  install:
+    desc: Install the latest octo binary into GOBIN
     cmds:
-      # The image reads and writes flow YAML under /work, so Save lands in the
-      # repo rather than in the container.
-      - docker run --rm -p {{.PORT}}:3000 -v "$PWD/flows:/work" --name journal-agent {{.IMAGE}}
+      - go install {{.OCTO_PKG}}
 
-  pull:
-    desc: Pull the latest octo standalone image
+  dev:
+    desc: Run the flows with hot reload
     cmds:
-      - docker pull {{.IMAGE}}
+      # --watch reloads the config when a file under flows/ changes, so editing
+      # a flow does not mean restarting the stack.
+      - octo run --config ./flows --watch
 
   invoke:
-    desc: 'Invoke one flow with the local octo CLI, e.g. task agent:invoke -- greet'
+    desc: 'Invoke one flow directly, e.g. task agent:invoke -- hello'
     cmds:
       - octo invoke --config ./flows --flow {{.CLI_ARGS}}
+
+  editor:
+    desc: Open the octo standalone visual editor against ./flows
+    cmds:
+      # The editor ships as a container with its own runtime. Port 3100 because
+      # 3000 is taken under `task dev`.
+      - docker run --rm -p 3100:3000 -v "$PWD/flows:/work" --name journal-editor juancavallotti/octo

@@ -1,25 +1,27 @@
-# Hello world. A cron tick and a log line, so the editor has something to open
-# and `task agent:invoke -- greet` has something to run.
+# Hello world. One HTTP endpoint so there is something to curl while the rest of
+# the stack comes up.
 service:
   name: journal
 
+env:
+  - name: HTTP_PORT
+    default: "8080"
+
 connectors:
-  - name: ticker
-    type: cron
+  - name: api
+    type: http
+    settings:
+      port: ${HTTP_PORT}
 
 flows:
-  - name: greet
+  - name: hello
     source:
-      connector: ticker
-      type: cron
+      connector: api
+      type: http
       settings:
-        # Six fields, seconds first: fire on second 0 of every minute.
-        schedule: "0 * * * * *"
-        # CEL, evaluated at fire time with `now` bound to the moment it fired.
-        payload: '{"date": string(now)}'
+        path: /hello
     process:
-      - type: log
-        name: greeter
+      - type: set-payload
+        name: greeting
         settings:
-          level: info
-          message: '"journal agent is alive, the date is " + body.date'
+          value: '{"message": "hello world"}'
