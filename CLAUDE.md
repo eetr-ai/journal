@@ -51,10 +51,16 @@ People's writing is encrypted in the browser under a key derived from their
 password. The threat model is specific, and the disclaimer in the app matches it
 exactly — change one and change the other.
 
-- **The key never reaches the server through a cookie or a header.** A cookie
-  rides along on every request and ends up in proxies and access logs. If a
-  request genuinely needs the key, it goes in that request's body and nowhere
-  else.
+- **Signing in is not enough.** A vault that exists is opened with its password
+  before the journal renders. The server decides that from a cookie saying only
+  *that* a key is present in this browser; it is not a credential, and the page
+  behind it re-checks and clears it if the key is gone.
+- **The key never reaches the server through a cookie or a header.** Not because
+  the session cookie is readable — it is a JWE — but because the server holds the
+  key that decrypts it, and the server is the adversary this protects against. A cookie
+  A cookie would put the key in the server process on every request, including
+  the ones with nothing to do with the vault. If a request genuinely needs it, it
+  goes in that request's body and nowhere else.
 - **Argon2id runs in the browser.** A password that reaches the server is a key
   that reaches the server.
 - **The data key is imported non-extractable.** Anything that needs the raw

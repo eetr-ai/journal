@@ -57,6 +57,14 @@ export const initialVaultState: VaultUiState = {
   error: null,
 };
 
+/** A vault known to exist and known not to be open yet. */
+export function lockedVaultState(stored: {
+  vault: Vault | null;
+  passkeys: VaultPasskey[];
+}): VaultUiState {
+  return { ...initialVaultState, ...stored, status: "locked" };
+}
+
 function statusFor(vault: Vault | null, dataKey: CryptoKey | null): VaultStatus {
   if (!vault) {
     return "absent";

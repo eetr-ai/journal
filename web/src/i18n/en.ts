@@ -143,6 +143,8 @@ const en = {
     confirm: "Confirm password",
     create: "Encrypt my journal",
     creating: "Setting up...",
+    unlockTitle: "Unlock your journal",
+    unlockPrompt: "Your writing is encrypted. Your password is the only thing that opens it.",
     unlock: "Unlock",
     unlocking: "Unlocking...",
     unlockWithPasskey: "Use a passkey",

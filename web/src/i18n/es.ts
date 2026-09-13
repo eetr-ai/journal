@@ -145,6 +145,8 @@ const es: Dictionary = {
     confirm: "Confirmar contraseña",
     create: "Cifrar mi diario",
     creating: "Configurando...",
+    unlockTitle: "Desbloqueá tu diario",
+    unlockPrompt: "Lo que escribís está cifrado. Tu contraseña es lo único que lo abre.",
     unlock: "Desbloquear",
     unlocking: "Desbloqueando...",
     unlockWithPasskey: "Usar una passkey",
