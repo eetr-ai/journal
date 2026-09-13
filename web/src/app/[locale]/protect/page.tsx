@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import ProtectScreen from "@/features/vault/components/protect_screen";
+import SignOutButton from "@/features/auth/components/sign_out_button";
 import { currentProfile } from "@/features/profile/service";
 import { vaultGate } from "@/features/vault/gate";
 import { dictionary } from "@/i18n/dictionaries";
@@ -28,11 +29,20 @@ export default async function Protect(options: ProtectOptions) {
     redirect(gate === "unlock" ? `/${locale}/unlock` : `/${locale}`);
   }
 
+  const t = dictionary(locale);
+
   return (
-    <ProtectScreen
-      identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
-      locale={locale}
-      t={dictionary(locale)}
-    />
+    <>
+      {/* These screens come before the app, so the menu that normally
+          carries this is not on them. Being unable to leave is a trap. */}
+      <div className="absolute right-6 top-6">
+        <SignOutButton label={t.signOut} locale={locale} />
+      </div>
+      <ProtectScreen
+        identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
+        locale={locale}
+        t={t}
+      />
+    </>
   );
 }

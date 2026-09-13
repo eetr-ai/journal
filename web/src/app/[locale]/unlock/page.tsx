@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import UnlockScreen from "@/features/vault/components/unlock_screen";
+import SignOutButton from "@/features/auth/components/sign_out_button";
 import { currentProfile } from "@/features/profile/service";
 import { currentVault } from "@/features/vault/service";
 import { vaultGate } from "@/features/vault/gate";
@@ -31,13 +32,22 @@ export default async function Unlock(options: UnlockOptions) {
 
   const stored = await currentVault();
 
+  const t = dictionary(locale);
+
   return (
-    <UnlockScreen
-      identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
-      locale={locale}
-      passkeys={stored.passkeys}
-      t={dictionary(locale)}
-      vault={stored.vault!}
-    />
+    <>
+      {/* These screens come before the app, so the menu that normally
+          carries this is not on them. Being unable to leave is a trap. */}
+      <div className="absolute right-6 top-6">
+        <SignOutButton label={t.signOut} locale={locale} />
+      </div>
+      <UnlockScreen
+        identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
+        locale={locale}
+        passkeys={stored.passkeys}
+        t={t}
+        vault={stored.vault!}
+      />
+    </>
   );
 }

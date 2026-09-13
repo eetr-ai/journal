@@ -127,6 +127,8 @@ const en = {
 
   vault: {
     title: "Private storage",
+    summary:
+      "Your journal is encrypted with this password, and we cannot read it. Lose the password and your writing is effectively gone — tap for what that means.",
     protectTitle: "Protect your journal",
     protectPrompt:
       "Choose a password before you write anything. It is what encrypts your journal, and the only thing that can open it.",

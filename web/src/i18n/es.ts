@@ -129,6 +129,8 @@ const es: Dictionary = {
 
   vault: {
     title: "Almacenamiento privado",
+    summary:
+      "Tu diario se cifra con esta contraseña, y no podemos leerlo. Si la perdés, lo que escribiste se pierde en la práctica: tocá para ver qué significa eso.",
     protectTitle: "Protegé tu diario",
     protectPrompt:
       "Elegí una contraseña antes de escribir nada. Es lo que cifra tu diario, y lo único que puede abrirlo.",
