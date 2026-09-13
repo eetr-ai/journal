@@ -5,6 +5,7 @@ import { FingerprintIcon, LockIcon } from "@phosphor-icons/react";
 import PasskeyList from "./passkey_list";
 import VaultError from "./vault_error";
 import VaultField from "./vault_field";
+import { deviceLabel } from "../device";
 import { useVaultDevices, type VaultIdentity } from "../use_vault_operations";
 import { useVault } from "../vault_state";
 import type { Dictionary } from "@/i18n/en";
@@ -14,10 +15,6 @@ const ICON_SIZE = 15;
 export interface VaultUnlockedOptions {
   t: Dictionary;
   identity: VaultIdentity;
-}
-
-function deviceLabel(): string {
-  return navigator.platform || "This device";
 }
 
 export default function VaultUnlocked(options: VaultUnlockedOptions) {

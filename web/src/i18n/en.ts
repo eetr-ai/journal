@@ -155,6 +155,10 @@ const en = {
     lock: "Lock now",
     passkeys: "Passkeys",
     noPasskeys: "No passkeys yet. One lets you unlock on this device without typing your password.",
+    passkeyStepTitle: "Add a faster way in",
+    passkeyStepPrompt:
+      "A passkey opens your journal with your fingerprint or face, and is a second way back in if the password ever slips your mind.",
+    notNow: "Not now",
     addPasskey: "Add a passkey",
     addingPasskey: "Waiting for your device...",
     removePasskey: "Remove",

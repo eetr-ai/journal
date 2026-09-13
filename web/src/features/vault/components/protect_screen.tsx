@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { SimpleProvider } from "@eetr/react-reducer-utils";
-import VaultDisclaimer from "./vault_disclaimer";
-import VaultError from "./vault_error";
-import VaultField from "./vault_field";
-import { useVaultUnlock, type VaultIdentity } from "../use_vault_operations";
+import ChoosePassword from "./choose_password";
+import OfferPasskey from "./offer_passkey";
+import { passkeysAreAvailable } from "../passkey";
 import {
   VaultDispatchContext,
   VaultStateContext,
@@ -17,6 +16,7 @@ import {
 } from "../vault_state";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
+import type { VaultIdentity } from "../use_vault_operations";
 
 const MASCOT_SIZE = 120;
 
@@ -28,62 +28,46 @@ export interface ProtectScreenOptions {
 
 function Body(options: ProtectScreenOptions) {
   const { state } = useVault();
-  const { create } = useVaultUnlock(options.identity);
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const router = useRouter();
-  const t = options.t.vault;
 
-  useEffect(() => {
-    if (state.status === "unlocked") {
-      router.replace(`/${options.locale}`);
+  function toJournal() {
+    router.replace(`/${options.locale}`);
+  }
+
+  // The password is only handed over once the vault is actually stored, so an
+  // unlocked state here means step one is genuinely behind us.
+  function chosen(chosenPassword: string) {
+    if (!passkeysAreAvailable()) {
+      toJournal();
+      return;
     }
-  }, [state.status, router, options.locale]);
+
+    setPassword(chosenPassword);
+  }
+
+  const offering = state.status === "unlocked" && password !== "";
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-6 p-8">
       <Image alt="" height={MASCOT_SIZE} priority src="/mascot.png" width={MASCOT_SIZE} />
 
-      <div className="text-center">
-        <h1 className="text-xl font-semibold">{t.protectTitle}</h1>
-        <p className="mt-1 text-sm text-muted">{t.protectPrompt}</p>
-      </div>
-
-      <VaultDisclaimer t={options.t} />
-
-      <div className="grid w-full gap-4 sm:grid-cols-2">
-        <VaultField
-          autoComplete="new-password"
-          id="vault-password"
-          label={t.password}
-          onChange={setPassword}
-          value={password}
+      {offering ? (
+        <OfferPasskey
+          identity={options.identity}
+          onDone={toJournal}
+          password={password}
+          t={options.t}
         />
-        <VaultField
-          autoComplete="new-password"
-          id="vault-confirm"
-          label={t.confirm}
-          onChange={setConfirm}
-          value={confirm}
-        />
-      </div>
-
-      <VaultError t={options.t} />
-
-      <button
-        className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
-        disabled={state.busy}
-        onClick={() => void create(password, confirm)}
-        type="button"
-      >
-        {state.busy ? t.creating : t.create}
-      </button>
+      ) : (
+        <ChoosePassword identity={options.identity} onChosen={chosen} t={options.t} />
+      )}
     </main>
   );
 }
 
 /**
- * Choosing the password, before anything else.
+ * Choosing the password, then being offered a faster way back in.
  *
  * Not a step in settings: there is no version of this app that stores writing
  * unencrypted, so this is the first screen after signing in and there is no way

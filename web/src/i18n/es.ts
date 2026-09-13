@@ -158,6 +158,10 @@ const es: Dictionary = {
     passkeys: "Passkeys",
     noPasskeys:
       "Todavía no hay ninguna. Una passkey te deja desbloquear en este dispositivo sin escribir la contraseña.",
+    passkeyStepTitle: "Sumá una forma más rápida de entrar",
+    passkeyStepPrompt:
+      "Una passkey abre tu diario con tu huella o tu cara, y es una segunda forma de volver a entrar si alguna vez se te va la contraseña.",
+    notNow: "Ahora no",
     addPasskey: "Agregar una passkey",
     addingPasskey: "Esperando a tu dispositivo...",
     removePasskey: "Quitar",
