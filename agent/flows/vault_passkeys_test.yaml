@@ -1,0 +1,33 @@
+# See vault_test.yaml. This suite owns `dolphin-vault-keys` and writes to nothing
+# else: vault_test.yaml reads its own subject concurrently with this running.
+flow: vault-passkeys
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: enrolling a passkey stores its own wrapping of the data key
+    input:
+      data:
+        credential_id: dolphin-new-credential
+        prf_salt: bmV3LXNhbHQ=
+        wrapped_key: bmV3LXdyYXA=
+        label: Test Key
+      vars: { method: POST, subject: dolphin-vault-keys }
+    expect:
+      that:
+        - body.credential_id == "dolphin-new-credential"
+        - body.wrapped_key == "bmV3LXdyYXA="
+        - body.label == "Test Key"
+
+  - name: re-enrolling the same credential replaces its wrapping rather than duplicating it
+    input:
+      data:
+        credential_id: dolphin-credential
+        prf_salt: cmUtc2FsdA==
+        wrapped_key: cmUtd3JhcA==
+        label: Seeded Laptop
+      vars: { method: POST, subject: dolphin-vault-keys }
+    expect:
+      that:
+        - body.wrapped_key == "cmUtd3JhcA=="

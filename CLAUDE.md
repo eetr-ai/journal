@@ -45,6 +45,32 @@ Comments document **algorithms and contracts**, in the file they live in.
   what a value may be lives in the BFF, in a pure module the form and the
   server action both call, so the two can never disagree.
 
+## Private data
+
+People's writing is encrypted in the browser under a key derived from their
+password. The threat model is specific, and the disclaimer in the app matches it
+exactly — change one and change the other.
+
+- **The key never reaches the server through a cookie or a header.** A cookie
+  rides along on every request and ends up in proxies and access logs. If a
+  request genuinely needs the key, it goes in that request's body and nowhere
+  else.
+- **Argon2id runs in the browser.** A password that reaches the server is a key
+  that reaches the server.
+- **The data key is imported non-extractable.** Anything that needs the raw
+  bytes — enrolling a passkey re-wraps them — asks for the password again.
+- **What we hold is deliberately useless.** Salt, KDF parameters, a verifier
+  under its own HKDF label, and the key wrapped under a key we never see. The
+  server's only judgement is refusing parameters weaker than the floor in
+  `features/vault/rules.ts`.
+- **What is tolerated, and must stay tolerated rather than grow:** plaintext and
+  the key in server memory for the length of a request the person initiated, for
+  retrieval. Never written down, never logged.
+- **What is not protected, and the disclaimer says so:** the search index —
+  keywords and embeddings — is plaintext, and embeddings are substantially
+  invertible. Neither is a memory dump, and neither is a deploy: we serve the
+  client, so this is trust-on-deploy and no wording should imply otherwise.
+
 ## Testing flows
 
 A flow is tested by the suite beside it: `orders.yaml` is tested by

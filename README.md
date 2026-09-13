@@ -74,6 +74,13 @@ the agent in Postgres.
   fixed set of coarse codes and keeps the cause to itself; `web/src/features/auth`
   turns each code into plain language in both locales, says whether trying again
   could help, and prints the reference. The real cause is logged server-side.
+- **Private storage, encrypted in the browser.** A password is stretched with
+  Argon2id and split by HKDF into a verifier we store and a wrapping key we
+  never see; the data key is random, wrapped, and imported non-extractable. A
+  passkey holds a second wrapping of the same key through the WebAuthn PRF
+  extension, so quick unlock needs no password. What reaches the database cannot
+  decrypt anything. See **Private data** in [CLAUDE.md](CLAUDE.md) for what that
+  does and does not cover.
 - Phosphor icons and `react-markdown` for the UI.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.

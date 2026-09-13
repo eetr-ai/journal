@@ -127,6 +127,45 @@ const es: Dictionary = {
     },
   },
 
+  vault: {
+    title: "Almacenamiento privado",
+    absent: "Todavía no ciframos lo que escribís.",
+    lockedState: "Bloqueado",
+    unlockedState: "Desbloqueado en este dispositivo",
+    protectedTitle: "Qué protege esto",
+    protectedBody:
+      "Tus entradas y conversaciones se cifran en este navegador, con una clave derivada de tu contraseña, antes de llegarnos. Guardamos el resultado y nunca la clave, así que nadie que lea nuestra base de datos, nuestros backups o un volcado de cualquiera de los dos puede leer lo que escribís. Eso incluye a quien opera este servicio.",
+    visibleTitle: "Qué sigue siendo legible",
+    visibleBody:
+      "Para que la búsqueda funcione, guardamos sin cifrar palabras clave y embeddings numéricos de lo que escribís. Los embeddings no son un resumen seguro: se puede reconstruir buena parte del texto original a partir de ellos. Y cuando le preguntás algo al asistente sobre tu diario, las entradas que necesita se descifran en memoria para responderte, nunca se guardan así, y nunca quedan en los registros.",
+    lossTitle: "Si olvidás tu contraseña",
+    lossBody:
+      "Nadie puede recuperar lo que escribiste, porque nadie tuvo nunca la clave. Una passkey abre los mismos datos, así que tener una también es una forma de volver a entrar, pero si perdés las dos se pierde para siempre.",
+    password: "Contraseña",
+    confirm: "Confirmar contraseña",
+    create: "Cifrar mi diario",
+    creating: "Configurando...",
+    unlock: "Desbloquear",
+    unlocking: "Desbloqueando...",
+    unlockWithPasskey: "Usar una passkey",
+    lock: "Bloquear ahora",
+    passkeys: "Passkeys",
+    noPasskeys:
+      "Todavía no hay ninguna. Una passkey te deja desbloquear en este dispositivo sin escribir la contraseña.",
+    addPasskey: "Agregar una passkey",
+    addingPasskey: "Esperando a tu dispositivo...",
+    removePasskey: "Quitar",
+    errors: {
+      tooShort: "Usá al menos 12 caracteres. Es lo único que protege lo que escribís.",
+      mismatch: "Esas dos no coinciden.",
+      wrongPassword: "Esa contraseña no abre esta bóveda.",
+      passkeyUnsupported: "Este navegador o dispositivo no puede guardar una clave en una passkey.",
+      passkeyFailed: "Tu dispositivo no completó la operación. No cambió nada.",
+      rejected: "Rechazamos esa configuración por ser demasiado débil para guardarla.",
+      failed: "No se guardó. No cambió nada.",
+    },
+  },
+
   validation: {
     required: "Esto no puede estar vacío",
     tooLong: "Esto es demasiado largo",

@@ -125,6 +125,44 @@ const en = {
     },
   },
 
+  vault: {
+    title: "Private storage",
+    absent: "Your writing is not encrypted yet.",
+    lockedState: "Locked",
+    unlockedState: "Unlocked on this device",
+    protectedTitle: "What this protects",
+    protectedBody:
+      "Your entries and conversations are encrypted in this browser, with a key derived from your password, before they reach us. We store the result and never the key — so nobody reading our database, our backups, or a dump of either can read your writing. That includes whoever runs this service.",
+    visibleTitle: "What stays readable",
+    visibleBody:
+      "To make search work, keywords and numerical embeddings of your writing are stored unencrypted. Embeddings are not a safe summary: a good deal of the original wording can be reconstructed from them. And when you ask the assistant about your journal, the entries it needs are decrypted in memory to answer you — never stored that way, and never logged.",
+    lossTitle: "If you forget your password",
+    lossBody:
+      "Nobody can recover your writing, because nobody ever had the key. A passkey unlocks the same data, so keeping one is also a way back in — but lose both and it is gone for good.",
+    password: "Password",
+    confirm: "Confirm password",
+    create: "Encrypt my journal",
+    creating: "Setting up...",
+    unlock: "Unlock",
+    unlocking: "Unlocking...",
+    unlockWithPasskey: "Use a passkey",
+    lock: "Lock now",
+    passkeys: "Passkeys",
+    noPasskeys: "No passkeys yet. One lets you unlock on this device without typing your password.",
+    addPasskey: "Add a passkey",
+    addingPasskey: "Waiting for your device...",
+    removePasskey: "Remove",
+    errors: {
+      tooShort: "Use at least 12 characters. This is the only thing protecting your writing.",
+      mismatch: "Those two do not match.",
+      wrongPassword: "That password does not open this vault.",
+      passkeyUnsupported: "This browser or device cannot keep a key in a passkey.",
+      passkeyFailed: "Your device did not finish that. Nothing changed.",
+      rejected: "Those settings were refused as too weak to store.",
+      failed: "That did not save. Nothing changed.",
+    },
+  },
+
   validation: {
     required: "This cannot be empty",
     tooLong: "This is too long",

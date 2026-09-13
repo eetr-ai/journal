@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GearSixIcon, SignOutIcon } from "@phosphor-icons/react";
 import Avatar from "./avatar";
+import { forgetEveryKey } from "@/features/vault/session";
 import LanguageOptions from "./language_options";
 import MenuRow from "./menu_row";
 import type { Dictionary } from "@/i18n/en";
@@ -77,7 +78,13 @@ function MenuBody(options: UserMenuOptions) {
         <LanguageOptions current={options.locale} />
       </div>
 
-      <form action={options.signOutAction} className="border-t border-border p-1">
+      {/* The unlocked data key is cleared before the session goes: whoever
+          signs in next is not this person. */}
+      <form
+        action={options.signOutAction}
+        className="border-t border-border p-1"
+        onSubmit={() => void forgetEveryKey()}
+      >
         <MenuRow icon={<SignOutIcon size={ICON_SIZE} />} submit>
           {t.signOut}
         </MenuRow>
