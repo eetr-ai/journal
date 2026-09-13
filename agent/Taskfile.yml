@@ -31,13 +31,15 @@ tasks:
 
   invoke:
     desc: 'Invoke one flow directly, e.g. task agent:invoke -- hello'
-    vars:
-      # octo reads the request body from stdin when --data is omitted, which
-      # makes a bodyless invoke hang. Default it to an empty object; override
-      # with DATA='{"k":"v"}'.
+    env:
+      # Passed through the environment rather than interpolated into the command
+      # line, so a body containing a quote is not re-parsed by the shell.
+      #
+      # octo reads the body from stdin when --data is omitted, which makes a
+      # bodyless invoke hang, hence the empty-object default.
       DATA: '{{.DATA | default "{}"}}'
     cmds:
-      - "{{.OCTO}} invoke --config ./flows --flow {{.CLI_ARGS}} --data '{{.DATA}}'" 
+      - '{{.OCTO}} invoke --config ./flows --flow {{.CLI_ARGS}} --data "$DATA"' 
 
   editor:
     desc: Open the octo standalone visual editor against ./flows
