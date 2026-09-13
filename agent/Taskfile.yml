@@ -1,27 +1,60 @@
 version: '3'
 
-# Tasks for the journal agent. Nothing to build: the flows are YAML and the
-# runtime that executes them ships inside the image.
+# Tasks for the journal agent. Nothing to build: the flows are YAML and octo
+# executes them directly.
 
 vars:
-  IMAGE: juancavallotti/octo
-  # Not 3000: that port is taken under `task dev`.
-  PORT: 3100
+  # The runtime is a Go binary installed from the octo repo. Pinned to latest
+  # for now; pin a tag here once we care which version we are running.
+  OCTO_PKG: github.com/juancavallotti/octo/runtime/octo@latest
+  # dolphin is octo's test runner: it drives flows the way `go test` drives a
+  # package, from a *_test.yaml suite beside each flow file.
+  DOLPHIN_PKG: github.com/juancavallotti/octo/runtime/dolphin@latest
+  # Where `go install` puts things. `go env GOBIN` is empty and still exits 0
+  # when unset, so the fallback is selected on the output rather than the status.
+  GO_BIN:
+    sh: go env GOBIN | grep . || echo "$(go env GOPATH)/bin"
+  # Invoked by full path: `go install` adds nothing to PATH, so a machine whose
+  # Go bin directory is not already on it would otherwise get "command not found".
+  OCTO: '{{.GO_BIN}}/octo'
+  DOLPHIN: '{{.GO_BIN}}/dolphin'
 
 tasks:
-  dev:
-    desc: Run the octo standalone editor against ./flows
+  install:
+    desc: Install the latest octo and dolphin binaries into the Go bin directory
     cmds:
-      # The image reads and writes flow YAML under /work, so Save lands in the
-      # repo rather than in the container.
-      - docker run --rm -p {{.PORT}}:3000 -v "$PWD/flows:/work" --name journal-agent {{.IMAGE}}
+      - go install {{.OCTO_PKG}}
+      - go install {{.DOLPHIN_PKG}}
+      - 'echo "installed {{.OCTO}} and {{.DOLPHIN}}"'
 
-  pull:
-    desc: Pull the latest octo standalone image
+  test:
+    desc: Run the flow test suites
     cmds:
-      - docker pull {{.IMAGE}}
+      # Every *_test.yaml under flows/, against the flows beside it.
+      - '{{.DOLPHIN}} test ./flows'
+
+  dev:
+    desc: Run the flows with hot reload
+    cmds:
+      # --watch reloads the config when a file under flows/ changes, so editing
+      # a flow does not mean restarting the stack.
+      - '{{.OCTO}} run --config ./flows --watch'
 
   invoke:
-    desc: 'Invoke one flow with the local octo CLI, e.g. task agent:invoke -- greet'
+    desc: 'Invoke one flow directly, e.g. task agent:invoke -- hello'
+    env:
+      # Passed through the environment rather than interpolated into the command
+      # line, so a body containing a quote is not re-parsed by the shell.
+      #
+      # octo reads the body from stdin when --data is omitted, which makes a
+      # bodyless invoke hang, hence the empty-object default.
+      DATA: '{{.DATA | default "{}"}}'
     cmds:
-      - octo invoke --config ./flows --flow {{.CLI_ARGS}}
+      - '{{.OCTO}} invoke --config ./flows --flow {{.CLI_ARGS}} --data "$DATA"' 
+
+  editor:
+    desc: Open the octo standalone visual editor against ./flows
+    cmds:
+      # The editor ships as a container with its own runtime. Port 3100 because
+      # 3000 is taken under `task dev`.
+      - docker run --rm -p 3100:3000 -v "$PWD/flows:/work" --name journal-editor juancavallotti/octo

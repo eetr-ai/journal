@@ -1,10 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isLocale, locales, negotiate } from "@/i18n/config";
 
-// Every page lives under /{locale}. This sends a bare path to the right one,
-// preferring a locale the visitor has already chosen over what their browser
-// asks for, so switching language sticks across navigations.
-export function middleware(request: NextRequest) {
+// Every page lives under /{locale}. A bare path is redirected to one, taking
+// the cookie over the Accept-Language header so a chosen language sticks.
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const hasLocale = locales.some(
@@ -27,10 +26,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except the API routes, Next's own assets, and files with an
-  // extension. /api/auth in particular must never be rewritten: Auth.js builds
-  // its callback URLs without a locale and the OAuth round trip would break.
+  // Everything except API routes, Next's own assets, and files with an
+  // extension. /api must stay unprefixed: OAuth callback URLs carry no locale.
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
-
-export const runtime = "nodejs";

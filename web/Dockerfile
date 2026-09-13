@@ -12,9 +12,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Required to be present at build time; never used. Real values arrive at runtime.
+# Required to be present at build time; never used. The real value arrives at runtime.
 ENV AUTH_SECRET=build-only-not-a-real-secret \
-    DATABASE_URL=postgres://journal:journal@localhost:5432/journal \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

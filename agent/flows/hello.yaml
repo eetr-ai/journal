@@ -1,0 +1,13 @@
+# GET /hello
+flows:
+  - name: hello
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /hello
+    process:
+      - type: set-payload
+        name: greeting
+        settings:
+          value: '{"message": "hello world"}'

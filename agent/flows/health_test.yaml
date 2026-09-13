@@ -1,0 +1,8 @@
+flow: health
+cases:
+  - name: health reports ok
+    input:
+      data: {}
+    expect:
+      body:
+        status: ok

@@ -41,6 +41,15 @@ Comments document **algorithms and contracts**, in the file they live in.
 - The session is the trust boundary: the tenant key comes from the session on
   the server, never from the browser.
 
+## Testing flows
+
+A flow is tested by the suite beside it: `orders.yaml` is tested by
+`orders_test.yaml`, run by dolphin under `task test`. A case supplies the input
+a source would normally have put on the message, and asserts on the result.
+
+Write the suite with the flow, not after. A case that would pass against a
+broken flow is worse than no case — check a new one fails before you trust it.
+
 ## React
 
 - **Reducers for complex, managed interactions** — anything that loads, fails,
@@ -54,6 +63,31 @@ Prefer them, and report what we find:
 - `@eetr/ts-rest-utils` — REST client; a non-2xx is a value, not an exception.
 - `@eetr/react-reducer-utils` — `bootstrapProvider` reducer contexts.
 - `@eetr/ts-dnd-utils` — headless drag & drop.
+
+## Limits the linter enforces
+
+Set in `web/.oxlintrc.json`, and they are there to stop spaghetti before review
+has to catch it. `task lint` fails on all of these.
+
+| Rule | Limit | What it is protecting |
+| --- | --- | --- |
+| `no-magic-numbers` | — | An unexplained number in an expression. Name it. |
+| `complexity` | 10 | Branches in one function. |
+| `max-depth` | 3 | Nested blocks. |
+| `max-statements` | 15 | Statements in one function. |
+| `max-params` | 4 | Arguments. Past four, pass an options object. |
+| `max-lines-per-function` | 60 | Blank lines and comments excluded. |
+| `max-lines` | 300 | Per file. A longer file is two files. |
+| `max-nested-callbacks` | 3 | Callback pyramids. |
+| `no-nested-ternary` | — | Use an early return or a switch. |
+
+A number assigned straight to a named `const` is fine — `const
+COOKIE_MAX_AGE_SECONDS = 31_536_000;` — so write the value as one literal rather
+than as arithmetic the rule cannot read.
+
+**These are floors, not targets.** Hitting the limit is a smell; the fix is
+smaller functions, not a bigger number. Raise a limit only with a reason, and
+never suppress a rule inline to land a change.
 
 ## Naming
 

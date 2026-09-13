@@ -24,13 +24,11 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
-      # The build needs these two present but does not care what they are: the
-      # page renders the signed-out branch either way. Real values live in the
-      # cluster secret, never here.
+      # Required to be present at build time; never used. The real value lives
+      # in the cluster secret.
       - run: npm run build
         env:
           AUTH_SECRET: build-only-not-a-real-secret
-          DATABASE_URL: postgres://journal:journal@localhost:5432/journal
 
   helm:
     name: helm
@@ -49,8 +47,15 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.27'
-      # There is no build step for YAML flows, so the check that matters is that
-      # the runtime will actually load them. `octo invoke` parses the whole
-      # config before it runs anything, which makes a bad flow a failed job.
+      # dolphin drives a real octo per case, so both binaries have to be here.
       - run: go install github.com/juancavallotti/octo/runtime/octo@latest
-      - run: octo invoke --config ./agent/flows --flow greet --data '{"date":"ci"}' --envelope
+      - run: go install github.com/juancavallotti/octo/runtime/dolphin@latest
+      # Runs each *_test.yaml against the whole flows directory, so a flow that
+      # no longer parses or no longer returns what it promised fails the job.
+      - run: dolphin test ./agent/flows --junit dolphin-report.xml
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dolphin-report
+          path: dolphin-report.xml

@@ -20,7 +20,7 @@ export function negotiate(acceptLanguage: string | null): Locale {
   }
 
   for (const part of acceptLanguage.split(",")) {
-    // "es-419;q=0.8" -> "es"
+    // "es-419;q=0.8" -> "es": drop the q-value, then the region subtag.
     const tag = part.trim().split(";")[0].split("-")[0].toLowerCase();
 
     if (isLocale(tag)) {

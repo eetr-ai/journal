@@ -23,13 +23,24 @@ web:
 agent:
   replicaCount: 1
   image:
-    repository: juancavallotti/octo
+    # The stock octo runtime. It carries the binary and nothing else; the flows
+    # arrive from a ConfigMap. Not octo-runtime-paas, which expects an
+    # orchestrator, and not juancavallotti/octo, which is the visual editor.
+    repository: juancavallotti/octo-runtime
+    # Pin this to an octo release once we care which runtime we are on.
     tag: latest
+  # The port the flows' http connector binds, passed through as HTTP_PORT.
+  port: 8080
+  # The ConfigMap holding the flow YAML, mounted at /etc/octo/integrations where
+  # the runtime looks for it. Built from agent/flows by `task helm:flows`, and
+  # kept outside the chart so the flows have one home in the repo.
+  flowsConfigMap: journal-flows
   service:
-    port: 3000
+    port: 8080
   resources: {}
 
 postgres:
+  # Consumed by the agent only; the web app holds no database connection today.
   # An existing secret, not a templated value: values end up in `helm get
   # values`, in shell history, and in the release object. Create it by hand:
   #   kubectl create secret generic journal-postgres \

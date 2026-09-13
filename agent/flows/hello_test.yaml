@@ -1,0 +1,19 @@
+# Sources are not started under test, so a case supplies whatever the http
+# source would have put on the message.
+flow: hello
+cases:
+  - name: the endpoint answers with the greeting
+    input:
+      data: {}
+    expect:
+      body:
+        message: hello world
+
+  - name: the greeting ignores the request body
+    input:
+      data:
+        anything: "that a caller might post"
+    expect:
+      that:
+        - body.message == "hello world"
+        - body.size() == 1

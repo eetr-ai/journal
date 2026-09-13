@@ -6,9 +6,11 @@ dist/
 # The real one is yours and holds secrets; .env.example is the committed shape.
 .env
 
-# The octo editor's scratch space when a flow is run from the CLI.
+# octo's scratch space beside a running config: the object store, the editor's
+# rendered run configs, and the local MCP endpoint a `run` advertises.
 octo-store/
 .octo-run/
+.octo/
 
 .DS_Store
 *.log
