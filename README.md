@@ -167,7 +167,15 @@ names two that must already exist, and refuses to render without the names:
 
 Only the credential is a secret. Where the server is — `postgres.host`, `port`,
 `database`, `sslmode` — are values, and the kubelet assembles the DSN from both.
-A password containing any of `: / ? # @` has to be percent-encoded in the Secret.
+Nothing escapes the two on the way in, so **both the username and the password
+must be percent-encoded in the Secret** if they contain anything with URI
+meaning: `: / ? # @ [ ]`, and `%` itself.
+
+`sslmode` defaults to `verify-full`, the only setting that authenticates the
+server rather than merely encrypting to whoever answers. It needs the chain to
+resolve in the image's trust store; the chart mounts no CA bundle yet, so a
+private CA or a server with no TLS means `disable` and a deliberate decision
+that the network is the boundary.
 
 A credential passed as a value is readable afterwards through `helm get values`
 and sits in the release object in the cluster, where it outlives the reason it

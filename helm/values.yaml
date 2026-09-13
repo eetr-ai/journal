@@ -61,8 +61,13 @@ postgres:
   host: ""
   port: 5432
   database: journal
-  # `require` for a database the traffic leaves the node to reach.
-  sslmode: require
+  # `require` encrypts and verifies nothing: it accepts any certificate, so it
+  # stops a passive listener and not the attacker who can answer as the server.
+  # `verify-full` is the one that authenticates the host, and it needs the chain
+  # to resolve in the image's trust store — the chart mounts no CA bundle yet,
+  # so a private CA means `disable` and a network you are treating as the
+  # boundary, deliberately.
+  sslmode: verify-full
 
 auth:
   # Holds AUTH_SECRET and the AUTH_OIDC_* pair, mounted with envFrom so its keys
