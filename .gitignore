@@ -1,4 +1,7 @@
 node_modules/
+
+# The local Postgres data directory. See docker-compose.yml.
+data/
 .next/
 dist/
 *.tsbuildinfo
