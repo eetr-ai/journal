@@ -81,12 +81,15 @@ function MenuBody(options: UserMenuOptions) {
         <LanguageOptions current={options.locale} />
       </div>
 
-      {/* The unlocked data key is cleared before the session goes: whoever
-          signs in next is not this person. */}
+      {/* The unlocked data key is cleared before the session goes, and awaited:
+          a sign-out that redirects first would leave the key behind for whoever
+          signs in next. */}
       <form
-        action={options.signOutAction}
+        action={async () => {
+          await forgetEveryKey();
+          await options.signOutAction();
+        }}
         className="border-t border-border p-1"
-        onSubmit={() => void forgetEveryKey()}
       >
         <MenuRow icon={<SignOutIcon size={ICON_SIZE} />} submit>
           {t.signOut}

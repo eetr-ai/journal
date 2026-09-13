@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { XIcon } from "@phosphor-icons/react";
 
@@ -16,20 +16,46 @@ export interface OverlayDialogOptions {
 }
 
 /**
+ * Focus moves onto the cover when it opens and back to whatever had it when the
+ * cover goes, so the keyboard does not carry on where it was behind the page.
+ */
+function useCoverFocus() {
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previous = document.activeElement;
+
+    ref.current?.focus();
+
+    return () => {
+      // The element may well have gone with the route that owned it.
+      if (previous instanceof HTMLElement && previous.isConnected) {
+        previous.focus();
+      }
+    };
+  }, []);
+
+  return ref;
+}
+
+/**
  * A cover over the page behind it, with a URL of its own — so it survives a
  * reload, can be linked, and the back button does what it looks like it does.
  */
 export default function OverlayDialog(options: OverlayDialogOptions) {
   const router = useRouter();
+  const closeRef = useCoverFocus();
 
+  // A replace, not a push: closing is undoing the open, so Back has to reach
+  // what was before the cover rather than reopening it.
   function close() {
-    router.push(options.closeHref);
+    router.replace(options.closeHref);
   }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        router.push(options.closeHref);
+        router.replace(options.closeHref);
       }
     }
 
@@ -40,11 +66,14 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
 
   return (
     <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8">
-      {/* The backdrop closes on click; the panel stops the click reaching it. */}
+      {/* The backdrop closes on click; the panel stops the click reaching it.
+          Out of the tab order and hidden from assistive tech, because the close
+          button in the header is the same action with a real label. */}
       <button
-        aria-label={options.closeLabel}
+        aria-hidden
         className="absolute inset-0 cursor-default"
         onClick={close}
+        tabIndex={-1}
         type="button"
       />
 
@@ -68,6 +97,7 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
             aria-label={options.closeLabel}
             className="rounded-md p-1.5 text-muted hover:bg-surface-muted hover:text-foreground"
             onClick={close}
+            ref={closeRef}
             type="button"
           >
             <XIcon size={ICON_SIZE} weight="bold" />

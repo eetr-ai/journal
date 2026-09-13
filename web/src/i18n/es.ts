@@ -130,7 +130,7 @@ const es: Dictionary = {
   vault: {
     title: "Almacenamiento privado",
     summary:
-      "Tu diario se cifra con esta contraseña, y no podemos leerlo. Si la perdés, lo que escribiste se pierde en la práctica: tocá para ver qué significa eso.",
+      "Tu diario se guarda cifrado con esta contraseña, y lo que guardamos no se puede leer sin ella. Si la perdés, lo que escribiste se pierde en la práctica: tocá para ver qué significa eso.",
     protectTitle: "Protegé tu diario",
     protectPrompt:
       "Elegí una contraseña antes de escribir nada. Es lo que cifra tu diario, y lo único que puede abrirlo.",
@@ -172,6 +172,8 @@ const es: Dictionary = {
       passkeyUnsupported: "Este navegador o dispositivo no puede guardar una clave en una passkey.",
       passkeyFailed: "Tu dispositivo no completó la operación. No cambió nada.",
       rejected: "Rechazamos esa configuración por ser demasiado débil para guardarla.",
+      noStorage:
+        "Este navegador no nos deja guardar tu clave, así que el diario no puede quedar abierto. La navegación privada y el bloqueo de datos del sitio hacen esto.",
       failed: "No se guardó. No cambió nada.",
     },
   },

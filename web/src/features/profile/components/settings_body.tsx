@@ -44,15 +44,31 @@ export default function SettingsBody(options: SettingsBodyOptions) {
     router.refresh();
   }
 
+  // The action can reject before it has an outcome to report — reading the
+  // profile, writing the first one, setting a cookie. That is still a failure
+  // the form has to show rather than a promise nobody is watching.
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     dispatch({ type: SettingsActionType.Submit });
-    startTransition(async () => apply(await saveProfileAction(state.draft)));
+    startTransition(async () => {
+      const outcome = await saveProfileAction(state.draft).catch(() => null);
+
+      if (!outcome) {
+        dispatch({ type: SettingsActionType.Failed });
+        return;
+      }
+
+      apply(outcome);
+    });
   }
 
   return (
     <form className="flex flex-col gap-5" onSubmit={submit}>
-      <SettingsFields t={options.t} />
+      {/* Frozen while the save is in flight: an edit made now would be thrown
+          away by the snapshot coming back. */}
+      <fieldset className="contents" disabled={pending}>
+        <SettingsFields t={options.t} />
+      </fieldset>
       <SaveBar pending={pending} t={options.t} />
     </form>
   );

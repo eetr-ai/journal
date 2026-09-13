@@ -20,6 +20,7 @@ export type VaultError =
   | "passkeyUnsupported"
   | "passkeyFailed"
   | "rejected"
+  | "noStorage"
   | "failed";
 
 export interface VaultUiState {

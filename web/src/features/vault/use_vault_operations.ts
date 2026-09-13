@@ -4,7 +4,7 @@ import { createVault, unlockWithPassword, unwrapWithPassword } from "./crypto";
 import { enrollPasskey, passkeysAreAvailable, unlockWithPasskey } from "./passkey";
 import { addPasskeyAction, removePasskeyAction, saveVaultAction } from "./actions";
 import { forgetKey, rememberKey } from "./session";
-import { VaultActionType, useVault } from "./vault_state";
+import { VaultActionType, useVault, type VaultError } from "./vault_state";
 
 /**
  * Everything the vault panel can do, kept out of the components so each of them
@@ -24,6 +24,15 @@ export interface VaultIdentity {
 // The only thing standing between this data and whoever holds the ciphertext.
 export const MIN_PASSWORD = 12;
 
+/** What is wrong with the pair a person typed, or null when nothing is. */
+function passwordProblem(password: string, confirm: string): VaultError | null {
+  if (password.length < MIN_PASSWORD) {
+    return "tooShort";
+  }
+
+  return password === confirm ? null : "mismatch";
+}
+
 /** Getting in: creating the vault, and opening it with either credential. */
 export function useVaultUnlock(identity: VaultIdentity) {
   const { state, dispatch } = useVault();
@@ -34,19 +43,22 @@ export function useVaultUnlock(identity: VaultIdentity) {
       return;
     }
 
-    await rememberKey(identity.subject, dataKey);
-    dispatch({ type: VaultActionType.Unlocked, data: { vault: state.vault, dataKey } });
-  }
-
-  async function create(password: string, confirm: string) {
-    if (password.length < MIN_PASSWORD) {
-      dispatch({ type: VaultActionType.Failed, data: "tooShort" });
+    if (!(await rememberKey(identity.subject, dataKey))) {
+      dispatch({ type: VaultActionType.Failed, data: "noStorage" });
       return;
     }
 
-    if (password !== confirm) {
-      dispatch({ type: VaultActionType.Failed, data: "mismatch" });
-      return;
+    dispatch({ type: VaultActionType.Unlocked, data: { vault: state.vault, dataKey } });
+  }
+
+  /** True only when the vault is stored and open; the caller moves the person
+   *  on from that, never from the attempt. */
+  async function create(password: string, confirm: string): Promise<boolean> {
+    const problem = passwordProblem(password, confirm);
+
+    if (problem) {
+      dispatch({ type: VaultActionType.Failed, data: problem });
+      return false;
     }
 
     dispatch({ type: VaultActionType.Busy });
@@ -59,11 +71,17 @@ export function useVaultUnlock(identity: VaultIdentity) {
         type: VaultActionType.Failed,
         data: outcome === "rejected" ? "rejected" : "failed",
       });
-      return;
+      return false;
     }
 
-    await rememberKey(identity.subject, dataKey);
+    if (!(await rememberKey(identity.subject, dataKey))) {
+      dispatch({ type: VaultActionType.Failed, data: "noStorage" });
+      return false;
+    }
+
     dispatch({ type: VaultActionType.Unlocked, data: { vault, dataKey } });
+
+    return true;
   }
 
   async function byPassword(password: string) {

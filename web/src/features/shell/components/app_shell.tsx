@@ -35,6 +35,7 @@ export default function AppShell(options: AppShellOptions) {
         <TodayPanel
           locale={options.locale}
           t={options.t}
+          timezone={options.profile.config.timezone}
           width={options.profile.config.todayWidth}
         />
       </div>

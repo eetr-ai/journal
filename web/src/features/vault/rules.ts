@@ -7,16 +7,29 @@ import type { KdfParams, Vault, VaultPasskey } from "./types";
  * it can refuse a vault whose parameters are weaker than we are willing to
  * stand behind, so a compromised or downgraded client cannot quietly re-wrap
  * someone's key under something cheap to brute-force.
+ *
+ * It also refuses anything the browser could not later decode: a vault that
+ * stores and then throws on unlock is a person locked out of their own writing.
  */
 
 // The floor, not the default. OWASP's minimum for Argon2id at p=1 is 19 MiB and
-// two passes; the app derives at 64 MiB and three.
+// two passes; the app derives at 64 MiB and three. The ceilings are there so a
+// stored parameter cannot make every future unlock hang or run out of memory.
 const MIN_MEMORY_KIB = 19_456;
+const MAX_MEMORY_KIB = 262_144;
 const MIN_ITERATIONS = 2;
+const MAX_ITERATIONS = 10;
 const MIN_PARALLELISM = 1;
 const MAX_PARALLELISM = 4;
 
 const MIN_SALT_BYTES = 16;
+const MAX_SALT_BYTES = 64;
+
+// Exactly what the browser writes: a 32-byte HKDF output, and iv ‖ ciphertext ‖
+// tag over a 32-byte key — 12 + 32 + 16.
+const VERIFIER_BYTES = 32;
+const WRAPPED_KEY_BYTES = 60;
+
 const MAX_FIELD_CHARS = 4096;
 const MAX_LABEL_CHARS = 120;
 
@@ -24,28 +37,39 @@ const MAX_LABEL_CHARS = 120;
 const BASE64_GROUP = 4;
 const BYTES_PER_GROUP = 3;
 
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+// Strict and padded: a length that is not a multiple of four, or padding in the
+// middle, is what makes atob() throw rather than return something wrong.
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
+const PADDING = /=+$/;
 
 function base64Bytes(value: string): number {
-  return Math.floor((value.length * BYTES_PER_GROUP) / BASE64_GROUP);
+  const padding = value.length - value.replace(PADDING, "").length;
+
+  return (value.length / BASE64_GROUP) * BYTES_PER_GROUP - padding;
 }
 
-function isBase64(value: string): boolean {
-  return value.length > 0 && value.length <= MAX_FIELD_CHARS && BASE64.test(value);
+/** Decodable base64, decoding to a size between the two bounds inclusive. */
+function isBase64Of(value: string, min: number, max: number): boolean {
+  if (value.length === 0 || value.length > MAX_FIELD_CHARS || !BASE64.test(value)) {
+    return false;
+  }
+
+  const bytes = base64Bytes(value);
+
+  return bytes >= min && bytes <= max;
+}
+
+function withinRange(value: number, min: number, max: number): boolean {
+  return Number.isInteger(value) && value >= min && value <= max;
 }
 
 function paramsAreSound(params: KdfParams): boolean {
   return (
-    isBase64(params.salt) &&
-    base64Bytes(params.salt) >= MIN_SALT_BYTES &&
-    Number.isInteger(params.memoryKib) &&
-    params.memoryKib >= MIN_MEMORY_KIB &&
-    Number.isInteger(params.iterations) &&
-    params.iterations >= MIN_ITERATIONS &&
-    Number.isInteger(params.parallelism) &&
-    params.parallelism >= MIN_PARALLELISM &&
-    params.parallelism <= MAX_PARALLELISM
+    isBase64Of(params.salt, MIN_SALT_BYTES, MAX_SALT_BYTES) &&
+    withinRange(params.memoryKib, MIN_MEMORY_KIB, MAX_MEMORY_KIB) &&
+    withinRange(params.iterations, MIN_ITERATIONS, MAX_ITERATIONS) &&
+    withinRange(params.parallelism, MIN_PARALLELISM, MAX_PARALLELISM)
   );
 }
 
@@ -53,8 +77,8 @@ export function vaultIsStorable(vault: Vault): boolean {
   return (
     vault.kdf === "argon2id" &&
     paramsAreSound(vault.params) &&
-    isBase64(vault.verifier) &&
-    isBase64(vault.wrappedKey)
+    isBase64Of(vault.verifier, VERIFIER_BYTES, VERIFIER_BYTES) &&
+    isBase64Of(vault.wrappedKey, WRAPPED_KEY_BYTES, WRAPPED_KEY_BYTES)
   );
 }
 
@@ -63,8 +87,8 @@ export function passkeyIsStorable(passkey: Omit<VaultPasskey, "createdAt">): boo
     passkey.credentialId.length > 0 &&
     passkey.credentialId.length <= MAX_FIELD_CHARS &&
     BASE64URL.test(passkey.credentialId) &&
-    isBase64(passkey.prfSalt) &&
-    isBase64(passkey.wrappedKey) &&
+    isBase64Of(passkey.prfSalt, MIN_SALT_BYTES, MAX_SALT_BYTES) &&
+    isBase64Of(passkey.wrappedKey, WRAPPED_KEY_BYTES, WRAPPED_KEY_BYTES) &&
     passkey.label.length <= MAX_LABEL_CHARS
   );
 }

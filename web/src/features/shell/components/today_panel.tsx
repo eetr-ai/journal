@@ -14,15 +14,28 @@ export interface TodayPanelOptions {
   t: Dictionary;
   locale: Locale;
   width: number;
+  /** IANA zone, or empty while the browser has yet to be asked for one. */
+  timezone: string;
+}
+
+/**
+ * Rendered on the server, so the day has to be the reader's day and not the
+ * server's — near midnight those are different dates. An unset or unknown zone
+ * falls back to the runtime's rather than failing the page.
+ */
+function todayIn(locale: Locale, timezone: string): string {
+  const format = { weekday: "long", day: "numeric", month: "long" } as const;
+
+  try {
+    return new Date().toLocaleDateString(locale, { ...format, timeZone: timezone || undefined });
+  } catch {
+    return new Date().toLocaleDateString(locale, format);
+  }
 }
 
 export default function TodayPanel(options: TodayPanelOptions) {
   const samples = sampleContent(options.locale);
-  const today = new Date().toLocaleDateString(options.locale, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const today = todayIn(options.locale, options.timezone);
 
   return (
     <ResizablePanel
