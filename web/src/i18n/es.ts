@@ -129,18 +129,20 @@ const es: Dictionary = {
 
   vault: {
     title: "Almacenamiento privado",
-    absent: "Todavía no ciframos lo que escribís.",
+    protectTitle: "Protegé tu diario",
+    protectPrompt:
+      "Elegí una contraseña antes de escribir nada. Es lo que cifra tu diario, y lo único que puede abrirlo.",
     lockedState: "Bloqueado",
     unlockedState: "Desbloqueado en este dispositivo",
     protectedTitle: "Qué protege esto",
     protectedBody:
-      "Tus entradas y conversaciones se cifran en este navegador, con una clave derivada de tu contraseña, antes de llegarnos. Guardamos el resultado y nunca la clave, así que nadie que lea nuestra base de datos, nuestros backups o un volcado de cualquiera de los dos puede leer lo que escribís. Eso incluye a quien opera este servicio.",
-    visibleTitle: "Qué sigue siendo legible",
+      "Tu contraseña nunca sale de este navegador, y la clave que sale de ella solo la tenemos el tiempo que lleva responder algo que pediste. Todo lo que escribís se cifra antes de guardarse, así que lo que queda en nuestra base de datos y en nuestros backups no se puede leer, ni siquiera para quien opera este servicio.",
+    visibleTitle: "Qué podemos ver",
     visibleBody:
-      "Para que la búsqueda funcione, guardamos sin cifrar palabras clave y embeddings numéricos de lo que escribís. Los embeddings no son un resumen seguro: se puede reconstruir buena parte del texto original a partir de ellos. Y cuando le preguntás algo al asistente sobre tu diario, las entradas que necesita se descifran en memoria para responderte, nunca se guardan así, y nunca quedan en los registros.",
+      "Para que una entrada se pueda buscar hay que leerla, así que lo que escribís pasa por nuestro servidor camino a ser cifrado, y las palabras clave y los embeddings numéricos que salen de ahí se guardan sin cifrar junto a la entrada. Nada de eso queda guardado ni registrado en claro.",
     lossTitle: "Si olvidás tu contraseña",
     lossBody:
-      "Nadie puede recuperar lo que escribiste, porque nadie tuvo nunca la clave. Una passkey abre los mismos datos, así que tener una también es una forma de volver a entrar, pero si perdés las dos se pierde para siempre.",
+      "Lo que escribiste sería muy difícil de recuperar: lo suficiente como para darlo por perdido, y lo suficiente como para que no podamos hacerlo por vos aunque nos lo pidas. Una passkey abre el mismo diario, así que sumar una es una buena segunda forma de entrar. Cambiar esta contraseña todavía no lo podés hacer vos: pedilo y lo arreglamos.",
     password: "Contraseña",
     confirm: "Confirmar contraseña",
     create: "Cifrar mi diario",

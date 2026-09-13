@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import UnlockScreen from "@/features/vault/components/unlock_screen";
 import { currentProfile } from "@/features/profile/service";
 import { currentVault } from "@/features/vault/service";
-import { vaultIsOpen } from "@/features/vault/gate";
+import { vaultGate } from "@/features/vault/gate";
 import { dictionary } from "@/i18n/dictionaries";
 import { isLocale } from "@/i18n/config";
 
@@ -23,19 +23,21 @@ export default async function Unlock(options: UnlockOptions) {
     redirect(`/${locale}/signin`);
   }
 
-  const stored = await currentVault();
+  const gate = await vaultGate();
 
-  // Nothing to unlock, or already open. Either way this page has no job.
-  if (!stored.vault || (await vaultIsOpen())) {
-    redirect(`/${locale}`);
+  if (gate !== "unlock") {
+    redirect(gate === "protect" ? `/${locale}/protect` : `/${locale}`);
   }
+
+  const stored = await currentVault();
 
   return (
     <UnlockScreen
       identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
       locale={locale}
-      stored={stored}
+      passkeys={stored.passkeys}
       t={dictionary(locale)}
+      vault={stored.vault!}
     />
   );
 }

@@ -17,7 +17,7 @@ import {
 } from "../vault_state";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
-import type { VaultState } from "../types";
+import type { Vault, VaultPasskey } from "../types";
 
 const ICON_SIZE = 16;
 const MASCOT_SIZE = 120;
@@ -26,7 +26,8 @@ export interface UnlockScreenOptions {
   t: Dictionary;
   locale: Locale;
   identity: VaultIdentity;
-  stored: VaultState;
+  vault: Vault;
+  passkeys: VaultPasskey[];
 }
 
 function Body(options: UnlockScreenOptions) {
@@ -94,7 +95,7 @@ export default function UnlockScreen(options: UnlockScreenOptions) {
   return (
     <SimpleProvider
       dispatchContext={VaultDispatchContext}
-      initialState={lockedVaultState(options.stored)}
+      initialState={lockedVaultState({ vault: options.vault, passkeys: options.passkeys })}
       reducer={vaultReducer}
       stateContext={VaultStateContext}
     >

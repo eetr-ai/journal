@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { forgetKey, recallKey } from "../session";
 
 export interface VaultGuardOptions {
-  hasVault: boolean;
   subject: string;
   locale: string;
 }
@@ -21,10 +20,6 @@ export default function VaultGuard(options: VaultGuardOptions) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!options.hasVault) {
-      return;
-    }
-
     async function check() {
       if (await recallKey(options.subject)) {
         return;
@@ -35,7 +30,7 @@ export default function VaultGuard(options: VaultGuardOptions) {
     }
 
     void check();
-  }, [options.hasVault, options.subject, options.locale, router]);
+  }, [options.subject, options.locale, router]);
 
   return null;
 }

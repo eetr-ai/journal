@@ -127,18 +127,20 @@ const en = {
 
   vault: {
     title: "Private storage",
-    absent: "Your writing is not encrypted yet.",
+    protectTitle: "Protect your journal",
+    protectPrompt:
+      "Choose a password before you write anything. It is what encrypts your journal, and the only thing that can open it.",
     lockedState: "Locked",
     unlockedState: "Unlocked on this device",
     protectedTitle: "What this protects",
     protectedBody:
-      "Your entries and conversations are encrypted in this browser, with a key derived from your password, before they reach us. We store the result and never the key — so nobody reading our database, our backups, or a dump of either can read your writing. That includes whoever runs this service.",
-    visibleTitle: "What stays readable",
+      "Your password never leaves this browser, and we only hold the key made from it for as long as it takes to answer something you asked for. Everything you write is encrypted before it is stored, so what sits in our database and our backups is not readable — including to whoever runs this service.",
+    visibleTitle: "What we can see",
     visibleBody:
-      "To make search work, keywords and numerical embeddings of your writing are stored unencrypted. Embeddings are not a safe summary: a good deal of the original wording can be reconstructed from them. And when you ask the assistant about your journal, the entries it needs are decrypted in memory to answer you — never stored that way, and never logged.",
+      "Making an entry searchable means reading it, so what you write passes through our server on its way to being encrypted, and the keywords and numerical embeddings taken from it are stored alongside it unencrypted. None of that is written down or logged in the clear.",
     lossTitle: "If you forget your password",
     lossBody:
-      "Nobody can recover your writing, because nobody ever had the key. A passkey unlocks the same data, so keeping one is also a way back in — but lose both and it is gone for good.",
+      "Your writing would be very hard to get back — hard enough that you should treat it as gone, and hard enough that we could not do it for you if you asked. A passkey opens the same journal, so enrolling one is a good second way in. Changing this password is not something you can do yourself yet: ask, and we will arrange it.",
     password: "Password",
     confirm: "Confirm password",
     create: "Encrypt my journal",

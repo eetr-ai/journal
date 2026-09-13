@@ -4,6 +4,7 @@ import SettingsOverlay from "@/features/profile/components/settings_overlay";
 import { auth } from "@/auth";
 import { currentProfile } from "@/features/profile/service";
 import { currentVault } from "@/features/vault/service";
+import { vaultGate } from "@/features/vault/gate";
 import { dictionary } from "@/i18n/dictionaries";
 import { isLocale } from "@/i18n/config";
 
@@ -26,14 +27,26 @@ export default async function Settings(options: SettingsOptions) {
     redirect(`/${locale}/signin`);
   }
 
+  const gate = await vaultGate();
+
+  if (gate !== "open") {
+    redirect(`/${locale}/${gate}`);
+  }
+
   const session = await auth();
   const t = dictionary(locale);
-  const vault = await currentVault();
+  const stored = await currentVault();
 
   return (
     <>
       <AppShell hasImage={Boolean(session?.user?.image)} locale={locale} profile={profile} t={t} />
-      <SettingsOverlay locale={locale} profile={profile} t={t} vault={vault} />
+      <SettingsOverlay
+        locale={locale}
+        passkeys={stored.passkeys}
+        profile={profile}
+        t={t}
+        vault={stored.vault!}
+      />
     </>
   );
 }

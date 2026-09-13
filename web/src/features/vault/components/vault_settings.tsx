@@ -2,8 +2,6 @@
 
 import { useEffect } from "react";
 import { SimpleProvider } from "@eetr/react-reducer-utils";
-import VaultLocked from "./vault_locked";
-import VaultSetup from "./vault_setup";
 import VaultUnlocked from "./vault_unlocked";
 import { recallKey } from "../session";
 import {
@@ -16,51 +14,48 @@ import {
 } from "../vault_state";
 import type { Dictionary } from "@/i18n/en";
 import type { VaultIdentity } from "../use_vault_operations";
-import type { VaultState } from "../types";
+import type { Vault, VaultPasskey } from "../types";
 
-export interface PrivacySectionOptions {
+export interface VaultSettingsOptions {
   t: Dictionary;
   identity: VaultIdentity;
-  /** Read on the server: the vault and its passkeys, never anything readable. */
-  stored: VaultState;
+  /** Read on the server: opaque there, and opaque here. */
+  vault: Vault;
+  passkeys: VaultPasskey[];
 }
 
-function Body(options: PrivacySectionOptions) {
+/**
+ * Managing the devices that can open the vault.
+ *
+ * Only reachable with the vault open — the page gate saw to that — so there is
+ * no locked state to render and no vault to create.
+ */
+function Body(options: VaultSettingsOptions) {
   const { state, dispatch } = useVault();
 
-  // The key may already be in this browser from an earlier visit. Nothing is
-  // fetched here: the vault itself came from the server with the page.
   useEffect(() => {
     async function boot() {
       dispatch({
         type: VaultActionType.Loaded,
         data: {
-          vault: options.stored.vault,
-          passkeys: options.stored.passkeys,
-          dataKey: options.stored.vault ? await recallKey(options.identity.subject) : null,
+          vault: options.vault,
+          passkeys: options.passkeys,
+          dataKey: await recallKey(options.identity.subject),
         },
       });
     }
 
     void boot();
-  }, [dispatch, options.stored, options.identity.subject]);
+  }, [dispatch, options.vault, options.passkeys, options.identity.subject]);
 
-  if (state.status === "checking") {
+  if (state.status !== "unlocked") {
     return null;
-  }
-
-  if (state.status === "absent") {
-    return <VaultSetup identity={options.identity} t={options.t} />;
-  }
-
-  if (state.status === "locked") {
-    return <VaultLocked identity={options.identity} t={options.t} />;
   }
 
   return <VaultUnlocked identity={options.identity} t={options.t} />;
 }
 
-export default function PrivacySection(options: PrivacySectionOptions) {
+export default function VaultSettings(options: VaultSettingsOptions) {
   return (
     <section className="rounded-2xl border border-border bg-surface p-5">
       <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">

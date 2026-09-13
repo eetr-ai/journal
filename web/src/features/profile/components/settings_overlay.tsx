@@ -3,12 +3,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { XIcon } from "@phosphor-icons/react";
-import PrivacySection from "@/features/vault/components/privacy_section";
+import VaultSettings from "@/features/vault/components/vault_settings";
 import SettingsForm from "./settings_form";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 import type { Profile } from "../types";
-import type { VaultState } from "@/features/vault/types";
+import type { Vault, VaultPasskey } from "@/features/vault/types";
 
 const ICON_SIZE = 18;
 
@@ -17,7 +17,8 @@ export interface SettingsOverlayOptions {
   t: Dictionary;
   locale: Locale;
   /** The vault as stored: opaque to the server, and to this component. */
-  vault: VaultState;
+  vault: Vault;
+  passkeys: VaultPasskey[];
 }
 
 /**
@@ -89,14 +90,15 @@ export default function SettingsOverlay(options: SettingsOverlayOptions) {
 
         <div className="flex flex-col gap-5 p-6">
           <SettingsForm locale={options.locale} profile={options.profile} t={options.t} />
-          <PrivacySection
+          <VaultSettings
             identity={{
               subject: options.profile.subject,
               name: options.profile.name,
               email: options.profile.email,
             }}
-            stored={options.vault}
+            passkeys={options.passkeys}
             t={options.t}
+            vault={options.vault}
           />
         </div>
       </dialog>

@@ -6,18 +6,22 @@ import { currentVault } from "./service";
 const UNLOCKED_COOKIE = "vault-unlocked";
 
 /**
- * Whether this request may see the journal, or has to unlock first.
+ * Which of the three states a signed-in request is in.
  *
- * The marker says only that a key is in this browser; it is not a credential and
- * nothing trusts it beyond choosing which page to render. If it is stale the
- * unlocked page finds no key and sends the person back here.
+ * Encryption is not optional, so there is no fourth: a person without a vault
+ * makes one before anything else, and there is nowhere in the app that renders
+ * without one.
  */
-export async function vaultIsOpen(): Promise<boolean> {
+export type VaultGate = "protect" | "unlock" | "open";
+
+export async function vaultGate(): Promise<VaultGate> {
   const { vault } = await currentVault();
 
   if (!vault) {
-    return true;
+    return "protect";
   }
 
-  return (await cookies()).get(UNLOCKED_COOKIE)?.value === "1";
+  // Says only that a key is present in this browser. Not a credential: the page
+  // behind it re-checks and clears it when the key is gone.
+  return (await cookies()).get(UNLOCKED_COOKIE)?.value === "1" ? "open" : "unlock";
 }

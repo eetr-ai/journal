@@ -10,7 +10,8 @@ import type { Vault, VaultPasskey } from "./types";
  * forms own nothing.
  */
 
-export type VaultStatus = "checking" | "absent" | "locked" | "unlocked";
+// There is no "absent": a vault is made before the app renders at all.
+export type VaultStatus = "checking" | "locked" | "unlocked";
 
 export type VaultError =
   | "tooShort"
@@ -43,7 +44,7 @@ export enum VaultActionType {
 export type VaultAction = ReducerAction<VaultActionType>;
 
 export interface LoadedData {
-  vault: Vault | null;
+  vault: Vault;
   passkeys: VaultPasskey[];
   dataKey: CryptoKey | null;
 }
@@ -58,18 +59,11 @@ export const initialVaultState: VaultUiState = {
 };
 
 /** A vault known to exist and known not to be open yet. */
-export function lockedVaultState(stored: {
-  vault: Vault | null;
-  passkeys: VaultPasskey[];
-}): VaultUiState {
+export function lockedVaultState(stored: { vault: Vault; passkeys: VaultPasskey[] }): VaultUiState {
   return { ...initialVaultState, ...stored, status: "locked" };
 }
 
-function statusFor(vault: Vault | null, dataKey: CryptoKey | null): VaultStatus {
-  if (!vault) {
-    return "absent";
-  }
-
+function statusFor(dataKey: CryptoKey | null): VaultStatus {
   return dataKey ? "unlocked" : "locked";
 }
 
@@ -81,7 +75,7 @@ export function vaultReducer(state: VaultUiState, action: VaultAction): VaultUiS
       return {
         ...state,
         ...data,
-        status: statusFor(data.vault, data.dataKey),
+        status: statusFor(data.dataKey),
         busy: false,
         error: null,
       };
