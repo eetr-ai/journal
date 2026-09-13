@@ -1,13 +1,11 @@
-# Values for rendering the chart in CI, where nothing is deployed and no value
-# here is real. The chart now refuses to render without its secrets, which is the
-# point — so CI has to supply throwaway ones.
+# Values for rendering the chart in CI, where nothing is deployed. The chart
+# names the Secrets it reads and refuses to render without them, so CI supplies
+# names — and nothing else, because no credential passes through values.
 postgres:
-  url: postgres://journal:journal@postgres.example:5432/journal?sslmode=require
+  existingSecret: ci-postgres
 
 auth:
-  secret: ci-only-not-a-real-secret
-  oidcId: ci-only-client-id
-  oidcSecret: ci-only-client-secret
+  existingSecret: ci-auth
 
 gateway:
   parentRef:

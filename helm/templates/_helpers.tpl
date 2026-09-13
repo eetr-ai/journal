@@ -27,12 +27,13 @@ app.kubernetes.io/name: {{ .Chart.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
-{{/* Where the database URL comes from: a secret you created, or one this chart
-     renders from values. Named once so every reference agrees. */}}
+{{/* The secrets the chart reads and never writes. They exist before the release
+     does: a credential passed as a value lands in `helm get values`, in the
+     release object in the cluster, and in whatever shell history put it there. */}}
 {{- define "journal.postgresSecretName" -}}
-{{- .Values.postgres.existingSecret | default (printf "%s-postgres" (include "journal.fullname" .)) -}}
+{{- required "postgres.existingSecret must name a Secret holding the database URL" .Values.postgres.existingSecret -}}
 {{- end -}}
 
 {{- define "journal.authSecretName" -}}
-{{- .Values.auth.existingSecret | default (printf "%s-auth" (include "journal.fullname" .)) -}}
+{{- required "auth.existingSecret must name a Secret holding AUTH_SECRET and the AUTH_OIDC_* pair" .Values.auth.existingSecret -}}
 {{- end -}}

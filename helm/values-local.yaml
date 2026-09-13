@@ -1,6 +1,6 @@
-# Overrides for the local k3d cluster. Nothing secret is in here: the database
-# URL and the auth credentials are assembled from .env at install time by
-# `task deploy`, so this file stays committable.
+# Overrides for the local k3d cluster. Nothing secret is in here or anywhere else
+# in a value: `task cluster:secrets` creates the two Secrets from .env before the
+# chart is installed, and the chart only ever names them.
 #
 # The database is genuinely outside the cluster — it is the compose Postgres on
 # your host, which k3d reaches at host.k3d.internal.

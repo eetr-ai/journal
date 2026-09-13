@@ -130,41 +130,46 @@ The whole loop, against a cluster on your machine:
 k3d cluster create journal-dev -p "80:80@loadbalancer"   # 80 is what makes it reachable
 task cluster:gateway                                     # Traefik's Gateway provider + a Gateway
 task db:up                                               # the "external" Postgres, on your host
-task deploy                                              # build, import, install
+task deploy                                              # secrets, build, import, install
+task cluster:proxy                                       # the Gateway on localhost:3000
 ```
 
-Then <http://journal.localhost>. `*.localhost` resolves to 127.0.0.1 on its own,
-so there is nothing to add to `/etc/hosts`.
+Then <http://localhost:3000>, which is the origin the OIDC client is already
+registered for, so sign-in needs nothing added at the issuer. The proxy goes
+through Traefik rather than straight at the Service, so what the browser
+exercises is the real `HTTPRoute`.
 
-`task deploy` builds the web image, imports it into the cluster, pushes the flows
-as a ConfigMap and installs the chart, taking the database URL and the auth
-credentials from your `.env`. The database is genuinely external: the agent
-reaches your host's Postgres at `host.k3d.internal`, which is the same shape as
-the real thing.
-
-**Sign-in will stop at the issuer** until the OIDC client at auth.eetr.app lists
-`http://journal.localhost/api/auth/callback/eetr` as a redirect URI. The origin
-is whatever `web.authUrl` says, and the issuer compares exactly.
+`task deploy` creates the Secrets from your `.env`, builds the web image, imports
+it into the cluster, pushes the flows as a ConfigMap and installs the chart. The
+database is genuinely external: the agent reaches your host's Postgres at
+`host.k3d.internal`, which is the same shape as the real thing.
 
 ### Secrets
 
-The chart renders them from values, so an install needs `postgres.url`,
-`auth.secret`, `auth.oidcId` and `auth.oidcSecret`, and refuses to render without
-them. **Those values reach `helm get values`, the release object in the cluster,
-and whatever shell history put them there** — fine for a laptop, and the reason
-`task deploy` passes them from `.env` rather than a committed file.
+**The chart never creates a Secret and never takes a credential as a value.** It
+names two that must already exist, and refuses to render without the names:
 
-Anywhere that is not a laptop, create the secret yourself and name it instead;
-the chart then renders none and reads yours:
+| Secret | Keys |
+| --- | --- |
+| `postgres.existingSecret` | `url` — the whole DSN, password included |
+| `auth.existingSecret` | `AUTH_SECRET`, `AUTH_OIDC_ID`, `AUTH_OIDC_SECRET` |
+
+A credential passed as a value is readable afterwards through `helm get values`
+and sits in the release object in the cluster, where it outlives the reason it
+was there. So it is applied straight to the cluster instead:
 
 ```bash
-kubectl create secret generic journal-postgres \
+kubectl create secret generic journal-postgres -n journal \
   --from-literal=url='postgres://journal:...@postgres.internal:5432/journal'
 
-helm install journal oci://ghcr.io/eetr-ai/charts/journal \
-  --set postgres.existingSecret=journal-postgres \
-  --set auth.existingSecret=journal-auth
+kubectl create secret generic journal-auth -n journal \
+  --from-literal=AUTH_SECRET=... \
+  --from-literal=AUTH_OIDC_ID=... \
+  --from-literal=AUTH_OIDC_SECRET=...
 ```
+
+Locally `task cluster:secrets` does exactly that from your `.env`, and
+`task deploy` runs it first.
 
 ### The Gateway
 

@@ -168,25 +168,41 @@ tasks:
       # testing anyway.
       - k3d image import {{.WEB_IMAGE}} -c {{.K3D_CLUSTER}}
 
+  cluster:namespace:
+    desc: Create the namespace the release lives in
+    cmds:
+      - kubectl create namespace {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
+
+  cluster:secrets:
+    desc: Create the Secrets the chart reads, from .env
+    deps:
+      - cluster:namespace
+    cmds:
+      # Applied straight to the cluster rather than passed to Helm: a credential
+      # given as a value is readable afterwards through `helm get values` and in
+      # the release object. These exist before the release and outlive it.
+      - >-
+        kubectl create secret generic journal-postgres -n {{.NAMESPACE}}
+        --from-literal=url="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@host.k3d.internal:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
+        --dry-run=client -o yaml | kubectl apply -f -
+      - >-
+        kubectl create secret generic journal-auth -n {{.NAMESPACE}}
+        --from-literal=AUTH_SECRET="$AUTH_SECRET"
+        --from-literal=AUTH_OIDC_ID="$AUTH_OIDC_ID"
+        --from-literal=AUTH_OIDC_SECRET="$AUTH_OIDC_SECRET"
+        --dry-run=client -o yaml | kubectl apply -f -
+
   deploy:
     desc: Install or upgrade the chart on the local cluster
     deps:
       - cluster:import
+      - cluster:secrets
     cmds:
-      - kubectl create namespace {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
       - task: helm:flows
-      # The secrets come from .env and never touch a committed file. They do
-      # reach `helm get values` and the release object, which is the trade the
-      # chart's own comments spell out; a real cluster names an existing secret
-      # instead.
       - >-
         helm upgrade --install journal helm
         --namespace {{.NAMESPACE}}
         -f helm/values-local.yaml
-        --set-string postgres.url="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@host.k3d.internal:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
-        --set-string auth.secret="$AUTH_SECRET"
-        --set-string auth.oidcId="$AUTH_OIDC_ID"
-        --set-string auth.oidcSecret="$AUTH_OIDC_SECRET"
         --wait
 
   cluster:proxy:
