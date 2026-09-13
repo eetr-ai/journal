@@ -40,6 +40,11 @@ agent:
   flowsConfigMap: journal-flows
   service:
     port: 8080
+  # The agent trusts its caller, so the only thing keeping it to the BFF is this.
+  # Turn it off only for a cluster whose CNI does not enforce policy, where it
+  # would be a promise nothing keeps.
+  networkPolicy:
+    enabled: true
   resources: {}
 
 postgres:
