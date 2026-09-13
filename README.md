@@ -10,7 +10,7 @@ journal/
 ├── .env.example        # the shape of the .env every task reads
 ├── sql/                # the schema, idempotent, re-applied with `task db:migrate`
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
-├── agent/              # octo flows, run by the octo binary with hot reload
+├── agent/              # octo flows + their dolphin test suites
 ├── helm/               # the chart that deploys web + agent to the home lab
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
@@ -49,6 +49,9 @@ a `SELECT true` so `task db:migrate` proves the connection and nothing more.
 - **oxlint and oxfmt**, not ESLint and Prettier — `task lint`, `task format`.
 - **Our own libraries** in the BFF: `@eetr/ts-rest-utils`,
   `@eetr/react-reducer-utils`, `@eetr/ts-dnd-utils`.
+- **Flow tests from day one.** `task test` runs [dolphin](https://juancavallotti.github.io/octo/),
+  octo's test runner: a flow is tested by the `*_test.yaml` suite beside it, the
+  way `orders.go` is tested by `orders_test.go`.
 - Phosphor icons and `react-markdown` for the UI.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.
@@ -64,9 +67,9 @@ idempotent so that task is safe to run as often as you like.
 - [Docker](https://docs.docker.com/get-docker/), for Postgres
 - Go 1.27+, to install the octo binary
 - Node 22+
-- The octo binary — `task agent:install` builds it into your Go bin directory
-  (`go env GOBIN`, else `$(go env GOPATH)/bin`). The agent tasks call it by full
-  path, so that directory does not have to be on your `PATH`.
+- The octo and dolphin binaries — `task agent:install` builds them into your Go
+  bin directory (`go env GOBIN`, else `$(go env GOPATH)/bin`). The agent tasks
+  call them by full path, so that directory need not be on your `PATH`.
 
 ## Releasing
 
@@ -98,6 +101,10 @@ kubectl create secret generic journal-auth \
   --from-literal=AUTH_SECRET=... \
   --from-literal=AUTH_GITHUB_ID=... \
   --from-literal=AUTH_GITHUB_SECRET=...
+
+# The agent runs the stock octo runtime image and reads its flows from a
+# ConfigMap, so push the flows before installing — and again whenever they change.
+task helm:flows
 
 helm install journal oci://ghcr.io/eetr-ai/charts/journal \
   --set ingress.enabled=true --set ingress.host=journal.home

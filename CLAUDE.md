@@ -41,6 +41,15 @@ Comments document **algorithms and contracts**, in the file they live in.
 - The session is the trust boundary: the tenant key comes from the session on
   the server, never from the browser.
 
+## Testing flows
+
+A flow is tested by the suite beside it: `orders.yaml` is tested by
+`orders_test.yaml`, run by dolphin under `task test`. A case supplies the input
+a source would normally have put on the message, and asserts on the result.
+
+Write the suite with the flow, not after. A case that would pass against a
+broken flow is worse than no case — check a new one fails before you trust it.
+
 ## React
 
 - **Reducers for complex, managed interactions** — anything that loads, fails,

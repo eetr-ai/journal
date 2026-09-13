@@ -7,6 +7,9 @@ vars:
   # The runtime is a Go binary installed from the octo repo. Pinned to latest
   # for now; pin a tag here once we care which version we are running.
   OCTO_PKG: github.com/juancavallotti/octo/runtime/octo@latest
+  # dolphin is octo's test runner: it drives flows the way `go test` drives a
+  # package, from a *_test.yaml suite beside each flow file.
+  DOLPHIN_PKG: github.com/juancavallotti/octo/runtime/dolphin@latest
   # Where `go install` puts things. `go env GOBIN` is empty and still exits 0
   # when unset, so the fallback is selected on the output rather than the status.
   GO_BIN:
@@ -14,13 +17,21 @@ vars:
   # Invoked by full path: `go install` adds nothing to PATH, so a machine whose
   # Go bin directory is not already on it would otherwise get "command not found".
   OCTO: '{{.GO_BIN}}/octo'
+  DOLPHIN: '{{.GO_BIN}}/dolphin'
 
 tasks:
   install:
-    desc: Install the latest octo binary into the Go bin directory
+    desc: Install the latest octo and dolphin binaries into the Go bin directory
     cmds:
       - go install {{.OCTO_PKG}}
-      - 'echo "installed {{.OCTO}}"'
+      - go install {{.DOLPHIN_PKG}}
+      - 'echo "installed {{.OCTO}} and {{.DOLPHIN}}"'
+
+  test:
+    desc: Run the flow test suites
+    cmds:
+      # Every *_test.yaml under flows/, against the flows beside it.
+      - '{{.DOLPHIN}} test ./flows'
 
   dev:
     desc: Run the flows with hot reload

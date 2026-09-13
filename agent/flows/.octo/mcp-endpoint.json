@@ -1,0 +1,9 @@
+{
+  "url": "http://127.0.0.1:8477",
+  "mcpUrl": "http://127.0.0.1:8477/mcp",
+  "port": 8477,
+  "vault": "/Users/juancavallotti/Documents/development/journal/agent/flows",
+  "serverPid": 31509,
+  "version": "0.11.4",
+  "startedAt": "2026-09-13T20:21:30.680Z"
+}

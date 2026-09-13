@@ -99,8 +99,7 @@ tasks:
   test:
     desc: Run every module's tests
     cmds:
-      # Nothing to run yet; kept so CI has a stable target from day one.
-      - echo "no tests yet"
+      - task: agent:test
 
   build:
     desc: Build every module
@@ -111,6 +110,14 @@ tasks:
     desc: Lint the Helm chart
     cmds:
       - helm lint helm
+
+  helm:flows:
+    desc: Apply agent/flows to the cluster as the ConfigMap the chart mounts
+    cmds:
+      # Generated rather than templated into the chart: Helm can only read files
+      # inside the chart directory, and copying the flows in would give them two
+      # homes that drift.
+      - kubectl create configmap journal-flows --from-file=agent/flows --dry-run=client -o yaml | kubectl apply -f -
 
   helm:template:
     desc: Render the Helm chart to stdout
