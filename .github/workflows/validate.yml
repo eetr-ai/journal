@@ -24,13 +24,11 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
-      # The build needs these two present but does not care what they are: the
-      # page renders the signed-out branch either way. Real values live in the
-      # cluster secret, never here.
+      # Required to be present at build time; never used. The real value lives
+      # in the cluster secret.
       - run: npm run build
         env:
           AUTH_SECRET: build-only-not-a-real-secret
-          DATABASE_URL: postgres://journal:journal@localhost:5432/journal
 
   helm:
     name: helm

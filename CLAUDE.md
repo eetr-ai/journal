@@ -55,6 +55,31 @@ Prefer them, and report what we find:
 - `@eetr/react-reducer-utils` — `bootstrapProvider` reducer contexts.
 - `@eetr/ts-dnd-utils` — headless drag & drop.
 
+## Limits the linter enforces
+
+Set in `web/.oxlintrc.json`, and they are there to stop spaghetti before review
+has to catch it. `task lint` fails on all of these.
+
+| Rule | Limit | What it is protecting |
+| --- | --- | --- |
+| `no-magic-numbers` | — | An unexplained number in an expression. Name it. |
+| `complexity` | 10 | Branches in one function. |
+| `max-depth` | 3 | Nested blocks. |
+| `max-statements` | 15 | Statements in one function. |
+| `max-params` | 4 | Arguments. Past four, pass an options object. |
+| `max-lines-per-function` | 60 | Blank lines and comments excluded. |
+| `max-lines` | 300 | Per file. A longer file is two files. |
+| `max-nested-callbacks` | 3 | Callback pyramids. |
+| `no-nested-ternary` | — | Use an early return or a switch. |
+
+A number assigned straight to a named `const` is fine — `const
+COOKIE_MAX_AGE_SECONDS = 31_536_000;` — so write the value as one literal rather
+than as arithmetic the rule cannot read.
+
+**These are floors, not targets.** Hitting the limit is a smell; the fix is
+smaller functions, not a bigger number. Raise a limit only with a reason, and
+never suppress a rule inline to land a change.
+
 ## Naming
 
 - `ret` for a return accumulator being built up.

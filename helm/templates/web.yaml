@@ -27,11 +27,6 @@ spec:
           env:
             - name: AUTH_URL
               value: {{ .Values.web.authUrl | quote }}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgres.existingSecret }}
-                  key: {{ .Values.postgres.secretKey }}
           # envFrom rather than named keys, so adding a provider is a secret
           # edit and not a chart edit.
           envFrom:

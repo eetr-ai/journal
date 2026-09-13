@@ -30,6 +30,7 @@ agent:
   resources: {}
 
 postgres:
+  # Consumed by the agent only; the web app holds no database connection today.
   # An existing secret, not a templated value: values end up in `helm get
   # values`, in shell history, and in the release object. Create it by hand:
   #   kubectl create secret generic journal-postgres \

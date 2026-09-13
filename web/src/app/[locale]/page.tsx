@@ -5,6 +5,8 @@ import { dictionary, format } from "@/i18n/dictionaries";
 import { isLocale } from "@/i18n/config";
 import { notFound } from "next/navigation";
 
+const ICON_SIZE = 18;
+
 export interface HomeOptions {
   params: Promise<{ locale: string }>;
 }
@@ -40,7 +42,7 @@ export default async function Home(options: HomeOptions) {
             }}
           >
             <button className="flex items-center gap-2 rounded border px-4 py-2" type="submit">
-              <SignOutIcon size={18} />
+              <SignOutIcon size={ICON_SIZE} />
               {t.signOut}
             </button>
           </form>
@@ -55,7 +57,7 @@ export default async function Home(options: HomeOptions) {
             }}
           >
             <button className="flex items-center gap-2 rounded border px-4 py-2" type="submit">
-              <GithubLogoIcon size={18} />
+              <GithubLogoIcon size={ICON_SIZE} />
               {t.signIn.github}
             </button>
           </form>

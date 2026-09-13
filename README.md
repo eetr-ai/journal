@@ -37,8 +37,8 @@ task dev                         # Postgres, then web and agent together
 One `Ctrl-C` stops both apps; Postgres keeps running (`task db:down` stops it).
 
 This is boilerplate: sign in, sign out, switch language, and a hello-world flow.
-There is no application logic yet, and `sql/` holds only the tables the Auth.js
-Postgres adapter requires.
+There is no application logic yet, and the database has no tables — `sql/` holds
+a `SELECT true` so `task db:migrate` proves the connection and nothing more.
 
 ### What is wired up
 

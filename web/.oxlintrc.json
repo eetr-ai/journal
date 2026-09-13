@@ -1,13 +1,35 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "nextjs", "jsx-a11y"],
+  "plugins": ["react", "typescript", "nextjs", "jsx-a11y", "unicorn"],
   "env": { "browser": true, "es2024": true, "node": true },
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
   },
   "rules": {
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+
+    "no-magic-numbers": [
+      "error",
+      {
+        "ignore": [0, 1, -1],
+        "ignoreArrayIndexes": true,
+        "ignoreDefaultValues": true,
+        "enforceConst": true
+      }
+    ],
+
+    "complexity": ["error", 10],
+    "max-depth": ["error", 3],
+    "max-nested-callbacks": ["error", 3],
+    "max-params": ["error", 4],
+    "max-statements": ["error", 15],
+    "max-lines-per-function": [
+      "error",
+      { "max": 60, "skipBlankLines": true, "skipComments": true }
+    ],
+    "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+    "no-nested-ternary": "error"
   },
   "ignorePatterns": [".next", "node_modules", "next-env.d.ts"]
 }
