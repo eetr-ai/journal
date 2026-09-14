@@ -86,6 +86,7 @@ const es: Dictionary = {
     send: "Enviar",
     stop: "Parar",
     thinking: "Pensando...",
+    reasoning: "Pensándolo",
     working: "Buscando algo...",
     emptyTitle: "Todavía no hay nada",
     unavailableTitle: "Esta no cargó",

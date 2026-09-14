@@ -12,6 +12,7 @@ import type { SseEvent } from "./sse";
 interface AgentEvent {
   type?: unknown;
   text?: unknown;
+  thinking?: unknown;
 }
 
 function parsed(data: string): unknown {
@@ -26,6 +27,10 @@ function agentFrame(event: AgentEvent): AgentFrame | null {
   switch (event.type) {
     case "text":
       return typeof event.text === "string" ? { kind: "text", text: event.text } : null;
+    // The runtime names this field for the event, not for us, so both spellings
+    // are accepted rather than depending on which one a version uses.
+    case "thinking":
+      return reasoningFrom(event);
     case "tool_call":
       return { kind: "tool", done: false };
     case "tool_result":
@@ -35,6 +40,12 @@ function agentFrame(event: AgentEvent): AgentFrame | null {
     default:
       return null;
   }
+}
+
+function reasoningFrom(event: AgentEvent): AgentFrame | null {
+  const text = typeof event.thinking === "string" ? event.thinking : event.text;
+
+  return typeof text === "string" && text !== "" ? { kind: "reasoning", text } : null;
 }
 
 export function frameFrom(event: SseEvent): AgentFrame | null {

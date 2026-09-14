@@ -100,7 +100,13 @@ export const chatClient = {
         retry: { attempts: ONE_ATTEMPT },
         timeoutMs: STREAM_CONNECT_TIMEOUT_MS,
         signal: params.signal,
-        headers: { accept: "text/event-stream" },
+        headers: {
+          accept: "text/event-stream",
+          // What ends a run in flight. Set here from what the BFF decided, never
+          // forwarded from the browser: what a client sends is a request, and
+          // what reaches the agent is this layer's decision.
+          ...(params.ask.intent === "stop" ? { "X-Agent-Stop": "1" } : {}),
+        },
       },
     );
 

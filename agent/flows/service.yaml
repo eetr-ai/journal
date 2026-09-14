@@ -18,6 +18,13 @@ env:
   - name: CHAT_MODEL
     default: deepseek/deepseek-v4.1-flash
 
+# Skill bodies, resolved relative to this directory and pulled into a
+# conversation only when the agent asks for one by its alias.
+resources:
+  templates:
+    - resource: skills/counselling.md
+      as: counselling
+
 connectors:
   - name: api
     type: http

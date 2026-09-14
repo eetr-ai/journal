@@ -21,6 +21,9 @@ type discovery struct {
 			feature
 			MaxValueBytes int `json:"maxValueBytes"`
 		} `json:"kv"`
+		Resources struct {
+			feature
+		} `json:"resources"`
 		Secrets struct {
 			feature
 			// False, and said out loud. The database is not encrypting these
@@ -75,6 +78,8 @@ func (s *Server) getDiscovery(w http.ResponseWriter, _ *http.Request) {
 
 	ret.Features.KV.Supported = true
 	ret.Features.KV.MaxValueBytes = maxValueBytes
+
+	ret.Features.Resources.Supported = s.config.Resources.Supported()
 
 	ret.Features.Secrets.Supported = true
 	ret.Features.Secrets.EncryptedAtRest = s.config.SecretsSealed

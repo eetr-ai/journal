@@ -176,7 +176,9 @@ tasks:
   image:platform:
     desc: Build the platform sidecar image — octo's platform API, on our own infrastructure
     cmds:
-      - docker build -t {{.PLATFORM_IMAGE}} platform
+      # Built from the repo root: the sidecar carries the integration's
+      # resources as well as its own binary.
+      - docker build -f platform/Dockerfile -t {{.PLATFORM_IMAGE}} .
 
   cluster:import:
     desc: Push the locally built images into the k3d cluster

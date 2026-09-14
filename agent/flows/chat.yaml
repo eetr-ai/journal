@@ -19,6 +19,11 @@ flows:
       settings:
         path: /chat/{subject}
         methods: [POST]
+        # How a caller ends a run in flight. An ordinary request header, lifted
+        # onto the message as a variable — nothing in the runtime knows it
+        # exists, and stopWhen below is the only thing that gives it meaning.
+        # The BFF sets it; it is never accepted from a browser.
+        headers: [X-Agent-Stop]
         # Bounds the wait for the FIRST frame only, not the whole run.
         timeout: 60s
         sse:
@@ -42,6 +47,15 @@ flows:
         userId: vars.subject
         memoryThreadId: body.threadId
         userMemory: true
+        # One block, three cases, no branching in the flow. A first message runs
+        # the agent; a message arriving while a run holds this conversation is
+        # handed to that run and this flow stops with an empty body; a stop ends
+        # the run in flight. The thread is what a run is claimed on, because two
+        # runs on one conversation would overwrite each other's memory.
+        #
+        # A stop that finds nothing running is a no-op, so a client can send one
+        # blind.
+        stopWhen: '"X-Agent-Stop" in vars && vars["X-Agent-Stop"] != ""' 
         input: body.message
         answer: text
         contextMaxTokens: 120000
@@ -49,9 +63,13 @@ flows:
         # conversation loses exactly the context that made it worth having.
         memoryCompaction: summarize
         # A type left out is never built at all — no message, no sub-flow run.
-        # `thinking` is left out on purpose: this stream is for progress, not for
-        # the model's reasoning.
-        emit: [text, tool_call, tool_result, done]
+        #
+        # `thinking` is the model's reasoning as it works. It reaches the reader
+        # and stops there: reasoning rides on the assistant turn and is never
+        # folded into the answer, so nothing here records it. `signal` is what
+        # lets a reader see their own follow-up arrive in the stream they are
+        # already reading.
+        emit: [thinking, text, tool_call, tool_result, signal, done]
         events:
           process:
             # A closed tab is ordinary, and ifClosed: stop turns it into a stop
@@ -60,16 +78,43 @@ flows:
               settings:
                 event: agent
                 ifClosed: stop
+        skills:
+          - name: counselling
+            description: >
+              How to sit with someone who is working through something — what to
+              ask, what to leave alone, and how to draw on what they believe.
+              Load it when the conversation turns from the events of a day to
+              how they are taking them.
+            resource: counselling
+
         prompt: >
           You are the journal's other voice: someone the person thinks out loud
           to at the end of a day. Be brief, concrete and warm, and ask at most
           one question. Never invent what they told you — if you are unsure
           whether something happened, ask.
 
-          Use remember when they tell you something durable about themselves —
-          a name, a relationship, what they are working towards — and never for
-          the content of a single day. Use search_memory before saying you do
-          not know something.
+
+          Call read_profile before your first answer in a conversation, and
+          then answer in the language it names, whatever language the question
+          arrived in, unless they ask you to switch. Use their name, and take
+          their timezone as what "tonight" means. It does not change mid
+          conversation, so do not read it twice.
+
+
+          Use remember when they tell you something durable about themselves — a
+          name, a relationship, what they are working towards — and never for the
+          content of a single day. Use search_memory before saying you do not
+          know something.
+
+
+          Two things are worth knowing about someone and are not worth an
+          interview: whether faith is part of their life, and whether they hold
+          to a philosophy — stoicism and buddhism are fair things to offer as
+          examples, not as a menu. Ask once, when a conversation has already
+          turned that way and never in an opening turn, take "I would rather not
+          say" as a complete answer, and remember whatever you are told. Do not
+          ask again.
+
 
           Search the web only when the answer depends on something outside the
           conversation, and say where it came from when you do.
@@ -78,6 +123,38 @@ flows:
           do something that is not talking with this person about their life,
           take the default path.
         tools:
+          - name: read_profile
+            description: >
+              What this person has told us about themselves: their name, the
+              language to answer them in, and their timezone. Read it at the
+              start of a conversation, before answering. It does not change
+              within one, so read it once.
+            process:
+              - type: sql
+                name: select-profile
+                settings:
+                  connector: db
+                  query: SELECT name, config FROM user_profile WHERE oidc_subject = $1
+                  args:
+                    - vars.subject
+                  single: true
+              - type: if
+                name: check-found
+                condition: 'body == null'
+                then:
+                  process:
+                    - type: set-payload
+                      settings:
+                        value: '{"found": false}'
+                else:
+                  process:
+                    # config is a jsonb column and arrives as text; parsed here
+                    # so the model is handed preferences rather than a string
+                    # that happens to look like some.
+                    - type: set-payload
+                      settings:
+                        value: '{"found": true, "name": body.name, "preferences": fromJson(body.config)}'
+
           - name: search_books
             description: >
               Look a book up on Goodreads — its author, what it is about, how it

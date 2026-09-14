@@ -8,11 +8,18 @@ import type { Locale } from "@/i18n/config";
  * downstream ever sees a `thread_key`.
  */
 
-/** One turn of the conversation, as it is sent. */
+/**
+ * One turn of the conversation, as it is sent.
+ *
+ * `intent` is how a reader ends a run that is already going. It says what the
+ * browser wants, not what the agent is told: the BFF turns it into the header
+ * the flow reads, and never passes one through.
+ */
 export interface ChatAsk {
   threadId: string;
   message: string;
   locale: Locale;
+  intent?: "say" | "stop";
 }
 
 /** Who said it. The agent's roles are the model's; ours are the reader's. */
@@ -22,12 +29,15 @@ export interface Turn {
   seq: number;
   from: Speaker;
   text: string;
+  /** When it was recorded, as the agent stamped it. ISO 8601. */
+  at: string;
 }
 
 export interface Conversation {
   id: string;
   title: string;
   turnCount: number;
+  createdAt: string;
   lastActivityAt: string;
 }
 
@@ -35,12 +45,14 @@ export interface TurnEntity {
   seq: number;
   role: string;
   content: string;
+  created_at: string;
 }
 
 export interface ConversationEntity {
   thread_key: string;
   title: string;
   turn_count: number;
+  created_at: string;
   last_activity_at: string;
 }
 
@@ -58,6 +70,7 @@ export function conversationFromEntity(entity: ConversationEntity): Conversation
     id: entity.thread_key,
     title: entity.title,
     turnCount: entity.turn_count,
+    createdAt: entity.created_at,
     lastActivityAt: entity.last_activity_at,
   };
 }
@@ -70,6 +83,7 @@ export function turnFromEntity(entity: TurnEntity): Turn {
     seq: entity.seq,
     from: entity.role === "user" ? "you" : "journal",
     text: entity.content,
+    at: entity.created_at,
   };
 }
 
@@ -82,6 +96,7 @@ export function turnFromEntity(entity: TurnEntity): Turn {
  */
 export type AgentFrame =
   | { kind: "text"; text: string }
+  | { kind: "reasoning"; text: string }
   | { kind: "tool"; done: boolean }
   | { kind: "answer"; text: string }
   | { kind: "done" };

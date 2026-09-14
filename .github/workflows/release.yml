@@ -184,7 +184,10 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: ./platform
+          # The repo root: the sidecar carries the integration's resources as
+          # well as its own binary.
+          context: .
+          file: platform/Dockerfile
           # The home lab is a pile of Raspberry Pis.
           platforms: linux/amd64,linux/arm64
           push: true

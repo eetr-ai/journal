@@ -1,19 +1,21 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { openChat } from "./browser_client";
+import { useRouter } from "next/navigation";
+import { openChat, steerChat } from "./browser_client";
 import { readFrames } from "./stream_reader";
 import { messageProblem } from "./rules";
 import { ChatActionType, useChat, type ChatError } from "./chat_state";
-import type { AgentFrame } from "./types";
+import type { AgentFrame, ChatAsk } from "./types";
 import type { Locale } from "@/i18n/config";
 
 /**
- * Sending a message, and stopping one part-way.
+ * Saying something, and stopping what is being said back.
  *
- * Stopping cancels the fetch, which cancels the stream, which is what the agent
- * reads as "nobody is listening" — so a person who closes this is not left
- * paying for a run nobody will read.
+ * A message sent while a run is going does not start a second one: the agent
+ * hands it to the run that holds this conversation, which answers in the stream
+ * already open. So there is one stream per conversation, not one per message,
+ * and the difference between the two paths is which of them the browser takes.
  */
 
 export interface ChatStreamOptions {
@@ -26,6 +28,8 @@ function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } 
   switch (frame.kind) {
     case "text":
       return { type: ChatActionType.Delta, data: frame.text };
+    case "reasoning":
+      return { type: ChatActionType.Reasoning, data: frame.text };
     case "tool":
       return { type: ChatActionType.Tool, data: frame.done };
     case "answer":
@@ -35,15 +39,21 @@ function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } 
   }
 }
 
-/**
- * Opens a run and drains it into the reducer, reporting how it ended. Module
- * level, so the hook stays about the one thing React needs from it.
- */
-async function run(
-  ask: { threadId: string; message: string; locale: Locale },
-  signal: AbortSignal,
-  dispatch: (action: { type: ChatActionType; data?: unknown }) => void,
-): Promise<void> {
+type Dispatcher = (action: { type: ChatActionType; data?: unknown }) => void;
+
+/** Drains one run into the reducer. */
+async function pump(body: ReadableStream<Uint8Array>, dispatch: Dispatcher): Promise<void> {
+  for await (const frame of readFrames(body)) {
+    const action = actionFor(frame);
+
+    if (action) {
+      dispatch(action);
+    }
+  }
+}
+
+/** Opens a run and drains it, reporting how it ended. */
+async function run(ask: ChatAsk, signal: AbortSignal, dispatch: Dispatcher): Promise<void> {
   const body = await openChat({ ask, signal });
 
   if (!body) {
@@ -56,23 +66,40 @@ async function run(
   await pump(body, dispatch);
 }
 
-/** Drains one run into the reducer. */
-async function pump(
-  body: ReadableStream<Uint8Array>,
-  dispatch: (action: { type: ChatActionType; data?: unknown }) => void,
+/** One whole run, from the first frame to whatever ended it. */
+async function runToEnd(
+  ask: ChatAsk,
+  controller: AbortController,
+  dispatch: Dispatcher,
 ): Promise<void> {
-  for await (const frame of readFrames(body)) {
-    const action = actionFor(frame);
-
-    if (action) {
-      dispatch(action);
-    }
+  try {
+    await run(ask, controller.signal, dispatch);
+    dispatch({ type: ChatActionType.Settled });
+  } catch (error) {
+    // Stopping deliberately is not a failure, and what streamed before it stays
+    // on screen.
+    dispatch(
+      (error as Error)?.name === ABORTED
+        ? { type: ChatActionType.Aborted }
+        : { type: ChatActionType.Failed, data: "failed" satisfies ChatError },
+    );
   }
 }
 
 export function useChatStream(options: ChatStreamOptions) {
   const { state, dispatch } = useChat();
+  const router = useRouter();
   const running = useRef<AbortController | null>(null);
+
+  const ask = useCallback(
+    (message: string, intent: ChatAsk["intent"]): ChatAsk => ({
+      threadId: state.threadId,
+      message,
+      locale: options.locale,
+      intent,
+    }),
+    [options.locale, state.threadId],
+  );
 
   const send = useCallback(
     async (message: string): Promise<void> => {
@@ -84,33 +111,42 @@ export function useChatStream(options: ChatStreamOptions) {
         return;
       }
 
-      dispatch({ type: ChatActionType.Sent, data: message.trim() });
+      // A run already holds this conversation, so this joins it. The answer
+      // keeps arriving where it already was.
+      if (running.current) {
+        dispatch({ type: ChatActionType.FollowUp, data: message.trim() });
+        await steerChat(ask(message.trim(), "say"));
 
-      const controller = new AbortController();
-      running.current = controller;
+        return;
+      }
+
+      dispatch({ type: ChatActionType.Sent, data: message.trim() });
+      running.current = new AbortController();
 
       try {
-        const ask = { threadId: state.threadId, message: message.trim(), locale: options.locale };
-
-        await run(ask, controller.signal, dispatch);
-      } catch (error) {
-        // Stopping deliberately is not a failure, and what streamed before it
-        // stays on screen.
-        dispatch(
-          (error as Error)?.name === ABORTED
-            ? { type: ChatActionType.Aborted }
-            : { type: ChatActionType.Failed, data: "failed" satisfies ChatError },
-        );
+        await runToEnd(ask(message.trim(), "say"), running.current, dispatch);
       } finally {
         running.current = null;
+        // The conversation may be new, and the drawer beside this panel was
+        // rendered before it existed.
+        router.refresh();
       }
     },
-    [dispatch, options.locale, state.threadId],
+    [ask, dispatch, router],
   );
 
-  const stop = useCallback(() => {
-    running.current?.abort();
-  }, []);
+  /**
+   * Ends the run rather than hanging up on it: cancelling the stream would stop
+   * the agent too, but it would also lose whatever was mid-sentence. A stop
+   * that finds nothing running is a no-op, so it is safe to send blind.
+   */
+  const stop = useCallback(async (): Promise<void> => {
+    if (!running.current) {
+      return;
+    }
+
+    await steerChat(ask("", "stop"));
+  }, [ask]);
 
   return { send, stop };
 }

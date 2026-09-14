@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { TrashIcon } from "@phosphor-icons/react";
+import Moment from "./moment";
 import { forgetConversationAction } from "../actions";
 import type { Conversation } from "../types";
 import type { Dictionary } from "@/i18n/en";
@@ -13,6 +14,7 @@ export interface ConversationListOptions {
   conversations: Conversation[];
   current: string | null;
   locale: Locale;
+  timezone: string;
   t: Dictionary;
 }
 
@@ -39,6 +41,13 @@ export default function ConversationList(options: ConversationListOptions) {
             href={`/${options.locale}?chat=${encodeURIComponent(conversation.id)}`}
           >
             <p className="truncate text-sm">{conversation.title}</p>
+            <Moment
+              className="text-xs text-muted"
+              fallbackLocale={options.locale}
+              iso={conversation.lastActivityAt}
+              shape="conversation"
+              timezone={options.timezone}
+            />
           </a>
           <button
             aria-label={t.delete}

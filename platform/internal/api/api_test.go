@@ -45,14 +45,19 @@ func (f *fakeStore) PutEntry(context.Context, string, string, []byte, int64) (in
 }
 
 func serverWith(s store.Store, e embed.Embedder) http.Handler {
+	return serverWithResources(s, e, api.Resources{})
+}
+
+func serverWithResources(s store.Store, e embed.Embedder, resources api.Resources) http.Handler {
 	return api.NewServer(api.Config{
-		Store:    s,
-		Locks:    (locks.Locks)(nil),
-		Bus:      (bus.Bus)(nil),
-		Embedder: e,
-		Name:     "journal-platform",
-		Version:  "test",
-		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Resources: resources,
+		Store:     s,
+		Locks:     (locks.Locks)(nil),
+		Bus:       (bus.Bus)(nil),
+		Embedder:  e,
+		Name:      "journal-platform",
+		Version:   "test",
+		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}).Handler()
 }
 

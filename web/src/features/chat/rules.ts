@@ -54,9 +54,17 @@ export function askFrom(value: unknown): ChatAsk | null {
     return null;
   }
 
+  const locale = value.locale as Locale;
+
+  // A stop carries no message, and would be refused for being empty if it were
+  // held to the same rule.
+  if (value.intent === "stop") {
+    return { threadId: value.threadId, message: "", locale, intent: "stop" };
+  }
+
   return messageProblem(value.message)
     ? null
-    : { threadId: value.threadId, message: value.message.trim(), locale: value.locale as Locale };
+    : { threadId: value.threadId, message: value.message.trim(), locale, intent: "say" };
 }
 
 export function newThreadId(): string {

@@ -11,6 +11,7 @@ export interface ChatBodyOptions {
   t: Dictionary;
   locale: Locale;
   unavailable: boolean;
+  timezone: string;
 }
 
 export default function ChatBody(options: ChatBodyOptions) {
@@ -34,7 +35,7 @@ export default function ChatBody(options: ChatBodyOptions) {
             </p>
           </div>
         ) : (
-          <TurnList t={options.t} />
+          <TurnList locale={options.locale} t={options.t} timezone={options.timezone} />
         )}
       </div>
 

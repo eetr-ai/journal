@@ -60,7 +60,10 @@ type Config struct {
 	// It is passed in rather than inferred, because only the caller knows
 	// whether it wrapped the store in one that seals.
 	SecretsSealed bool
-	Log           *slog.Logger
+	// Resources is the integration's own files. Unconfigured, the capability is
+	// declared off and the runtime reports every one of them as missing.
+	Resources Resources
+	Log       *slog.Logger
 }
 
 // Server answers the contract. Every collaborator is passed in: there is no
@@ -79,6 +82,8 @@ func (s *Server) Handler() http.Handler {
 	ret := http.NewServeMux()
 
 	ret.HandleFunc("GET /v1/discovery", s.getDiscovery)
+
+	ret.HandleFunc("GET /v1/resources/content", s.getResource)
 
 	ret.HandleFunc("GET /v1/kv/{namespace}/entry", s.getEntry)
 	ret.HandleFunc("PUT /v1/kv/{namespace}/entry", s.putEntry)

@@ -1,0 +1,76 @@
+/**
+ * When something was said, in the reader's terms.
+ *
+ * The zone is the one on their profile, because a conversation happened where
+ * they are and not where the server is. The locale is the browser's, because
+ * that is what they configured their machine to read dates in — which can
+ * differ from the language the app is in, and deliberately does.
+ *
+ * Both are best-effort: an unknown zone or an odd locale falls back rather than
+ * throwing, since a timestamp is never worth failing a page over.
+ */
+
+const TIME_ONLY = { hour: "numeric", minute: "2-digit" } as const;
+const WITH_DAY = { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" } as const;
+
+/** The browser's, or the app's language on the server where there is none. */
+export function readerLocale(fallback: string): string {
+  return typeof navigator === "undefined" ? fallback : navigator.language || fallback;
+}
+
+function format(
+  iso: string,
+  timezone: string,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+) {
+  const at = new Date(iso);
+
+  if (Number.isNaN(at.getTime())) {
+    return "";
+  }
+
+  try {
+    return at.toLocaleString(locale, { ...options, timeZone: timezone || undefined });
+  } catch {
+    return at.toLocaleString(locale, options);
+  }
+}
+
+export interface MomentOptions {
+  iso: string;
+  timezone: string;
+  fallbackLocale: string;
+}
+
+/** A turn's time. Today's turns need no date; older ones carry one. */
+export function turnMoment(options: MomentOptions): string {
+  const locale = readerLocale(options.fallbackLocale);
+  const shape = isToday(options.iso, options.timezone, locale) ? TIME_ONLY : WITH_DAY;
+
+  return format(options.iso, options.timezone, locale, shape);
+}
+
+/** A conversation's time, which is always dated: the drawer spans days. */
+export function conversationMoment(options: MomentOptions): string {
+  return format(options.iso, options.timezone, readerLocale(options.fallbackLocale), WITH_DAY);
+}
+
+// Compared as rendered dates rather than by arithmetic, so "today" is today in
+// the reader's zone and not in the runtime's.
+function isToday(iso: string, timezone: string, locale: string): boolean {
+  const shape = { year: "numeric", month: "numeric", day: "numeric" } as const;
+
+  try {
+    const zone = { ...shape, timeZone: timezone || undefined };
+
+    return (
+      new Date(iso).toLocaleDateString(locale, zone) === new Date().toLocaleDateString(locale, zone)
+    );
+  } catch {
+    return (
+      new Date(iso).toLocaleDateString(locale, shape) ===
+      new Date().toLocaleDateString(locale, shape)
+    );
+  }
+}

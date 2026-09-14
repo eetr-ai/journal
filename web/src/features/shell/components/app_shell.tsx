@@ -41,11 +41,13 @@ export default function AppShell(options: AppShellOptions) {
           current={options.threadId}
           locale={options.locale}
           t={options.t}
+          timezone={options.profile.config.timezone}
         />
         <ChatPanel
           locale={options.locale}
           t={options.t}
           threadId={options.threadId}
+          timezone={options.profile.config.timezone}
           turns={options.turns}
           unavailable={options.unavailable}
         />

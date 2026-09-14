@@ -35,6 +35,10 @@ const (
 	defaultHost  = "127.0.0.1"
 	defaultPort  = "8099"
 	defaultModel = "qwen/qwen3-embedding-8b"
+	// defaultResources is where the integration's own files live — the same path
+	// the runtime beside us reads its flows from, so a resource resolves to the
+	// same name on both sides.
+	defaultResources = "/etc/octo/integrations"
 	// dimensions is a deliberate truncation of a wider model: pgvector indexes
 	// nothing past 2000, and the column has to match what we ask for.
 	dimensions = 1024
@@ -65,6 +69,7 @@ type config struct {
 	embedModel    string
 	secretsKey    string
 	queueMaxLen   int64
+	resourcesDir  string
 }
 
 // intOr reads a whole number from the environment, falling back when it is
@@ -99,6 +104,7 @@ func loadConfig() (config, error) {
 		embedModel:    envOr("EMBEDDING_MODEL", defaultModel),
 		secretsKey:    os.Getenv("SECRETS_KEY"),
 		queueMaxLen:   intOr("QUEUE_MAX_LEN", 0),
+		resourcesDir:  envOr("RESOURCES_DIR", defaultResources),
 	}
 
 	var missing []string
@@ -205,6 +211,7 @@ func load(ctx context.Context, cfg config, log *slog.Logger) (*api.Server, *back
 		Name:          "journal-platform",
 		Version:       Version,
 		SecretsSealed: sealed,
+		Resources:     api.NewResources(cfg.resourcesDir),
 		Log:           log,
 	})
 

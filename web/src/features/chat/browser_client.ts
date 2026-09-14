@@ -15,7 +15,7 @@ const CHAT_ENDPOINT = "/api/chat";
 
 export interface OpenParams {
   ask: ChatAsk;
-  signal: AbortSignal;
+  signal?: AbortSignal;
 }
 
 /** The answer stream, or null when the BFF refused. */
@@ -32,4 +32,23 @@ export async function openChat(params: OpenParams): Promise<ReadableStream<Uint8
   }
 
   return response.body;
+}
+
+/**
+ * A message for a run already going, or a stop for one.
+ *
+ * Both answer with an empty body and no stream — the run they reached is what
+ * keeps writing, in the stream the reader is already watching — so the response
+ * is drained and dropped rather than read for frames.
+ */
+export async function steerChat(ask: ChatAsk): Promise<boolean> {
+  const body = await openChat({ ask });
+
+  if (!body) {
+    return false;
+  }
+
+  await body.cancel();
+
+  return true;
 }

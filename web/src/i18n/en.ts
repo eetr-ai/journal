@@ -84,6 +84,7 @@ const en = {
     send: "Send",
     stop: "Stop",
     thinking: "Thinking...",
+    reasoning: "Thinking it through",
     working: "Looking something up...",
     emptyTitle: "Nothing here yet",
     unavailableTitle: "This one would not load",

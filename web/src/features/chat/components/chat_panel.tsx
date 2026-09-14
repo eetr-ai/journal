@@ -21,6 +21,8 @@ export interface ChatPanelOptions {
   turns: Turn[];
   /** This conversation exists, but its turns could not be fetched. */
   unavailable: boolean;
+  /** The reader's zone, from their profile. */
+  timezone: string;
 }
 
 // SimpleProvider rather than bootstrapProvider: the initial state carries this
@@ -34,7 +36,12 @@ export default function ChatPanel(options: ChatPanelOptions) {
       reducer={chatReducer}
       stateContext={ChatStateContext}
     >
-      <ChatBody locale={options.locale} t={options.t} unavailable={options.unavailable} />
+      <ChatBody
+        locale={options.locale}
+        t={options.t}
+        timezone={options.timezone}
+        unavailable={options.unavailable}
+      />
     </SimpleProvider>
   );
 }

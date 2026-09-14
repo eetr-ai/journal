@@ -1,0 +1,12 @@
+# The platform image builds from here, and wants only its own module plus the
+# integration's resources.
+node_modules/
+data/
+.next/
+dist/
+.git/
+web/
+helm/
+deploy/
+.github/
+platform/**/*_test.go
