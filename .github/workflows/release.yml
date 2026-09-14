@@ -14,6 +14,10 @@ on:
         description: The tag to publish, as `v0.0.0`.
         type: string
         required: true
+    secrets:
+      EETR_API_KEY:
+        description: Bearer token for the eetr deployment API.
+        required: true
   workflow_dispatch:
     inputs:
       ref:
@@ -186,6 +190,9 @@ jobs:
     # is a rollout that never becomes ready.
     needs: [web-image, agent-image, migrate-image, chart]
     runs-on: ubuntu-latest
+    # Nothing here touches the repo or the registry; it is one call to an
+    # external API.
+    permissions: {}
     steps:
       - name: Tell eetr the new chart version
         env:
