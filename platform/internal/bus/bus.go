@@ -123,7 +123,9 @@ func handleFor(group, entryID string) string {
 }
 
 // splitHandle recovers the entry id and the group. A handle from an older
-// build, or from anywhere else, has no group and is left to the caller.
+// build, or from anywhere else, has no group — the caller decides what to do
+// with it, which for a settle is nothing: the contract says an id we do not
+// recognise is not worth an error.
 func splitHandle(handle string) (string, string) {
 	entryID, group, found := strings.Cut(handle, groupSeparator)
 

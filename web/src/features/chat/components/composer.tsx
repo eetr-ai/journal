@@ -26,9 +26,17 @@ export default function Composer(options: ComposerOptions) {
   const busy = state.status === "waiting" || state.status === "streaming";
 
   async function submit() {
-    // Cleared only once it is going to be sent. A message refused for being too
+    const problem = messageProblem(draft);
+
+    // Enter on an empty box is not a mistake worth an error message — the send
+    // button is disabled for the same reason.
+    if (problem === "empty") {
+      return;
+    }
+
+    // Cleared only once it is going to be sent: a message refused for being too
     // long is a message the person still has to edit.
-    if (messageProblem(draft)) {
+    if (problem) {
       await send(draft);
 
       return;

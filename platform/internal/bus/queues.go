@@ -109,7 +109,14 @@ func (b *RedisBus) Nack(ctx context.Context, subject string, ids []string, delay
 	key := queuePrefix + subject
 
 	for _, handle := range ids {
-		id, _ := splitHandle(handle)
+		id, group := splitHandle(handle)
+
+		// A handle we cannot settle must not be republished either: the copy
+		// would go out while the original stayed pending, and one message would
+		// become two.
+		if group == "" {
+			continue
+		}
 
 		payload, err := b.payloadOf(ctx, key, id)
 		if err != nil {

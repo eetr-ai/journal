@@ -66,6 +66,18 @@ func newID() string {
 	return hex.EncodeToString(ret)
 }
 
+// acquireScript takes the name and writes the reverse key in one step, or does
+// neither. Two statements would leave a window where the name is held by a
+// caller that was handed no lease id — it could then neither renew nor release
+// what it holds, and the name would sit out its whole TTL for nothing.
+var acquireScript = redis.NewScript(`
+if redis.call('SET', KEYS[1], ARGV[1], 'NX', 'PX', ARGV[3]) then
+  redis.call('SET', KEYS[2], ARGV[2], 'PX', ARGV[3])
+  return 1
+end
+return 0
+`)
+
 // Acquire grants the name when it is free, or when the previous holder's TTL
 // passed without a renewal. A holder that died without releasing must not take
 // a name out of service for good, which is exactly what the expiry buys.
@@ -77,15 +89,18 @@ func (l *RedisLocks) Acquire(ctx context.Context, name, holder string, ttl time.
 	id := newID()
 	key := leasePrefix + name
 
-	won, err := l.client.SetNX(ctx, key, id+"|"+holder, ttl).Result()
+	// The reverse key is what lets renew and release name the claim without the
+	// caller having to repeat which name it took.
+	won, err := acquireScript.Run(ctx, l.client,
+		[]string{key, handlePrefix + id}, id+"|"+holder, name, ttl.Milliseconds()).Int()
 	if err != nil {
 		return Claim{}, err
 	}
 
-	if !won {
+	if won == 0 {
 		current, err := l.client.Get(ctx, key).Result()
 		if errors.Is(err, redis.Nil) {
-			// It lapsed between the SETNX and the GET. Saying "held by
+			// It lapsed between the claim and the read. Saying "held by
 			// nobody" is honest; the caller retries on its own schedule.
 			return Claim{}, nil
 		}
@@ -93,12 +108,6 @@ func (l *RedisLocks) Acquire(ctx context.Context, name, holder string, ttl time.
 		_, holder, _ := strings.Cut(current, "|")
 
 		return Claim{Holder: holder}, err
-	}
-
-	// The reverse key is what lets renew and release name the claim without the
-	// caller having to repeat which name it took.
-	if err := l.client.Set(ctx, handlePrefix+id, name, ttl).Err(); err != nil {
-		return Claim{}, err
 	}
 
 	return Claim{Acquired: true, LeaseID: id, Holder: holder, ExpiresAt: time.Now().Add(ttl)}, nil
