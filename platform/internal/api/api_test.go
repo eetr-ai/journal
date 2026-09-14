@@ -198,3 +198,75 @@ func TestAnOversizedAppendIsRefused(t *testing.T) {
 		t.Fatalf("an oversized append answered %d", got.Code)
 	}
 }
+
+// The routes that take a forwarded key must refuse a header they cannot read,
+// and must not refuse a request that forwards nothing. The first is the whole
+// reason the header is validated at all; the second is every deployment that
+// does not seal.
+type sealingStore struct {
+	store.Store
+	saved []byte
+}
+
+func (s *sealingStore) SaveWorking(context.Context, string, string, string, store.Working, int64) (int64, error) {
+	return 1, nil
+}
+
+func (s *sealingStore) AppendTurns(_ context.Context, _, _, _ string, turns []store.Turn) (int64, []int64, error) {
+	s.saved = []byte(turns[0].Text)
+
+	return 1, []int64{1}, nil
+}
+
+func appendWith(t *testing.T, handler http.Handler, header string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	request := httptest.NewRequest(http.MethodPost,
+		"/v1/agent-memory/journal/threads/t1/turns?userId=who",
+		strings.NewReader(`{"turns":[{"role":"user","text":"the words"}]}`))
+
+	if header != "" {
+		request.Header.Set("X-Octo-Agent-Context", header)
+	}
+
+	ret := httptest.NewRecorder()
+	handler.ServeHTTP(ret, request)
+
+	return ret
+}
+
+func TestForwardedKeySealsWhatIsWritten(t *testing.T) {
+	inner := &sealingStore{}
+	handler := serverWith(inner, embed.NoopEmbedder{})
+
+	// base64url, unpadded, of {"key":"<32 bytes, base64>"}.
+	const forwarded = "eyJrZXkiOiJNREV5TXpRMU5qYzRPV0ZpWTJSbFpqQXhNak0wTlRZM09EbGhZbU5rWldZPSJ9"
+
+	if code := appendWith(t, handler, forwarded).Code; code != http.StatusOK {
+		t.Fatalf("a forwarded key was refused with %d", code)
+	}
+
+	if strings.Contains(string(inner.saved), "the words") {
+		t.Fatalf("the words reached the store: %q", inner.saved)
+	}
+}
+
+func TestAnUnreadableForwardedContextIsRefused(t *testing.T) {
+	handler := serverWith(&sealingStore{}, embed.NoopEmbedder{})
+
+	if code := appendWith(t, handler, "not base64!!").Code; code != http.StatusBadRequest {
+		t.Fatalf("an unreadable header answered %d, want 400", code)
+	}
+}
+
+func TestForwardingNothingStillWrites(t *testing.T) {
+	inner := &sealingStore{}
+
+	if code := appendWith(t, serverWith(inner, embed.NoopEmbedder{}), "").Code; code != http.StatusOK {
+		t.Fatalf("forwarding nothing answered %d, want 200", code)
+	}
+
+	if string(inner.saved) != "the words" {
+		t.Fatalf("stored %q", inner.saved)
+	}
+}

@@ -16,6 +16,10 @@ const textScore = 0.5
 // Search ranks by embedding similarity when the caller supplied a vector, and
 // by text matching when it did not. Both are valid answers; discovery says which
 // we did, so a UI can tell a person what kind of search they got.
+//
+// The text fallback cannot reach a sealed row: there are no words in it to
+// match. For a deployment that seals, vectors are not an improvement on text
+// search, they are the only search there is.
 func (s *PgStore) Search(ctx context.Context, q Query) ([]Hit, error) {
 	if q.Limit <= 0 {
 		q.Limit = defaultHits

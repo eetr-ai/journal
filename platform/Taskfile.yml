@@ -36,4 +36,4 @@ tasks:
     cmds:
       # host.docker.internal rather than --network host: on macOS the latter
       # does not reach the host's loopback.
-      - docker run --rm juancavallotti/octo-api:0.11.5 verify-platform-api http://host.docker.internal:8099
+      - docker run --rm juancavallotti/octo-api:0.11.6 verify-platform-api http://host.docker.internal:8099

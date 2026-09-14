@@ -15,6 +15,7 @@ const MAX_HEIGHT_PX = 176;
 export interface ComposerOptions {
   t: Dictionary;
   locale: Locale;
+  subject: string;
 }
 
 /** Grows with what is typed, up to a point, then scrolls. */
@@ -44,7 +45,7 @@ export default function Composer(options: ComposerOptions) {
   const [draft, setDraft] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
   const { state } = useChat();
-  const { send, stop } = useChatStream({ locale: options.locale });
+  const { send, stop } = useChatStream({ locale: options.locale, subject: options.subject });
   const t = options.t.chat;
 
   const busy = state.status === "waiting" || state.status === "streaming";

@@ -1,9 +1,10 @@
 // Package store is everything this sidecar keeps in Postgres: octo's key/value
 // entries, and what an agent remembers.
 //
-// TEXT IS STORED IN THE CLEAR HERE, ON PURPOSE AND TEMPORARILY. octo writes
-// agent memory on its own behalf, so no block in a flow ever sees it and there
-// is nothing to seal it with — https://github.com/juancavallotti/octo/issues/504.
+// What a person said is sealed under a key this process is handed per request
+// and never keeps; see private.go. A row written before there was a key, or by
+// a run that forwarded none, reads back in the clear — which is why every
+// stored value says which of the two it is rather than being guessed at.
 package store
 
 import (
@@ -103,7 +104,10 @@ type Store interface {
 
 	LoadWorking(ctx context.Context, agentID, threadKey string) (Working, error)
 	SaveWorking(ctx context.Context, agentID, threadKey, userID string, w Working, expected int64) (int64, error)
-	AppendTurns(ctx context.Context, agentID, threadKey, userID string, turns []Turn) (int64, error)
+	// AppendTurns answers the thread's new version and the seq it gave each
+	// turn, in order. The seqs are what lets a caller holding the plaintext of a
+	// sealed turn name the row it has to embed.
+	AppendTurns(ctx context.Context, agentID, threadKey, userID string, turns []Turn) (int64, []int64, error)
 	ListThreads(ctx context.Context, agentID, userID, cursor string, limit int) ([]Thread, string, error)
 	ReadThread(ctx context.Context, agentID, threadKey, cursor string, limit int) (Thread, []Turn, string, error)
 	DeleteThread(ctx context.Context, agentID, threadKey string) error

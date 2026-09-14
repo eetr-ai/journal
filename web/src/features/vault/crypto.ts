@@ -28,6 +28,12 @@ const IV_BYTES = 12;
 // nothing about the wrapping key.
 const VERIFIER_LABEL = "eetr-journal/vault/verifier/v1";
 const WRAP_LABEL = "eetr-journal/vault/wrap/v1";
+// The one key here that is meant to leave the browser. Agent memory is written
+// by the runtime rather than by anything holding a key, so sealing a
+// conversation means sending the key with the run that writes it. Deriving it
+// from the data key rather than sending the data key is what keeps that blast
+// radius to conversations: what travels cannot open an entry.
+const AGENT_LABEL = "eetr-journal/agent/v1";
 
 const BITS_PER_BYTE = 8;
 
@@ -78,6 +84,26 @@ async function wrappingKey(secret: Bytes): Promise<CryptoKey> {
   ]);
 }
 
+/**
+ * What an unlocked vault holds.
+ *
+ * Two keys with deliberately different privileges. The data key is a
+ * non-extractable CryptoKey because nothing should ever be able to send it; the
+ * agent key is bytes because sending it is the whole point of having it.
+ */
+export interface VaultKeys {
+  dataKey: CryptoKey;
+  /** Base64, the form the sidecar takes it in. */
+  agentKey: string;
+}
+
+async function keysFrom(raw: Bytes): Promise<VaultKeys> {
+  return {
+    dataKey: await asDataKey(raw),
+    agentKey: toBase64(await expand(raw, AGENT_LABEL)),
+  };
+}
+
 /** Imported non-extractable: from here on the raw bytes are unreachable. */
 async function asDataKey(raw: Bytes): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
@@ -112,7 +138,7 @@ export async function unwrap(wrapped: string, key: CryptoKey): Promise<Bytes | n
 }
 
 /** A brand new vault, and the data key it protects. */
-export async function createVault(password: string): Promise<{ vault: Vault; dataKey: CryptoKey }> {
+export async function createVault(password: string): Promise<{ vault: Vault; keys: VaultKeys }> {
   const params = defaultKdfParams();
   const secret = await stretch(password, params);
   const raw = randomBytes(KEY_BYTES);
@@ -124,7 +150,7 @@ export async function createVault(password: string): Promise<{ vault: Vault; dat
     wrappedKey: await wrap(raw, await wrappingKey(secret)),
   };
 
-  return { vault, dataKey: await asDataKey(raw) };
+  return { vault, keys: await keysFrom(raw) };
 }
 
 /**
@@ -152,7 +178,7 @@ export async function unwrapWithPassword(password: string, vault: Vault): Promis
 export async function unlockWithPassword(
   password: string,
   vault: Vault,
-): Promise<CryptoKey | null> {
+): Promise<VaultKeys | null> {
   const secret = await stretch(password, vault.params);
 
   if (!equalBytes(await expand(secret, VERIFIER_LABEL), fromBase64(vault.verifier))) {
@@ -161,7 +187,7 @@ export async function unlockWithPassword(
 
   const raw = await unwrap(vault.wrappedKey, await wrappingKey(secret));
 
-  return raw ? asDataKey(raw) : null;
+  return raw ? keysFrom(raw) : null;
 }
 
-export { wrappingKey as wrappingKeyFrom, asDataKey };
+export { wrappingKey as wrappingKeyFrom, asDataKey, keysFrom };

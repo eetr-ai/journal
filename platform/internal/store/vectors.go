@@ -29,24 +29,30 @@ type Pending struct {
 //
 // One UNION rather than one query per table: taking turns first would mean a
 // busy conversation starves user memories of embeddings indefinitely.
+//
+// Sealed rows are skipped, because there is no key here to read them with and
+// embedding base64 would spend money producing vectors that rank against
+// nothing. Their vectors come from the writer instead, which held the plaintext
+// — and a sealed row whose offer was lost to a restart stays unembedded, which
+// costs it search and nothing else.
 func (s *PgStore) PendingVectors(ctx context.Context, limit int) ([]Pending, error) {
 	rows, err := s.pool.Query(ctx,
 		`(SELECT 'turn' AS kind, agent_id, thread_key, seq, '' AS oidc_subject, '' AS name,
 		         content AS text, 0::bigint AS version, created_at AS at
 		    FROM agent_turn
-		   WHERE embedded_at IS NULL AND content <> ''
+		   WHERE embedded_at IS NULL AND content <> '' AND content NOT LIKE $2
 		   ORDER BY created_at
 		   LIMIT $1)
 		 UNION ALL
 		 (SELECT 'user', agent_id, '', 0, oidc_subject, name,
 		         value, version, updated_at
 		    FROM agent_user_memory
-		   WHERE embedded_at IS NULL AND value <> ''
+		   WHERE embedded_at IS NULL AND value <> '' AND value NOT LIKE $2
 		   ORDER BY updated_at
 		   LIMIT $1)
 		 ORDER BY at
 		 LIMIT $1`,
-		limit)
+		limit, sealedPrefix+"%")
 	if err != nil {
 		return nil, err
 	}

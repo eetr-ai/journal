@@ -203,6 +203,10 @@ func load(ctx context.Context, cfg config, log *slog.Logger) (*api.Server, *back
 		log.Warn("no SECRETS_KEY: octo's secrets namespaces will be stored in the clear")
 	}
 
+	// One worker, built before the server because the server hands it the
+	// plaintext of everything it seals — nothing else will be able to read it.
+	worker := backfill.New(entries, embedder, log)
+
 	server := api.NewServer(api.Config{
 		Store:         entries,
 		Locks:         locks.NewRedisLocks(client),
@@ -211,11 +215,12 @@ func load(ctx context.Context, cfg config, log *slog.Logger) (*api.Server, *back
 		Name:          "journal-platform",
 		Version:       Version,
 		SecretsSealed: sealed,
+		Vectors:       worker,
 		Resources:     api.NewResources(cfg.resourcesDir),
 		Log:           log,
 	})
 
-	return server, backfill.New(entries, embedder, log), func() {
+	return server, worker, func() {
 		pg.Close()
 		_ = client.Close()
 	}, nil

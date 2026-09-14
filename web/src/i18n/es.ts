@@ -93,6 +93,7 @@ const es: Dictionary = {
     unavailablePrompt:
       "Lo que se dijo antes no se está mostrando. Lo que mandes igual va a esta charla.",
     emptyPrompt: "Contá qué tipo de día fue, y seguimos desde ahí.",
+    unreadable: "Esto no se pudo abrir con tu clave.",
     you: "Vos dijiste",
     journal: "El diario dijo",
     noConversations: "Todavía no hay charlas.",

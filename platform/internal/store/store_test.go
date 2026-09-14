@@ -127,7 +127,7 @@ func TestSeqIsDenseUnderConcurrentAppends(t *testing.T) {
 			for i := range each {
 				turns := []store.Turn{{Role: "user", Text: fmt.Sprintf("w%d-%d", w, i)}}
 
-				if _, err := s.AppendTurns(ctx, "test", thread, "dolphin-person", turns); err != nil {
+				if _, _, err := s.AppendTurns(ctx, "test", thread, "dolphin-person", turns); err != nil {
 					t.Errorf("append failed: %v", err)
 
 					return
@@ -194,7 +194,7 @@ func TestUserIsRecordedOnceAndKept(t *testing.T) {
 	thread := "dolphin-attributed"
 	_ = s.DeleteThread(ctx, "test", thread)
 
-	if _, err := s.AppendTurns(ctx, "test", thread, "dolphin-owner", []store.Turn{{Role: "user", Text: "hello"}}); err != nil {
+	if _, _, err := s.AppendTurns(ctx, "test", thread, "dolphin-owner", []store.Turn{{Role: "user", Text: "hello"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -224,7 +224,7 @@ func TestDeleteThreadTakesTheTurnsWithIt(t *testing.T) {
 	thread := "dolphin-erased"
 	_ = s.DeleteThread(ctx, "test", thread)
 
-	if _, err := s.AppendTurns(ctx, "test", thread, "dolphin-person", []store.Turn{{Role: "user", Text: "remember this"}}); err != nil {
+	if _, _, err := s.AppendTurns(ctx, "test", thread, "dolphin-person", []store.Turn{{Role: "user", Text: "remember this"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -256,7 +256,7 @@ func TestSearchFallsBackToText(t *testing.T) {
 	thread := "dolphin-search"
 	_ = s.DeleteThread(ctx, "test", thread)
 
-	_, err := s.AppendTurns(ctx, "test", thread, "dolphin-seeker", []store.Turn{
+	_, _, err := s.AppendTurns(ctx, "test", thread, "dolphin-seeker", []store.Turn{
 		{Role: "user", Text: "the bouldering plateau is a variety problem"},
 		{Role: "assistant", Text: "two rest days is what most people under-do"},
 	})
@@ -362,7 +362,7 @@ func TestPagingDoesNotSkipConversationsFromTheSameInstant(t *testing.T) {
 		thread := fmt.Sprintf("dolphin-page-%d", i)
 		_ = s.DeleteThread(ctx, "paging", thread)
 
-		if _, err := s.AppendTurns(ctx, "paging", thread, "dolphin-pager",
+		if _, _, err := s.AppendTurns(ctx, "paging", thread, "dolphin-pager",
 			[]store.Turn{{Role: "user", Text: "x"}}); err != nil {
 			t.Fatal(err)
 		}

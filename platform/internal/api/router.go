@@ -18,6 +18,7 @@ import (
 	"github.com/eetr-ai/journal/platform/internal/bus"
 	"github.com/eetr-ai/journal/platform/internal/embed"
 	"github.com/eetr-ai/journal/platform/internal/locks"
+	"github.com/eetr-ai/journal/platform/internal/seal"
 	"github.com/eetr-ai/journal/platform/internal/store"
 )
 
@@ -60,6 +61,9 @@ type Config struct {
 	// It is passed in rather than inferred, because only the caller knows
 	// whether it wrapped the store in one that seals.
 	SecretsSealed bool
+	// Vectors is where a sealed row's plaintext goes to be embedded, since
+	// nothing that reads the database afterwards can open it.
+	Vectors store.Vectors
 	// Resources is the integration's own files. Unconfigured, the capability is
 	// declared off and the runtime reports every one of them as missing.
 	Resources Resources
@@ -73,6 +77,12 @@ type Server struct {
 }
 
 func NewServer(config Config) *Server {
+	// The null object rather than a nil check at the one place that offers:
+	// a deployment with no embedder still seals, it just never searches.
+	if config.Vectors == nil {
+		config.Vectors = store.NoVectors{}
+	}
+
 	return &Server{config: config}
 }
 
@@ -159,6 +169,12 @@ func (s *Server) fail(w http.ResponseWriter, err error, what string) {
 	switch {
 	case errors.Is(err, store.ErrConflict):
 		writeError(w, http.StatusConflict, "version_conflict", "the expected version is not the current one")
+	case errors.Is(err, seal.ErrUnsealable):
+		// Never a miss. A conversation that resumed from nothing here would go
+		// on to overwrite the history it could not read.
+		s.config.Log.Error("stored value would not open", "operation", what)
+		writeError(w, http.StatusInternalServerError, "unreadable",
+			"the stored value cannot be opened with the forwarded key")
 	case errors.Is(err, store.ErrMissing):
 		w.WriteHeader(http.StatusNotFound)
 	default:

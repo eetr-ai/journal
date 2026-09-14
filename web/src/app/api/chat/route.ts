@@ -10,7 +10,9 @@ import { askFrom } from "@/features/chat/rules";
  * — and the whole point is that the answer arrives as it is written.
  *
  * The message and the answer pass through here in the clear, for the length of
- * one request a person started. Nothing here may log a body.
+ * one request a person started, and the body also carries the key their agent
+ * memory is sealed under. Nothing here may log a body, and nothing here keeps
+ * one: it is read, handed on, and gone with the request.
  *
  * No `runtime` or `dynamic` export: nodejs is the default and edge is
  * deprecated, and a POST is never prerendered.

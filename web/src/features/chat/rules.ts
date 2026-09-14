@@ -13,6 +13,11 @@ export const MAX_MESSAGE_CHARS = 4_000;
 // is fixed and worth checking: it becomes a key in someone's memory.
 const THREAD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
+// AES-256 as base64: 32 bytes is 44 characters with one pad. Checked because
+// an unusable key here would be discovered by the agent mid-run, having already
+// written half a conversation.
+const AGENT_KEY = /^[A-Za-z0-9+/]{43}=$/u;
+
 export type MessageProblem = "empty" | "tooLong";
 
 export function messageProblem(message: string): MessageProblem | null {
@@ -35,7 +40,8 @@ function isAsk(value: unknown): value is ChatAsk {
   return (
     typeof candidate.threadId === "string" &&
     typeof candidate.message === "string" &&
-    typeof candidate.locale === "string"
+    typeof candidate.locale === "string" &&
+    typeof candidate.key === "string"
   );
 }
 
@@ -50,7 +56,7 @@ export function askFrom(value: unknown): ChatAsk | null {
     return null;
   }
 
-  if (!THREAD_ID.test(value.threadId) || !isLocale(value.locale)) {
+  if (!THREAD_ID.test(value.threadId) || !isLocale(value.locale) || !AGENT_KEY.test(value.key)) {
     return null;
   }
 
@@ -59,12 +65,18 @@ export function askFrom(value: unknown): ChatAsk | null {
   // A stop carries no message, and would be refused for being empty if it were
   // held to the same rule.
   if (value.intent === "stop") {
-    return { threadId: value.threadId, message: "", locale, intent: "stop" };
+    return { threadId: value.threadId, message: "", locale, key: value.key, intent: "stop" };
   }
 
   return messageProblem(value.message)
     ? null
-    : { threadId: value.threadId, message: value.message.trim(), locale, intent: "say" };
+    : {
+        threadId: value.threadId,
+        message: value.message.trim(),
+        locale,
+        key: value.key,
+        intent: "say",
+      };
 }
 
 export function newThreadId(): string {

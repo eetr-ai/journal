@@ -5,6 +5,12 @@
 // provider having a bad minute costs search a little freshness rather than
 // costing a person their transcript. A row that fails is simply still pending,
 // so the next pass retries it — there is no dead-letter state to manage.
+//
+// Sealed rows cannot work that way: the sweep has no key, so it cannot read
+// them. Those arrive through Offer instead, from the writer, which is the only
+// party that ever holds both the row's identity and its words. An offer is
+// in-memory and therefore mortal — a restart loses it and the row keeps its
+// text and never gains a vector.
 package backfill
 
 import (
@@ -26,6 +32,11 @@ const (
 	// passTimeout bounds one pass, so a provider that never answers cannot wedge
 	// the worker for the life of the process.
 	passTimeout = 2 * time.Minute
+	// offerBacklog is how many handed-over batches wait their turn. Offering
+	// never blocks the write that made it — a person's turn is recorded whether
+	// or not anything is listening — so a full queue drops, and the row simply
+	// goes unembedded.
+	offerBacklog = 64
 )
 
 // Worker walks pending rows on a timer.
@@ -33,10 +44,27 @@ type Worker struct {
 	store    store.Store
 	embedder embed.Embedder
 	log      *slog.Logger
+	offers   chan []store.Pending
 }
 
 func New(s store.Store, e embed.Embedder, log *slog.Logger) *Worker {
-	return &Worker{store: s, embedder: e, log: log}
+	return &Worker{
+		store:    s,
+		embedder: e,
+		log:      log,
+		offers:   make(chan []store.Pending, offerBacklog),
+	}
+}
+
+// Offer takes rows whose text this worker could not read for itself. It never
+// blocks and never fails: the caller is in the middle of writing down what
+// somebody said, and a search index is not worth making that wait.
+func (w *Worker) Offer(rows []store.Pending) {
+	select {
+	case w.offers <- rows:
+	default:
+		w.log.Warn("embedding offer dropped", "rows", len(rows))
+	}
 }
 
 // Run blocks until the context is cancelled. With no embedder configured there
@@ -60,12 +88,17 @@ func (w *Worker) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case rows := <-w.offers:
+			if _, err := w.attach(ctx, rows); err != nil && ctx.Err() == nil {
+				w.log.Warn("embedding offered rows failed", "error", err)
+			}
 		case <-time.After(interval):
 		}
 	}
 }
 
-// pass embeds one batch and returns how many rows it attached a vector to.
+// pass embeds one batch off the database and returns how many rows it attached
+// a vector to.
 func (w *Worker) pass(parent context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(parent, passTimeout)
 	defer cancel()
@@ -74,6 +107,14 @@ func (w *Worker) pass(parent context.Context) (int, error) {
 	if err != nil || len(pending) == 0 {
 		return 0, err
 	}
+
+	return w.attach(ctx, pending)
+}
+
+// attach embeds the rows it is given, whoever found them.
+func (w *Worker) attach(parent context.Context, pending []store.Pending) (int, error) {
+	ctx, cancel := context.WithTimeout(parent, passTimeout)
+	defer cancel()
 
 	texts := make([]string, len(pending))
 

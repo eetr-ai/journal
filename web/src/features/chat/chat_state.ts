@@ -36,6 +36,7 @@ export interface ChatUiState {
 
 export enum ChatActionType {
   Sent = "sent",
+  Opened = "opened",
   FollowUp = "followUp",
   Started = "started",
   Delta = "delta",
@@ -134,6 +135,18 @@ const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) 
       ...state.turns.slice(-1),
     ],
   }),
+
+  // A conversation reopened from the record arrives sealed: the server holds
+  // ciphertext and has nothing to read it with. This is the words landing, once
+  // the browser has opened them.
+  [ChatActionType.Opened]: (state, action) => {
+    const opened = action.data as string[];
+
+    return {
+      ...state,
+      turns: state.turns.map((turn, at) => ({ ...turn, text: opened[at] ?? turn.text })),
+    };
+  },
 
   [ChatActionType.Started]: (state) => ({ ...state, status: "streaming" }),
 

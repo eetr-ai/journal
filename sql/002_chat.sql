@@ -1,12 +1,16 @@
 -- What the agent remembers, and the platform state octo keeps behind its
 -- platform API. Re-applied wholesale like 001; every statement is idempotent.
 --
--- THESE COLUMNS ARE PLAINTEXT ON PURPOSE, AND TEMPORARILY.
--- A conversation says as much about a person as an entry does, so it belongs
--- under the same encryption everything else is under. It is not, because octo
--- writes agent memory on its own behalf and no block in a flow ever sees it:
--- https://github.com/juancavallotti/octo/issues/504. When that closes, `title`,
--- `text` and `value` below become sealed bytes and this notice goes away.
+-- `title`, `content`, `working` and `value` hold what a person said, and they
+-- hold it sealed. The key is forwarded per run from the message the agent was
+-- invoked with and is never kept anywhere — see the platform sidecar's
+-- internal/store/private.go.
+--
+-- They stay text and bytea rather than becoming a sealed type, because a value
+-- written before there was a key still has to read: each one says which of the
+-- two it is. A dump of this database is a pile of ciphertext and the timestamps
+-- around it — who talked to the journal and when is not hidden, only what was
+-- said.
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

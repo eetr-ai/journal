@@ -95,10 +95,10 @@ func (s *PgStore) updateWorking(ctx context.Context, agentID, threadKey string, 
 // AppendTurns adds to the durable record and assigns each turn its seq. The
 // conversation row is locked for the length of it, so two writers interleave
 // rather than minting the same seq twice.
-func (s *PgStore) AppendTurns(ctx context.Context, agentID, threadKey, userID string, turns []Turn) (int64, error) {
+func (s *PgStore) AppendTurns(ctx context.Context, agentID, threadKey, userID string, turns []Turn) (int64, []int64, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -114,17 +114,21 @@ func (s *PgStore) AppendTurns(ctx context.Context, agentID, threadKey, userID st
 		agentID, threadKey, userID,
 	).Scan(&count, &version)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
+	seqs := make([]int64, len(turns))
+
 	for i, turn := range turns {
+		seqs[i] = int64(count + i + 1)
+
 		_, err = tx.Exec(ctx,
 			`INSERT INTO agent_turn (agent_id, thread_key, seq, role, content, tokens, attrs, embedding)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-			agentID, threadKey, int64(count+i+1), turn.Role, turn.Text, turn.Tokens,
+			agentID, threadKey, seqs[i], turn.Role, turn.Text, turn.Tokens,
 			turn.Attrs, vectorLiteral(turn.Embedding))
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 	}
 
@@ -136,10 +140,10 @@ func (s *PgStore) AppendTurns(ctx context.Context, agentID, threadKey, userID st
 		agentID, threadKey, len(turns),
 	).Scan(&version)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	return version, tx.Commit(ctx)
+	return version, seqs, tx.Commit(ctx)
 }
 
 // threadCursor pages by (last_activity_at, thread_key), which is the order the

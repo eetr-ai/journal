@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { openChat, steerChat } from "./browser_client";
 import { readFrames } from "./stream_reader";
 import { messageProblem } from "./rules";
+import { useAgentKey } from "./use_agent_key";
 import { ChatActionType, useChat, type ChatError } from "./chat_state";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Locale } from "@/i18n/config";
@@ -20,6 +21,7 @@ import type { Locale } from "@/i18n/config";
 
 export interface ChatStreamOptions {
   locale: Locale;
+  subject: string;
 }
 
 const ABORTED = "AbortError";
@@ -37,6 +39,16 @@ function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } 
     default:
       return null;
   }
+}
+
+/**
+ * Why this message cannot be sent, or null.
+ *
+ * A missing key is one of the reasons: what the agent writes down is sealed
+ * under it, so a message sent without one would be recorded in the clear.
+ */
+function refuse(message: string, agentKey: string | null): ChatError | null {
+  return messageProblem(message) ?? (agentKey ? null : "locked");
 }
 
 type Dispatcher = (action: { type: ChatActionType; data?: unknown }) => void;
@@ -90,23 +102,25 @@ export function useChatStream(options: ChatStreamOptions) {
   const { state, dispatch } = useChat();
   const router = useRouter();
   const running = useRef<AbortController | null>(null);
+  const agentKey = useAgentKey(options.subject);
 
   const ask = useCallback(
     (message: string, intent: ChatAsk["intent"]): ChatAsk => ({
       threadId: state.threadId,
       message,
       locale: options.locale,
+      key: agentKey ?? "",
       intent,
     }),
-    [options.locale, state.threadId],
+    [agentKey, options.locale, state.threadId],
   );
 
   const send = useCallback(
     async (message: string): Promise<void> => {
-      const problem = messageProblem(message);
+      const problem = refuse(message, agentKey);
 
       if (problem) {
-        dispatch({ type: ChatActionType.Failed, data: problem satisfies ChatError });
+        dispatch({ type: ChatActionType.Failed, data: problem });
 
         return;
       }
@@ -132,7 +146,7 @@ export function useChatStream(options: ChatStreamOptions) {
         router.refresh();
       }
     },
-    [ask, dispatch, router],
+    [agentKey, ask, dispatch, router],
   );
 
   /**

@@ -15,8 +15,9 @@ import {
  * agent is asked to answer one.
  *
  * The message and the answer pass through here in the clear for the length of
- * the request. Nothing in this module logs a body, and nothing downstream
- * should either.
+ * the request, and so does the key the conversation is sealed under — it is on
+ * the body because the body is the one place a key may travel. Nothing in this
+ * module logs a body, and nothing downstream may either.
  */
 
 const DEFAULT_AGENT_URL = "http://localhost:8080";

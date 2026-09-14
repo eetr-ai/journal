@@ -14,6 +14,7 @@ export interface LeftDrawerOptions {
   conversations: Conversation[];
   current: string;
   timezone: string;
+  subject: string;
 }
 
 export default function LeftDrawer(options: LeftDrawerOptions) {
@@ -48,6 +49,7 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
           conversations={options.conversations}
           current={options.current}
           locale={options.locale}
+          subject={options.subject}
           t={options.t}
           timezone={options.timezone}
         />

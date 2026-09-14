@@ -5,6 +5,7 @@ import Composer from "./composer";
 import TurnList from "./turn_list";
 import { useChat } from "../chat_state";
 import { useStickToBottom } from "../use_stick_to_bottom";
+import { useOpenedTurns } from "../use_opened_turns";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -13,11 +14,14 @@ export interface ChatBodyOptions {
   locale: Locale;
   unavailable: boolean;
   timezone: string;
+  subject: string;
 }
 
 export default function ChatBody(options: ChatBodyOptions) {
   const { state } = useChat();
   const t = options.t.chat;
+
+  useOpenedTurns(options.subject, t.unreadable);
   // Everything that makes the region taller, as one number: a turn arriving, a
   // token landing, or a reasoning panel filling up.
   const written = state.turns.reduce(
@@ -54,7 +58,7 @@ export default function ChatBody(options: ChatBodyOptions) {
       <ChatNotice t={options.t} />
 
       <div className="border-t border-border p-4">
-        <Composer locale={options.locale} t={options.t} />
+        <Composer locale={options.locale} subject={options.subject} t={options.t} />
       </div>
     </section>
   );

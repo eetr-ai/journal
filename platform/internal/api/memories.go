@@ -15,7 +15,13 @@ type memoriesResponse struct {
 // through a tool, when something is worth keeping past the conversation it was
 // learned in.
 func (s *Server) listMemories(w http.ResponseWriter, r *http.Request) {
-	memories, err := s.config.Store.ListMemories(r.Context(), r.PathValue("agentId"), r.PathValue("userId"))
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
+	memories, err := memory.ListMemories(r.Context(), r.PathValue("agentId"), r.PathValue("userId"))
 	if err != nil {
 		s.fail(w, err, "list memories")
 
@@ -32,6 +38,12 @@ type putMemoryRequest struct {
 // putMemory takes the name from the query rather than the path, because a
 // memory's handle may contain slashes.
 func (s *Server) putMemory(w http.ResponseWriter, r *http.Request) {
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
 	var request putMemoryRequest
 	if !decode(w, r, &request) {
 		return
@@ -54,11 +66,11 @@ func (s *Server) putMemory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// No embedding here: this is on the agent's critical path, inside a tool
-	// call the person is waiting through. The backfill picks it up.
-	memory := store.Memory{Name: name, Value: request.Value}
+	// call the person is waiting through. The vector is attached afterwards.
+	fact := store.Memory{Name: name, Value: request.Value}
 
-	version, err := s.config.Store.PutMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"),
-		memory, expected)
+	version, err := memory.PutMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"),
+		fact, expected)
 	if err != nil {
 		s.fail(w, err, "put memory")
 
@@ -70,6 +82,12 @@ func (s *Server) putMemory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteMemory(w http.ResponseWriter, r *http.Request) {
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
 	name := r.URL.Query().Get("name")
 
 	if name == "" {
@@ -78,7 +96,7 @@ func (s *Server) deleteMemory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.config.Store.DeleteMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"), name)
+	err := memory.DeleteMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"), name)
 	if err != nil {
 		s.fail(w, err, "delete memory")
 
@@ -104,6 +122,12 @@ type searchResponse struct {
 // text matching when we do not — both are valid, and discovery says which, so a
 // UI can tell a person what kind of search they got.
 func (s *Server) searchMemory(w http.ResponseWriter, r *http.Request) {
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
 	var request searchRequest
 	if !decode(w, r, &request) {
 		return
@@ -133,7 +157,7 @@ func (s *Server) searchMemory(w http.ResponseWriter, r *http.Request) {
 		query.Vector = vectors[0]
 	}
 
-	hits, err := s.config.Store.Search(r.Context(), query)
+	hits, err := memory.Search(r.Context(), query)
 	if err != nil {
 		s.fail(w, err, "search memory")
 

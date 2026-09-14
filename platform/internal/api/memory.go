@@ -21,7 +21,13 @@ func intHeader(r *http.Request, name string) int {
 // loadWorking answers 404 for a conversation that has not started, which the
 // runtime reads as "resume from nothing" — the right answer, not a failure.
 func (s *Server) loadWorking(w http.ResponseWriter, r *http.Request) {
-	working, err := s.config.Store.LoadWorking(r.Context(), r.PathValue("agentId"), r.PathValue("threadKey"))
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
+	working, err := memory.LoadWorking(r.Context(), r.PathValue("agentId"), r.PathValue("threadKey"))
 	if err != nil {
 		s.fail(w, err, "load working memory")
 
@@ -42,6 +48,12 @@ func (s *Server) loadWorking(w http.ResponseWriter, r *http.Request) {
 // storing the bytes unexamined is what lets that format change without touching
 // this file.
 func (s *Server) saveWorking(w http.ResponseWriter, r *http.Request) {
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
 	// One byte past the limit, so an oversized body is refused rather than
 	// stored truncated — a half a serialized context loads as corrupt state.
 	value, err := io.ReadAll(io.LimitReader(r.Body, workingLimit+1))
@@ -66,7 +78,7 @@ func (s *Server) saveWorking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	version, err := s.config.Store.SaveWorking(r.Context(),
+	version, err := memory.SaveWorking(r.Context(),
 		r.PathValue("agentId"), r.PathValue("threadKey"), r.URL.Query().Get("userId"),
 		store.Working{
 			Value:     value,
@@ -97,6 +109,12 @@ type versionResponse struct {
 // memory is the whole point, because making room for the model must not destroy
 // the record.
 func (s *Server) appendTurns(w http.ResponseWriter, r *http.Request) {
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
 	var request appendTurnsRequest
 	if !decode(w, r, &request) {
 		return
@@ -113,7 +131,7 @@ func (s *Server) appendTurns(w http.ResponseWriter, r *http.Request) {
 	// default, and an embeddings provider does not reliably answer inside that
 	// — a turn recorded without a vector is searchable a beat late, while a turn
 	// that timed out is gone.
-	version, err := s.config.Store.AppendTurns(r.Context(),
+	version, _, err := memory.AppendTurns(r.Context(),
 		r.PathValue("agentId"), r.PathValue("threadKey"), r.URL.Query().Get("userId"),
 		request.Turns)
 	if err != nil {
@@ -132,12 +150,18 @@ type setTitleRequest struct {
 // setTitle is its own route because naming a conversation is a judgement the
 // runtime does not make on its own.
 func (s *Server) setTitle(w http.ResponseWriter, r *http.Request) {
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
 	var request setTitleRequest
 	if !decode(w, r, &request) {
 		return
 	}
 
-	err := s.config.Store.SetTitle(r.Context(), r.PathValue("agentId"), r.PathValue("threadKey"),
+	err := memory.SetTitle(r.Context(), r.PathValue("agentId"), r.PathValue("threadKey"),
 		r.URL.Query().Get("userId"), request.Title)
 	if err != nil {
 		s.fail(w, err, "set title")
@@ -160,7 +184,13 @@ func pageLimit(r *http.Request) int {
 }
 
 func (s *Server) listThreads(w http.ResponseWriter, r *http.Request) {
-	threads, next, err := s.config.Store.ListThreads(r.Context(), r.PathValue("agentId"),
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
+	threads, next, err := memory.ListThreads(r.Context(), r.PathValue("agentId"),
 		r.URL.Query().Get("userId"), r.URL.Query().Get("cursor"), pageLimit(r))
 	if err != nil {
 		s.fail(w, err, "list threads")
@@ -178,7 +208,13 @@ type readThreadResponse struct {
 }
 
 func (s *Server) readThread(w http.ResponseWriter, r *http.Request) {
-	thread, turns, next, err := s.config.Store.ReadThread(r.Context(), r.PathValue("agentId"),
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
+	thread, turns, next, err := memory.ReadThread(r.Context(), r.PathValue("agentId"),
 		r.PathValue("threadKey"), r.URL.Query().Get("cursor"), pageLimit(r))
 	if err != nil {
 		s.fail(w, err, "read thread")
@@ -192,7 +228,13 @@ func (s *Server) readThread(w http.ResponseWriter, r *http.Request) {
 // deleteThread is the one operation that must not report false success: if we
 // still hold a copy, we do not answer until we do not.
 func (s *Server) deleteThread(w http.ResponseWriter, r *http.Request) {
-	err := s.config.Store.DeleteThread(r.Context(), r.PathValue("agentId"), r.PathValue("threadKey"))
+	memory, ok := s.memory(w, r)
+
+	if !ok {
+		return
+	}
+
+	err := memory.DeleteThread(r.Context(), r.PathValue("agentId"), r.PathValue("threadKey"))
 	if err != nil {
 		s.fail(w, err, "delete thread")
 

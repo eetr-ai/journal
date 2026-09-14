@@ -8,9 +8,10 @@
 # The subject comes from the path and never from the body, so a caller cannot
 # write into someone else's memory by asking nicely.
 #
-# NOTHING STORED BY THIS FLOW IS ENCRYPTED, and that is temporary and deliberate:
-# octo writes agent memory on its own behalf, so no block here ever sees it.
-# https://github.com/juancavallotti/octo/issues/504
+# What this flow stores is encrypted. No block here ever sees agent memory —
+# the runtime writes it on its own behalf — so the key travels instead: the BFF
+# puts it on the body, forwardContext lifts it onto every memory call, and the
+# platform sidecar is what seals with it. Nothing between them keeps a copy.
 flows:
   - name: chat
     source:
@@ -47,6 +48,12 @@ flows:
         userId: vars.subject
         memoryThreadId: body.threadId
         userMemory: true
+        # Resolved once per run from the inbound message and carried on every
+        # agent-memory call. A run that cannot resolve it fails rather than
+        # carrying on, which is right: writing a person's conversation without
+        # the key that was supposed to seal it is a different operation from the
+        # one that was asked for.
+        forwardContext: '{"key": body.key}'
         # One block, three cases, no branching in the flow. A first message runs
         # the agent; a message arriving while a run holds this conversation is
         # handed to that run and this flow stops with an empty body; a stop ends

@@ -14,11 +14,17 @@ import type { Locale } from "@/i18n/config";
  * `intent` is how a reader ends a run that is already going. It says what the
  * browser wants, not what the agent is told: the BFF turns it into the header
  * the flow reads, and never passes one through.
+ *
+ * `key` is what the agent's memory is sealed under. It is on the body because
+ * the body is the one place a key may travel: it reaches the server only inside
+ * the request that needs it, is forwarded to the store with that run, and is
+ * kept by nobody. Never log this object.
  */
 export interface ChatAsk {
   threadId: string;
   message: string;
   locale: Locale;
+  key: string;
   intent?: "say" | "stop";
 }
 

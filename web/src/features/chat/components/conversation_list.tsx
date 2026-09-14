@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { TrashIcon } from "@phosphor-icons/react";
 import Moment from "./moment";
 import { forgetConversationAction } from "../actions";
+import { useOpenedTitles } from "../use_opened_titles";
 import type { Conversation } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -15,6 +16,7 @@ export interface ConversationListOptions {
   current: string | null;
   locale: Locale;
   timezone: string;
+  subject: string;
   t: Dictionary;
 }
 
@@ -26,6 +28,9 @@ export interface ConversationListOptions {
 export default function ConversationList(options: ConversationListOptions) {
   const router = useRouter();
   const t = options.t.chat;
+  // A title is written by the agent about what was said, so it is sealed with
+  // everything else and opened here rather than on the server.
+  const titles = useOpenedTitles(options.conversations, options.subject, t.unreadable);
 
   if (options.conversations.length === 0) {
     return <p className="px-4 py-2 text-xs text-muted">{t.noConversations}</p>;
@@ -40,7 +45,7 @@ export default function ConversationList(options: ConversationListOptions) {
             className="min-w-0 flex-1 rounded-lg px-2 py-2 hover:bg-surface-muted aria-[current]:bg-surface-muted"
             href={`/${options.locale}?chat=${encodeURIComponent(conversation.id)}`}
           >
-            <p className="truncate text-sm">{conversation.title}</p>
+            <p className="truncate text-sm">{titles[conversation.id] ?? ""}</p>
             <Moment
               className="text-xs text-muted"
               fallbackLocale={options.locale}

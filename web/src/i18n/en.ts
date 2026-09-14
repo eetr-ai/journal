@@ -91,6 +91,9 @@ const en = {
     unavailablePrompt:
       "What was said before is not showing. Anything you send still goes to this conversation.",
     emptyPrompt: "Say what kind of day it was, and we will go from there.",
+    // What is stored is sealed under a key only this browser holds. If it will
+    // not open, it was written under a different one.
+    unreadable: "This could not be unlocked with your key.",
     you: "You said",
     journal: "The journal said",
     noConversations: "No conversations yet.",

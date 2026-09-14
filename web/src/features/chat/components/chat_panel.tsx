@@ -23,6 +23,8 @@ export interface ChatPanelOptions {
   unavailable: boolean;
   /** The reader's zone, from their profile. */
   timezone: string;
+  /** Whose vault holds the key these turns are sealed under. */
+  subject: string;
 }
 
 // SimpleProvider rather than bootstrapProvider: the initial state carries this
@@ -38,6 +40,7 @@ export default function ChatPanel(options: ChatPanelOptions) {
     >
       <ChatBody
         locale={options.locale}
+        subject={options.subject}
         t={options.t}
         timezone={options.timezone}
         unavailable={options.unavailable}

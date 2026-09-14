@@ -40,7 +40,7 @@ function Body(options: VaultSettingsOptions) {
         data: {
           vault: options.vault,
           passkeys: options.passkeys,
-          dataKey: await recallKey(options.identity.subject),
+          dataKey: (await recallKey(options.identity.subject))?.dataKey ?? null,
         },
       });
     }
