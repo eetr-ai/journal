@@ -229,7 +229,7 @@ jobs:
     # Last, and only if everything it would deploy actually got published: the
     # CI pulls the chart by version, and a version that is not in the registry
     # is a rollout that never becomes ready.
-    needs: [web-image, agent-image, migrate-image, chart]
+    needs: [web-image, agent-image, migrate-image, platform-image, chart]
     runs-on: ubuntu-latest
     # Nothing here touches the repo or the registry; it is one call to an
     # external API.
