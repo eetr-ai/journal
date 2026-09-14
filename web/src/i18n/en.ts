@@ -73,12 +73,35 @@ const en = {
   shell: {
     transcripts: "Recent chats",
     entries: "Journal",
-    chatTitle: "Chat",
-    chatPlaceholder: "Ask about today, or just start talking...",
-    chatSend: "Send",
     todayTitle: "Today",
     mocked: "Sample content",
     resizeToday: "Resize today's entry",
+  },
+
+  chat: {
+    title: "Chat",
+    placeholder: "Ask about today, or just start talking...",
+    send: "Send",
+    stop: "Stop",
+    thinking: "Thinking...",
+    working: "Looking something up...",
+    emptyTitle: "Nothing here yet",
+    emptyPrompt: "Say what kind of day it was, and we will go from there.",
+    you: "You said",
+    journal: "The journal said",
+    noConversations: "No conversations yet.",
+    delete: "Forget this conversation",
+    newChat: "New conversation",
+    aborted: "You stopped this one. What is above is all of it.",
+    retry: "Try again",
+    errors: {
+      empty: "There is nothing to send.",
+      tooLong: "That is longer than one message can be. Send it in two.",
+      locked: "Your journal locked while you were typing. Unlock it and send again.",
+      unauthorized: "You are signed out. Sign in and send it again.",
+      unreachable: "The journal could not be reached, so nothing was sent.",
+      failed: "That answer stopped part-way. What is above is all of it.",
+    },
   },
 
   profile: {

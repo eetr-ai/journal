@@ -1,4 +1,4 @@
-import ChatPanel from "./chat_panel";
+import ChatPanel from "@/features/chat/components/chat_panel";
 import DetectPreferences from "@/features/profile/components/detect_preferences";
 import VaultGuard from "@/features/vault/components/vault_guard";
 import LeftDrawer from "./left_drawer";
@@ -7,12 +7,17 @@ import TodayPanel from "./today_panel";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 import { needsDetection, type Profile } from "@/features/profile/types";
+import type { Conversation, Turn } from "@/features/chat/types";
 
 export interface AppShellOptions {
   t: Dictionary;
   locale: Locale;
   profile: Profile;
   hasImage: boolean;
+  /** This visit's conversation: a stored one being re-opened, or a new id. */
+  threadId: string;
+  turns: Turn[];
+  conversations: Conversation[];
 }
 
 // Three vertical panels side by side: the drawer, the conversation, and the
@@ -30,8 +35,18 @@ export default function AppShell(options: AppShellOptions) {
         t={options.t}
       />
       <div className="flex min-h-0 flex-1">
-        <LeftDrawer locale={options.locale} t={options.t} />
-        <ChatPanel locale={options.locale} t={options.t} />
+        <LeftDrawer
+          conversations={options.conversations}
+          current={options.threadId}
+          locale={options.locale}
+          t={options.t}
+        />
+        <ChatPanel
+          locale={options.locale}
+          t={options.t}
+          threadId={options.threadId}
+          turns={options.turns}
+        />
         <TodayPanel
           locale={options.locale}
           t={options.t}

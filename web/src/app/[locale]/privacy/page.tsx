@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import AppShell from "@/features/shell/components/app_shell";
+import { chatView } from "@/features/chat/service";
 import VaultOverlay from "@/features/vault/components/vault_overlay";
 import { auth } from "@/auth";
 import { currentProfile } from "@/features/profile/service";
@@ -10,10 +11,14 @@ import { isLocale } from "@/i18n/config";
 
 export interface PrivacyOptions {
   params: Promise<{ locale: string }>;
+  // Which conversation is open travels in the query, so it survives a reload
+  // and can be linked to.
+  searchParams: Promise<{ chat?: string }>;
 }
 
 export default async function Privacy(options: PrivacyOptions) {
   const { locale } = await options.params;
+  const { chat } = await options.searchParams;
 
   if (!isLocale(locale)) {
     notFound();
@@ -37,7 +42,13 @@ export default async function Privacy(options: PrivacyOptions) {
 
   return (
     <>
-      <AppShell hasImage={Boolean(session?.user?.image)} locale={locale} profile={profile} t={t} />
+      <AppShell
+        hasImage={Boolean(session?.user?.image)}
+        locale={locale}
+        profile={profile}
+        t={t}
+        {...await chatView(chat)}
+      />
       <VaultOverlay
         identity={{ subject: profile.subject, name: profile.name, email: profile.email }}
         locale={locale}
