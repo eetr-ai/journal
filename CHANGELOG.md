@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.3](https://github.com/eetr-ai/journal/compare/v0.0.2...v0.0.3) (2026-09-14)
+
+
+### Features
+
+* ship the flows as an image, and take the database credential in parts ([#8](https://github.com/eetr-ai/journal/issues/8)) ([238ef23](https://github.com/eetr-ai/journal/commit/238ef23a97fc2bc7d314bdf9c45bc6493badb4bb))
+
+
+### Bug Fixes
+
+* publish the release artifacts from the run that cuts the tag ([#6](https://github.com/eetr-ai/journal/issues/6)) ([9a3d650](https://github.com/eetr-ai/journal/commit/9a3d650820bac5b2f5f42517499f519d3dded549))
+
 ## [0.0.2](https://github.com/eetr-ai/journal/compare/v0.0.1...v0.0.2) (2026-09-13)
 
 
