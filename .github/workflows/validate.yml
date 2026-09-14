@@ -71,7 +71,7 @@ jobs:
 
       - name: Apply the schema and the fixtures
         run: |
-          for f in sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+          for f in helm/files/sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
           psql -v ON_ERROR_STOP=1 -f agent/testdata/seed.sql
         env:
           PGHOST: localhost
