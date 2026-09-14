@@ -74,3 +74,25 @@ function isToday(iso: string, timezone: string, locale: string): boolean {
     );
   }
 }
+
+// Two minutes. Anything said inside that is the same breath, not a new one.
+const SAME_BREATH_MS = 120_000;
+
+/**
+ * Whether a turn is the last of a run — the same person, still talking, still
+ * roughly now.
+ *
+ * Only the last one carries a time. Stamping every line of a burst says nothing
+ * except the same clock four times, and pushes the words apart for no reason.
+ * An unreadable timestamp on either side counts as a break, so the fallback is
+ * to show one rather than to swallow it.
+ */
+export function endsARun(at: string, next?: { from: string; at: string }, from?: string): boolean {
+  if (!next || next.from !== from) {
+    return true;
+  }
+
+  const gap = Date.parse(next.at) - Date.parse(at);
+
+  return Number.isNaN(gap) || Math.abs(gap) > SAME_BREATH_MS;
+}

@@ -90,6 +90,30 @@
   --tw-prose-td-borders: var(--border);
 }
 
+/*
+ * Callouts. Colour and a rule down the side carry the meaning — no label, on
+ * purpose: the markers are English words in the syntax, and a Spanish
+ * conversation should not sprout "WARNING" in the middle of it.
+ */
+.prose .callout {
+  border-left-width: 3px;
+  border-left-color: var(--brand);
+  background: var(--surface-muted);
+  border-radius: 0 0.375rem 0.375rem 0;
+  padding: 0.5rem 0.875rem;
+  font-style: normal;
+  quotes: none;
+}
+
+.prose .callout-warning,
+.prose .callout-caution {
+  border-left-color: var(--accent);
+}
+
+.prose .callout-important {
+  border-left-color: var(--highlight);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

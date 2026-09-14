@@ -1,18 +1,32 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { PaperPlaneRightIcon, StopIcon } from "@phosphor-icons/react";
+import ComposerActions from "./composer_actions";
 import { useChat } from "../chat_state";
 import { messageProblem } from "../rules";
 import { useChatStream } from "../use_chat_stream";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
-const ICON_SIZE = 16;
+// About eight lines. Past that the box stops growing and scrolls instead, so a
+// long message cannot push the conversation off the screen.
+const MAX_HEIGHT_PX = 176;
 
 export interface ComposerOptions {
   t: Dictionary;
   locale: Locale;
+}
+
+/** Grows with what is typed, up to a point, then scrolls. */
+function fit(box: HTMLTextAreaElement | null): void {
+  if (!box) {
+    return;
+  }
+
+  // Reset first: scrollHeight only ever grows while an explicit height is set,
+  // so a box that has shrunk would otherwise stay tall.
+  box.style.height = "auto";
+  box.style.height = `${Math.min(box.scrollHeight, MAX_HEIGHT_PX)}px`;
 }
 
 /**
@@ -20,16 +34,15 @@ export interface ComposerOptions {
  * joins the run in flight rather than starting another, which is the whole
  * point of being able to change your mind mid-sentence.
  *
- * Focus is put back by hand after a send. React drops it whenever an input's
- * disabled state changes, and it used to — you had to click back into the box
- * after every message.
+ * Focus is put back by hand after a send, because React drops it whenever an
+ * input's disabled state changes and it used to.
  *
  * useState for the draft: a small leaf that owns nothing beyond itself, and
  * nothing outside this box has any business knowing what is half-typed.
  */
 export default function Composer(options: ComposerOptions) {
   const [draft, setDraft] = useState("");
-  const box = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const { state } = useChat();
   const { send, stop } = useChatStream({ locale: options.locale });
   const t = options.t.chat;
@@ -55,43 +68,39 @@ export default function Composer(options: ComposerOptions) {
 
     const message = draft;
     setDraft("");
+    fit(box.current);
     box.current?.focus();
     await send(message);
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
-      <input
-        className="flex-1 bg-transparent text-sm outline-none"
-        onChange={(event) => setDraft(event.target.value)}
+    <div className="flex items-end gap-2 rounded-xl border border-border bg-surface px-3 py-2">
+      <textarea
+        className="max-h-44 flex-1 resize-none bg-transparent py-1 text-sm outline-none"
+        onChange={(event) => {
+          setDraft(event.target.value);
+          fit(event.target);
+        }}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
+          // Enter sends, shift-Enter is a new line — which is the convention
+          // every chat box uses, and the reason this is a textarea at all.
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
             void submit();
           }
         }}
         placeholder={t.placeholder}
         ref={box}
+        rows={1}
         value={draft}
       />
-      {busy ? (
-        <button
-          aria-label={t.stop}
-          className="text-muted"
-          onClick={() => void stop()}
-          type="button"
-        >
-          <StopIcon size={ICON_SIZE} weight="fill" />
-        </button>
-      ) : null}
-      <button
-        aria-label={t.send}
-        className="text-muted disabled:opacity-40"
-        disabled={draft.trim() === ""}
-        onClick={() => void submit()}
-        type="button"
-      >
-        <PaperPlaneRightIcon size={ICON_SIZE} weight="fill" />
-      </button>
+      <ComposerActions
+        busy={busy}
+        canSend={draft.trim() !== ""}
+        onSend={() => void submit()}
+        onStop={() => void stop()}
+        t={options.t}
+      />
     </div>
   );
 }
