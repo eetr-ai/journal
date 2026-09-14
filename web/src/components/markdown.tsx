@@ -12,7 +12,7 @@ export interface MarkdownOptions {
  */
 export default function Markdown(options: MarkdownOptions) {
   return (
-    <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:my-2 prose-headings:text-foreground prose-p:text-current prose-li:text-current prose-strong:text-current prose-a:text-brand">
+    <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:my-2">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{options.children}</ReactMarkdown>
     </div>
   );
