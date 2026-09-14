@@ -28,8 +28,11 @@ const (
 	payloadField = "m"
 	// maxLen bounds a stream so an unread subject cannot grow without limit.
 	// Approximate, which is what lets Redis trim on whole nodes.
-	maxLen  = 10_000
-	idBytes = 16
+	maxLen = 10_000
+	// promoteBatch bounds how many held-back messages one receive puts back, so
+	// a burst coming due at once cannot stretch the poll past its window.
+	promoteBatch = 64
+	idBytes      = 16
 )
 
 // ErrNoSubscription is a poll or an ack against a subscription that was removed
@@ -48,8 +51,8 @@ type Delivery struct {
 type Bus interface {
 	Publish(ctx context.Context, subject string, message json.RawMessage) error
 	Receive(ctx context.Context, subject, group string, max int, wait time.Duration) ([]Delivery, error)
-	Ack(ctx context.Context, subject, group string, ids []string) error
-	Nack(ctx context.Context, subject, group string, ids []string, delay time.Duration) error
+	Ack(ctx context.Context, subject string, ids []string) error
+	Nack(ctx context.Context, subject string, ids []string, delay time.Duration) error
 
 	PublishTopic(ctx context.Context, subject string, message json.RawMessage) error
 	Subscribe(ctx context.Context, subject, subscriber string) (string, error)
@@ -106,10 +109,48 @@ func (b *RedisBus) ensureGroup(ctx context.Context, key, group, start string) er
 	return err
 }
 
+// groupSeparator joins a stream entry id to the group it was handed to. A
+// delivery id is opaque to the runtime, and the settle routes carry no group of
+// their own — so the handle has to carry it, or an ack lands on whichever group
+// the request headers happened to suggest.
+//
+// `@` is safe as the separator because a Redis entry id is `<ms>-<seq>` and
+// never contains one.
+const groupSeparator = "@"
+
+func handleFor(group, entryID string) string {
+	return entryID + groupSeparator + group
+}
+
+// splitHandle recovers the entry id and the group. A handle from an older
+// build, or from anywhere else, has no group and is left to the caller.
+func splitHandle(handle string) (string, string) {
+	entryID, group, found := strings.Cut(handle, groupSeparator)
+
+	if !found {
+		return handle, ""
+	}
+
+	return entryID, group
+}
+
+// byGroup buckets handles by the group they were delivered under, so one settle
+// request covering two groups still acknowledges each in its own.
+func byGroup(handles []string) map[string][]string {
+	ret := make(map[string][]string)
+
+	for _, handle := range handles {
+		entryID, group := splitHandle(handle)
+		ret[group] = append(ret[group], entryID)
+	}
+
+	return ret
+}
+
 // deliveriesFrom turns what a read returned into deliveries. An entry missing
 // its payload field is skipped rather than delivered empty: it can only come
 // from something other than us writing to the stream.
-func deliveriesFrom(streams []redis.XStream) []Delivery {
+func deliveriesFrom(group string, streams []redis.XStream) []Delivery {
 	var ret []Delivery
 
 	for _, stream := range streams {
@@ -120,7 +161,7 @@ func deliveriesFrom(streams []redis.XStream) []Delivery {
 			}
 
 			ret = append(ret, Delivery{
-				DeliveryID: message.ID,
+				DeliveryID: handleFor(group, message.ID),
 				Message:    json.RawMessage(payload),
 			})
 		}

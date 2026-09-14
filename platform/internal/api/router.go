@@ -163,11 +163,42 @@ func (s *Server) fail(w http.ResponseWriter, err error, what string) {
 }
 
 // expectedVersion reads the caller's belief about the current version. Absent
-// and 0 mean the same thing, which on a write is "create".
-func expectedVersion(r *http.Request) int64 {
-	ret, _ := strconv.ParseInt(r.Header.Get(versionHeader), 10, 64)
+// and 0 mean the same thing, which on a write is "create" and on a delete is
+// "unconditionally".
+//
+// A header that is present but unreadable is NOT either of those: treating a
+// malformed value as 0 would turn a conditional delete into an unconditional
+// one, which is the check failing open.
+func expectedVersion(r *http.Request) (int64, bool) {
+	raw := r.Header.Get(versionHeader)
 
-	return ret
+	if raw == "" {
+		return 0, true
+	}
+
+	ret, err := strconv.ParseInt(raw, 10, 64)
+
+	return ret, err == nil && ret >= 0
+}
+
+// ttlFrom bounds a claim's lifetime to what discovery advertised. Zero is the
+// dangerous one: Redis takes a SET with no expiry, and a lease that never lapses
+// is a name out of service for good.
+func ttlFrom(seconds int64, minSeconds, maxSeconds int) (time.Duration, bool) {
+	if seconds < int64(minSeconds) || seconds > int64(maxSeconds) {
+		return 0, false
+	}
+
+	return time.Duration(seconds) * time.Second, true
+}
+
+func badVersion(w http.ResponseWriter) {
+	writeError(w, http.StatusBadRequest, "bad_version",
+		"X-Object-Version must be a non-negative integer")
+}
+
+func badTTL(w http.ResponseWriter) {
+	writeError(w, http.StatusBadRequest, "bad_ttl", "ttlSeconds is outside the advertised bounds")
 }
 
 func decode(w http.ResponseWriter, r *http.Request, into any) bool {

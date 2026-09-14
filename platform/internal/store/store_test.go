@@ -320,3 +320,75 @@ func TestOnlySecretsNamespacesAreSealed(t *testing.T) {
 		t.Fatalf("an ordinary value should not be sealed, got %q (%v)", rawPlain.Value, err)
 	}
 }
+
+// A positive version is a claim that a conversation is already there. Taking it
+// on an absent row would let a writer holding a stale version bring back a
+// conversation somebody erased.
+func TestAStaleVersionCannotResurrectAnErasedConversation(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+
+	thread := "dolphin-resurrect"
+	_ = s.DeleteThread(ctx, "test", thread)
+
+	if _, err := s.SaveWorking(ctx, "test", thread, "dolphin-person", store.Working{Value: []byte("one")}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.DeleteThread(ctx, "test", thread); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.SaveWorking(ctx, "test", thread, "dolphin-person", store.Working{Value: []byte("back")}, 1); !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("an erased conversation came back from a stale version: %v", err)
+	}
+
+	if _, err := s.LoadWorking(ctx, "test", thread); !errors.Is(err, store.ErrMissing) {
+		t.Fatal("the conversation is there again")
+	}
+}
+
+// The listing pages on (last_activity_at, thread_key), so the cursor has to
+// carry the same precision the column does — several conversations active in
+// one second would otherwise share a cursor and the page after them would skip
+// all of them.
+func TestPagingDoesNotSkipConversationsFromTheSameInstant(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+
+	const count = 5
+
+	for i := range count {
+		thread := fmt.Sprintf("dolphin-page-%d", i)
+		_ = s.DeleteThread(ctx, "paging", thread)
+
+		if _, err := s.AppendTurns(ctx, "paging", thread, "dolphin-pager",
+			[]store.Turn{{Role: "user", Text: "x"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	seen := map[string]bool{}
+	cursor := ""
+
+	for range count {
+		page, next, err := s.ListThreads(ctx, "paging", "dolphin-pager", cursor, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, thread := range page {
+			seen[thread.ThreadKey] = true
+		}
+
+		if next == "" {
+			break
+		}
+
+		cursor = next
+	}
+
+	if len(seen) != count {
+		t.Fatalf("paging saw %d of %d conversations, so a page boundary skipped some", len(seen), count)
+	}
+}

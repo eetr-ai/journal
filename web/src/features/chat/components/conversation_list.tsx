@@ -42,10 +42,19 @@ export default function ConversationList(options: ConversationListOptions) {
           </a>
           <button
             aria-label={t.delete}
-            className="shrink-0 px-2 text-muted opacity-0 group-hover:opacity-100"
+            className="shrink-0 px-2 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
             onClick={async () => {
-              await forgetConversationAction(conversation.id);
-              router.push(`/${options.locale}`);
+              if (!(await forgetConversationAction(conversation.id))) {
+                return;
+              }
+
+              // Only the open conversation takes you somewhere. Forgetting one
+              // you are not reading should not close the one you are.
+              if (conversation.id === options.current) {
+                router.push(`/${options.locale}`);
+              } else {
+                router.refresh();
+              }
             }}
             type="button"
           >

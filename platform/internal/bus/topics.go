@@ -30,17 +30,29 @@ func (b *RedisBus) Subscribe(ctx context.Context, subject, subscriber string) (s
 }
 
 func (b *RedisBus) ReceiveTopic(ctx context.Context, subject, subscription string, max int, wait time.Duration) ([]Delivery, error) {
+	// There is no nack on a topic — a handler's error is logged and dropped —
+	// but a subscriber that DIED before acking is a different thing, and its
+	// delivery would otherwise sit pending forever and never be seen.
+	ret, err := b.reclaimTopic(ctx, subject, subscription, max)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ret) >= max {
+		return ret, nil
+	}
+
 	streams, err := b.client.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    subscription,
 		Consumer: b.consumer,
 		Streams:  []string{topicPrefix + subject, ">"},
-		Count:    int64(max),
+		Count:    int64(max - len(ret)),
 		Block:    wait,
 	}).Result()
 
 	if errors.Is(err, redis.Nil) || errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) {
-		return nil, nil
+		return ret, nil
 	}
 
 	if err != nil && strings.Contains(err.Error(), "NOGROUP") {
@@ -50,7 +62,30 @@ func (b *RedisBus) ReceiveTopic(ctx context.Context, subject, subscription strin
 		return nil, err
 	}
 
-	return deliveriesFrom(streams), nil
+	return append(ret, deliveriesFrom(subscription, streams)...), nil
+}
+
+// reclaimTopic takes back deliveries this subscription was handed and never
+// settled, once they are older than the ack deadline.
+func (b *RedisBus) reclaimTopic(ctx context.Context, subject, subscription string, max int) ([]Delivery, error) {
+	messages, _, err := b.client.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+		Stream:   topicPrefix + subject,
+		Group:    subscription,
+		Consumer: b.consumer,
+		MinIdle:  b.ackDeadline,
+		Start:    "0",
+		Count:    int64(max),
+	}).Result()
+
+	if err != nil && strings.Contains(err.Error(), "NOGROUP") {
+		return nil, ErrNoSubscription
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return deliveriesFrom(subscription, []redis.XStream{{Messages: messages}}), nil
 }
 
 // AckTopic advances one subscription's cursor. There is no nack counterpart on
@@ -61,7 +96,15 @@ func (b *RedisBus) AckTopic(ctx context.Context, subject, subscription string, i
 		return nil
 	}
 
-	err := b.client.XAck(ctx, topicPrefix+subject, subscription, ids...).Err()
+	// The handles carry the subscription they came from; the entry ids are what
+	// XACK wants.
+	entries := make([]string, len(ids))
+
+	for i, handle := range ids {
+		entries[i], _ = splitHandle(handle)
+	}
+
+	err := b.client.XAck(ctx, topicPrefix+subject, subscription, entries...).Err()
 	if err != nil && strings.Contains(err.Error(), "NOGROUP") {
 		return ErrNoSubscription
 	}

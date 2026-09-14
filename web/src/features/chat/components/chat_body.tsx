@@ -10,6 +10,7 @@ import type { Locale } from "@/i18n/config";
 export interface ChatBodyOptions {
   t: Dictionary;
   locale: Locale;
+  unavailable: boolean;
 }
 
 export default function ChatBody(options: ChatBodyOptions) {
@@ -25,8 +26,12 @@ export default function ChatBody(options: ChatBodyOptions) {
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-6">
         {state.turns.length === 0 ? (
           <div className="m-auto max-w-sm text-center">
-            <p className="text-sm font-medium">{t.emptyTitle}</p>
-            <p className="mt-1 text-sm text-muted">{t.emptyPrompt}</p>
+            <p className="text-sm font-medium">
+              {options.unavailable ? t.unavailableTitle : t.emptyTitle}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {options.unavailable ? t.unavailablePrompt : t.emptyPrompt}
+            </p>
           </div>
         ) : (
           <TurnList t={options.t} />

@@ -28,7 +28,14 @@ export const conversations = cache(async (): Promise<Conversation[]> => {
   }
 });
 
-/** One conversation's turns, or null when this person has no such thread. */
+/**
+ * One conversation's turns, null when this person has no such thread, and a
+ * throw when the agent could not say.
+ *
+ * The three are kept apart on purpose: turning a timeout into "no such thread"
+ * would open a new conversation, and the next thing the person said would be
+ * written somewhere other than where they were reading.
+ */
 export async function transcript(threadId: string): Promise<Turn[] | null> {
   const subject = (await auth())?.user?.subject;
 
@@ -36,11 +43,7 @@ export async function transcript(threadId: string): Promise<Turn[] | null> {
     return null;
   }
 
-  try {
-    return await chatClient.turns(subject, threadId);
-  } catch {
-    return null;
-  }
+  return chatClient.turns(subject, threadId);
 }
 
 export async function forget(threadId: string): Promise<boolean> {
@@ -64,22 +67,33 @@ export interface ChatView {
   threadId: string;
   turns: Turn[];
   conversations: Conversation[];
+  /** The conversation is this person's, but its turns could not be fetched. */
+  unavailable: boolean;
 }
 
 /**
  * Resolve the conversation a request is looking at.
  *
- * An id that is not this person's reads as no id at all — a new conversation,
- * rather than an error page — because the only way to arrive at one is to have
- * typed it.
+ * Three outcomes, and keeping them apart is the point. An id that is not this
+ * person's reads as no id at all — a new conversation rather than an error
+ * page, because the only way to arrive at one is to have typed it. An id we
+ * could not ask about keeps the id: the history is missing from the screen, but
+ * the next thing said still goes where the person thinks they are.
  */
 export async function chatView(requested?: string): Promise<ChatView> {
   const list = await conversations();
-  const turns = requested ? await transcript(requested) : null;
 
-  return {
-    threadId: turns ? (requested as string) : newThreadId(),
-    turns: turns ?? [],
-    conversations: list,
-  };
+  if (!requested) {
+    return { threadId: newThreadId(), turns: [], conversations: list, unavailable: false };
+  }
+
+  try {
+    const turns = await transcript(requested);
+
+    return turns
+      ? { threadId: requested, turns, conversations: list, unavailable: false }
+      : { threadId: newThreadId(), turns: [], conversations: list, unavailable: false };
+  } catch {
+    return { threadId: requested, turns: [], conversations: list, unavailable: true };
+  }
 }

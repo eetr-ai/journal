@@ -37,12 +37,28 @@ func (s *Server) putMemory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// No embedding here either: this is on the agent's critical path, inside a
-	// tool call the person is waiting through. The backfill picks it up.
-	memory := store.Memory{Name: r.URL.Query().Get("name"), Value: request.Value}
+	name := r.URL.Query().Get("name")
+	expected, ok := expectedVersion(r)
+
+	switch {
+	case name == "":
+		// The name is half the primary key. An empty one makes a record no
+		// caller can address again except by leaving the name off twice.
+		writeError(w, http.StatusBadRequest, "bad_request", "name is required")
+
+		return
+	case !ok:
+		badVersion(w)
+
+		return
+	}
+
+	// No embedding here: this is on the agent's critical path, inside a tool
+	// call the person is waiting through. The backfill picks it up.
+	memory := store.Memory{Name: name, Value: request.Value}
 
 	version, err := s.config.Store.PutMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"),
-		memory, expectedVersion(r))
+		memory, expected)
 	if err != nil {
 		s.fail(w, err, "put memory")
 
@@ -54,8 +70,15 @@ func (s *Server) putMemory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteMemory(w http.ResponseWriter, r *http.Request) {
-	err := s.config.Store.DeleteMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"),
-		r.URL.Query().Get("name"))
+	name := r.URL.Query().Get("name")
+
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "name is required")
+
+		return
+	}
+
+	err := s.config.Store.DeleteMemory(r.Context(), r.PathValue("agentId"), r.PathValue("userId"), name)
 	if err != nil {
 		s.fail(w, err, "delete memory")
 
@@ -83,6 +106,15 @@ type searchResponse struct {
 func (s *Server) searchMemory(w http.ResponseWriter, r *http.Request) {
 	var request searchRequest
 	if !decode(w, r, &request) {
+		return
+	}
+
+	// Empty searches both stores; anything else has to be one of the two the
+	// contract names, or a typo would quietly widen the search instead of
+	// narrowing it.
+	if request.Scope != "" && request.Scope != "turns" && request.Scope != "user" {
+		writeError(w, http.StatusBadRequest, "bad_request", `scope must be "", "turns" or "user"`)
+
 		return
 	}
 

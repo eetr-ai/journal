@@ -92,6 +92,21 @@ function tooled(state: ChatUiState, done: boolean): ChatUiState {
   }));
 }
 
+/**
+ * A run that ended without producing anything leaves no empty turn behind: it
+ * would go on saying "thinking" underneath a notice saying it had stopped.
+ * A turn with text in it stays — a part-answer is still an answer.
+ */
+function ended(state: ChatUiState): ChatUiState {
+  const last = state.turns.at(-1);
+
+  if (!last || last.from !== "journal" || last.text !== "") {
+    return state;
+  }
+
+  return { ...state, turns: state.turns.slice(0, -1) };
+}
+
 export function chatReducer(state: ChatUiState, action: ChatAction): ChatUiState {
   switch (action.type) {
     case ChatActionType.Sent:
@@ -119,10 +134,10 @@ export function chatReducer(state: ChatUiState, action: ChatAction): ChatUiState
       }));
 
     case ChatActionType.Aborted:
-      return { ...state, status: "aborted" };
+      return { ...ended(state), status: "aborted" };
 
     case ChatActionType.Failed:
-      return { ...state, status: "failed", error: action.data as ChatError };
+      return { ...ended(state), status: "failed", error: action.data as ChatError };
 
     default:
       return state;

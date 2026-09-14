@@ -31,8 +31,15 @@ func (s *Server) acquireLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claim, err := s.config.Locks.Acquire(r.Context(), request.Name, request.Holder,
-		time.Duration(request.TTLSeconds)*time.Second)
+	ttl, ok := ttlFrom(request.TTLSeconds, leaseMinTTLSeconds, leaseMaxTTLSeconds)
+
+	if !ok {
+		badTTL(w)
+
+		return
+	}
+
+	claim, err := s.config.Locks.Acquire(r.Context(), request.Name, request.Holder, ttl)
 	if err != nil {
 		s.fail(w, err, "lease acquire")
 
@@ -65,8 +72,15 @@ func (s *Server) renewLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.config.Locks.Renew(r.Context(), r.PathValue("leaseId"),
-		time.Duration(request.TTLSeconds)*time.Second)
+	ttl, ok := ttlFrom(request.TTLSeconds, leaseMinTTLSeconds, leaseMaxTTLSeconds)
+
+	if !ok {
+		badTTL(w)
+
+		return
+	}
+
+	err := s.config.Locks.Renew(r.Context(), r.PathValue("leaseId"), ttl)
 
 	if errors.Is(err, locks.ErrNotHeld) {
 		w.WriteHeader(http.StatusConflict)

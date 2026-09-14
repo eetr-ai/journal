@@ -18,6 +18,7 @@ export interface AppShellOptions {
   threadId: string;
   turns: Turn[];
   conversations: Conversation[];
+  unavailable: boolean;
 }
 
 // Three vertical panels side by side: the drawer, the conversation, and the
@@ -46,6 +47,7 @@ export default function AppShell(options: AppShellOptions) {
           t={options.t}
           threadId={options.threadId}
           turns={options.turns}
+          unavailable={options.unavailable}
         />
         <TodayPanel
           locale={options.locale}

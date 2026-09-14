@@ -86,6 +86,9 @@ const en = {
     thinking: "Thinking...",
     working: "Looking something up...",
     emptyTitle: "Nothing here yet",
+    unavailableTitle: "This one would not load",
+    unavailablePrompt:
+      "What was said before is not showing. Anything you send still goes to this conversation.",
     emptyPrompt: "Say what kind of day it was, and we will go from there.",
     you: "You said",
     journal: "The journal said",

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/eetr-ai/journal/platform/internal/bus"
@@ -32,13 +31,12 @@ type settleRequest struct {
 	DelaySeconds   int64    `json:"delaySeconds"`
 }
 
-// deploymentHeader carries the deployment id, which IS the consumer group.
-// The settle routes need it: their body names only the deliveries, so without
-// it there is no way to know whose pending entries are being acknowledged.
+// deploymentHeader carries the deployment id, which IS the consumer group when
+// the poll does not name one.
 const deploymentHeader = "X-Octo-Deployment"
 
 // defaultGroup is what an unscoped deployment competes under. A name rather
-// than the empty string, so `receive` and `ack` cannot disagree about it.
+// than the empty string, because a Redis consumer group has to have one.
 const defaultGroup = "default"
 
 func groupOf(r *http.Request, named string) string {
@@ -53,16 +51,11 @@ func groupOf(r *http.Request, named string) string {
 	return defaultGroup
 }
 
-// subjectOf decodes the path segment exactly once. Decoding twice would merge
-// `a%2Fb` and `a/b` into one subject, which is the same class of bug the query
-// parameters elsewhere in this contract exist to avoid.
+// subjectOf is the decoded subject, decoded exactly once — ServeMux unescapes a
+// path value on the way in, so doing it again here would merge `a%2Fb` and
+// `a/b` into one subject, which is the bug the contract warns about by name.
 func subjectOf(r *http.Request) string {
-	ret, err := url.PathUnescape(r.PathValue("subject"))
-	if err != nil {
-		return r.PathValue("subject")
-	}
-
-	return ret
+	return r.PathValue("subject")
 }
 
 func (s *Server) publishQueue(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +113,8 @@ func (s *Server) ackQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.config.Bus.Ack(r.Context(), subjectOf(r), groupOf(r, ""), request.DeliveryIDs); err != nil {
+	// No group here: each delivery handle carries the one it was handed to.
+	if err := s.config.Bus.Ack(r.Context(), subjectOf(r), request.DeliveryIDs); err != nil {
 		s.fail(w, err, "queue ack")
 
 		return
@@ -135,7 +129,7 @@ func (s *Server) nackQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.config.Bus.Nack(r.Context(), subjectOf(r), groupOf(r, ""), request.DeliveryIDs,
+	err := s.config.Bus.Nack(r.Context(), subjectOf(r), request.DeliveryIDs,
 		time.Duration(request.DelaySeconds)*time.Second)
 	if err != nil {
 		s.fail(w, err, "queue nack")

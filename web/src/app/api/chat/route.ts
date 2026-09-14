@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { vaultIsMarkedOpen } from "@/features/vault/gate";
+import { vaultGate } from "@/features/vault/gate";
 import { chatClient } from "@/features/chat/client";
 import { askFrom } from "@/features/chat/rules";
 
@@ -53,7 +53,10 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: UNSUPPORTED_MEDIA });
   }
 
-  if (!(await vaultIsMarkedOpen())) {
+  // The real gate, not the marker cookie beside it: the cookie is written by
+  // client code, so trusting it alone would be a way into the app with no vault
+  // — and there is no vault-less path through this app by design.
+  if ((await vaultGate()) !== "open") {
     return new Response(null, { status: LOCKED });
   }
 

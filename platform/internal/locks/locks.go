@@ -46,6 +46,11 @@ type Locks interface {
 // which is why it must not be conflated with a transient failure.
 var ErrNotHeld = errors.New("claim is not held by this caller")
 
+// ErrBadTTL is a claim that would not expire. Redis takes a SET with no expiry
+// happily, and the result is a name nothing can ever take again — so a TTL that
+// is not positive is refused here as well as at the edge.
+var ErrBadTTL = errors.New("a claim needs a positive ttl")
+
 type RedisLocks struct {
 	client redis.UniversalClient
 }
@@ -65,6 +70,10 @@ func newID() string {
 // passed without a renewal. A holder that died without releasing must not take
 // a name out of service for good, which is exactly what the expiry buys.
 func (l *RedisLocks) Acquire(ctx context.Context, name, holder string, ttl time.Duration) (Claim, error) {
+	if ttl <= 0 {
+		return Claim{}, ErrBadTTL
+	}
+
 	id := newID()
 	key := leasePrefix + name
 
@@ -106,6 +115,10 @@ return 1
 `)
 
 func (l *RedisLocks) Renew(ctx context.Context, leaseID string, ttl time.Duration) error {
+	if ttl <= 0 {
+		return ErrBadTTL
+	}
+
 	name, err := l.client.Get(ctx, handlePrefix+leaseID).Result()
 	if errors.Is(err, redis.Nil) {
 		return ErrNotHeld
@@ -165,6 +178,10 @@ return 0
 `)
 
 func (l *RedisLocks) Campaign(ctx context.Context, key, holder string, ttl time.Duration) (Claim, error) {
+	if ttl <= 0 {
+		return Claim{}, ErrBadTTL
+	}
+
 	won, err := campaignScript.Run(ctx, l.client,
 		[]string{leaderPrefix + key}, holder, ttl.Milliseconds()).Int()
 	if err != nil {

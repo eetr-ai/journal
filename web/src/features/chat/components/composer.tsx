@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PaperPlaneRightIcon, StopIcon } from "@phosphor-icons/react";
 import { useChat } from "../chat_state";
+import { messageProblem } from "../rules";
 import { useChatStream } from "../use_chat_stream";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -25,6 +26,14 @@ export default function Composer(options: ComposerOptions) {
   const busy = state.status === "waiting" || state.status === "streaming";
 
   async function submit() {
+    // Cleared only once it is going to be sent. A message refused for being too
+    // long is a message the person still has to edit.
+    if (messageProblem(draft)) {
+      await send(draft);
+
+      return;
+    }
+
     const message = draft;
     setDraft("");
     await send(message);

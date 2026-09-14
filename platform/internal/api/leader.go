@@ -27,8 +27,15 @@ func (s *Server) campaign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claim, err := s.config.Locks.Campaign(r.Context(), r.PathValue("key"), request.Holder,
-		time.Duration(request.TTLSeconds)*time.Second)
+	ttl, ok := ttlFrom(request.TTLSeconds, leaseMinTTLSeconds, leaseMaxTTLSeconds)
+
+	if !ok {
+		badTTL(w)
+
+		return
+	}
+
+	claim, err := s.config.Locks.Campaign(r.Context(), r.PathValue("key"), request.Holder, ttl)
 	if err != nil {
 		s.fail(w, err, "campaign")
 

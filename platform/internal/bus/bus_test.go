@@ -62,7 +62,7 @@ func TestAMessagePublishedIsAMessageReceived(t *testing.T) {
 		t.Fatalf("the message did not cross whole: %s", got[0].Message)
 	}
 
-	if err := b.Ack(ctx, subject, "dolphin-group", []string{got[0].DeliveryID}); err != nil {
+	if err := b.Ack(ctx, subject, []string{got[0].DeliveryID}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -121,7 +121,7 @@ func TestAnUnackedMessageComesBack(t *testing.T) {
 		t.Fatalf("the message should have been reclaimed, got %d (%v)", len(again), err)
 	}
 
-	if err := b.Ack(ctx, subject, group, []string{again[0].DeliveryID}); err != nil {
+	if err := b.Ack(ctx, subject, []string{again[0].DeliveryID}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -146,7 +146,7 @@ func TestANackedMessageWaitsOutItsDelay(t *testing.T) {
 
 	const delay = 2 * time.Second
 
-	if err := b.Nack(ctx, subject, group, []string{got[0].DeliveryID}, delay); err != nil {
+	if err := b.Nack(ctx, subject, []string{got[0].DeliveryID}, delay); err != nil {
 		t.Fatal(err)
 	}
 
@@ -166,7 +166,7 @@ func TestANackedMessageWaitsOutItsDelay(t *testing.T) {
 		t.Fatalf("the message should have come back after its delay, got %d (%v)", len(late), err)
 	}
 
-	if err := b.Ack(ctx, subject, group, []string{late[0].DeliveryID}); err != nil {
+	if err := b.Ack(ctx, subject, []string{late[0].DeliveryID}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -235,5 +235,52 @@ func TestANewSubscriptionStartsAtTheEnd(t *testing.T) {
 
 	if len(got) != 0 {
 		t.Fatalf("a new subscriber received %d message(s) published before it existed", len(got))
+	}
+}
+
+// Two deployments on one subject each see every message, and one settling must
+// not take the message out from under the other — which is what deleting the
+// stream entry on ack did.
+//
+// The order matters: the second group reads AFTER the first has acked, which is
+// the case a delete destroys and a delete-free ack survives.
+func TestOneGroupSettlingDoesNotRobTheOther(t *testing.T) {
+	ctx := context.Background()
+	b := testBus(t, time.Minute)
+	subject := "dolphin.two-groups"
+
+	// Both groups exist from before the publish, so neither is starting its
+	// cursor past it.
+	for _, group := range []string{"deployment-a", "deployment-b"} {
+		if _, err := b.Receive(ctx, subject, group, 8, 200*time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := b.Publish(ctx, subject, message("both")); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := b.Receive(ctx, subject, "deployment-a", 8, time.Second)
+	if err != nil || len(first) != 1 {
+		t.Fatalf("deployment-a got %d messages (%v)", len(first), err)
+	}
+
+	if err := b.Ack(ctx, subject, []string{first[0].DeliveryID}); err != nil {
+		t.Fatal(err)
+	}
+
+	second, err := b.Receive(ctx, subject, "deployment-b", 8, time.Second)
+	if err != nil || len(second) != 1 {
+		t.Fatalf("deployment-b lost the message when deployment-a settled it (%d, %v)", len(second), err)
+	}
+
+	if err := b.Ack(ctx, subject, []string{second[0].DeliveryID}); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := b.Receive(ctx, subject, "deployment-b", 8, 300*time.Millisecond)
+	if err != nil || len(again) != 0 {
+		t.Fatalf("a settled message came back (%d, %v)", len(again), err)
 	}
 }

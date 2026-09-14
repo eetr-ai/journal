@@ -89,11 +89,16 @@ func (w *Worker) pass(parent context.Context) (int, error) {
 	ret := 0
 
 	for i, row := range pending {
-		if i >= len(vectors) || len(vectors[i]) == 0 {
-			continue
+		var vector []float32
+
+		if i < len(vectors) {
+			vector = vectors[i]
 		}
 
-		if err := w.store.SetVector(ctx, row, vectors[i]); err != nil {
+		// Written even when the vector is nil. A row the provider declined is
+		// still a row we have considered, and leaving it unmarked would put it
+		// at the front of every future pass forever.
+		if err := w.store.SetVector(ctx, row, vector); err != nil {
 			return ret, err
 		}
 

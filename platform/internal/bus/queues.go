@@ -57,7 +57,7 @@ func (b *RedisBus) Receive(ctx context.Context, subject, group string, max int, 
 		return nil, err
 	}
 
-	return append(ret, deliveriesFrom(streams)...), nil
+	return append(ret, deliveriesFrom(group, streams)...), nil
 }
 
 // reclaim takes back deliveries idle longer than the ack deadline. This is what
@@ -76,23 +76,28 @@ func (b *RedisBus) reclaim(ctx context.Context, key, group string, max int) ([]D
 		return nil, err
 	}
 
-	return deliveriesFrom([]redis.XStream{{Messages: messages}}), nil
+	return deliveriesFrom(group, []redis.XStream{{Messages: messages}}), nil
 }
 
-func (b *RedisBus) Ack(ctx context.Context, subject, group string, ids []string) error {
-	if len(ids) == 0 {
-		return nil
-	}
-
+// Ack settles deliveries in the group each was handed to, which is what the
+// handle carries. The entries are NOT deleted from the stream: a subject may
+// have a second consumer group on it — two deployments each see every message —
+// and deleting on one group's ack would take the message out from under the
+// other. MAXLEN is what bounds the stream.
+func (b *RedisBus) Ack(ctx context.Context, subject string, ids []string) error {
 	key := queuePrefix + subject
 
-	if err := b.client.XAck(ctx, key, group, ids...).Err(); err != nil {
-		return err
+	for group, entries := range byGroup(ids) {
+		if group == "" {
+			continue
+		}
+
+		if err := b.client.XAck(ctx, key, group, entries...).Err(); err != nil {
+			return err
+		}
 	}
 
-	// Acked entries are nobody's any more, and leaving them in the stream only
-	// makes the trim do the work later.
-	return b.client.XDel(ctx, key, ids...).Err()
+	return nil
 }
 
 // Nack holds the message back for `delay` and then puts it on the stream again.
@@ -100,10 +105,12 @@ func (b *RedisBus) Ack(ctx context.Context, subject, group string, ids []string)
 // fails every time is redelivered as fast as the network allows, and one poison
 // message becomes a hot loop against us and against whatever the handler could
 // not reach.
-func (b *RedisBus) Nack(ctx context.Context, subject, group string, ids []string, delay time.Duration) error {
+func (b *RedisBus) Nack(ctx context.Context, subject string, ids []string, delay time.Duration) error {
 	key := queuePrefix + subject
 
-	for _, id := range ids {
+	for _, handle := range ids {
+		id, _ := splitHandle(handle)
+
 		payload, err := b.payloadOf(ctx, key, id)
 		if err != nil {
 			return err
@@ -133,7 +140,7 @@ func (b *RedisBus) Nack(ctx context.Context, subject, group string, ids []string
 		}
 	}
 
-	return b.Ack(ctx, subject, group, ids)
+	return b.Ack(ctx, subject, ids)
 }
 
 func (b *RedisBus) payloadOf(ctx context.Context, key, id string) (string, error) {
@@ -153,9 +160,13 @@ func (b *RedisBus) payloadOf(ctx context.Context, key, id string) (string, error
 func (b *RedisBus) promoteDelayed(ctx context.Context, key string) error {
 	now := strconv.FormatInt(time.Now().UnixMilli(), 10)
 
+	// Paged, because this runs before the blocking read: a burst coming due at
+	// once would otherwise push the whole receive past the poll window the
+	// caller was promised. Whatever is left waits for the next poll.
 	due, err := b.client.ZRangeByScore(ctx, key+delayedSuffix, &redis.ZRangeBy{
-		Min: "-inf",
-		Max: now,
+		Min:   "-inf",
+		Max:   now,
+		Count: promoteBatch,
 	}).Result()
 	if err != nil || len(due) == 0 {
 		return err

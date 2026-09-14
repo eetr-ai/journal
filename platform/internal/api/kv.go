@@ -37,8 +37,16 @@ func (s *Server) putEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expected, ok := expectedVersion(r)
+
+	if !ok {
+		badVersion(w)
+
+		return
+	}
+
 	version, err := s.config.Store.PutEntry(r.Context(), r.PathValue("namespace"),
-		r.URL.Query().Get("key"), value, expectedVersion(r))
+		r.URL.Query().Get("key"), value, expected)
 	if err != nil {
 		s.fail(w, err, "kv put")
 
@@ -52,8 +60,16 @@ func (s *Server) putEntry(w http.ResponseWriter, r *http.Request) {
 // deleteEntry answers 204 whether or not there was anything there: the caller
 // asked for the name to be gone and it is.
 func (s *Server) deleteEntry(w http.ResponseWriter, r *http.Request) {
+	expected, ok := expectedVersion(r)
+
+	if !ok {
+		badVersion(w)
+
+		return
+	}
+
 	err := s.config.Store.DeleteEntry(r.Context(), r.PathValue("namespace"),
-		r.URL.Query().Get("key"), expectedVersion(r))
+		r.URL.Query().Get("key"), expected)
 	if err != nil {
 		s.fail(w, err, "kv delete")
 

@@ -39,12 +39,17 @@ func (s *PgStore) Close() {
 
 // stamp renders a time the way the contract wants it, and an unset time as the
 // empty string so `omitempty` can drop the field.
+//
+// Nano rather than second precision because the listing cursor is built from
+// this string: two conversations active in the same second would otherwise
+// compare equal, and the page after them would skip every one of them. Still a
+// valid RFC 3339 timestamp, so nothing reading it has to know.
 func stamp(t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
 
-	return t.UTC().Format(time.RFC3339)
+	return t.UTC().Format(time.RFC3339Nano)
 }
 
 // vectorLiteral is pgvector's text input format. nil rather than a literal for

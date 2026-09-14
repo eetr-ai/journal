@@ -88,6 +88,9 @@ const es: Dictionary = {
     thinking: "Pensando...",
     working: "Buscando algo...",
     emptyTitle: "Todavía no hay nada",
+    unavailableTitle: "Esta no cargó",
+    unavailablePrompt:
+      "Lo que se dijo antes no se está mostrando. Lo que mandes igual va a esta charla.",
     emptyPrompt: "Contá qué tipo de día fue, y seguimos desde ahí.",
     you: "Vos dijiste",
     journal: "El diario dijo",

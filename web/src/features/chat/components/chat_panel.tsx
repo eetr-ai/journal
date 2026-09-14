@@ -19,6 +19,8 @@ export interface ChatPanelOptions {
   threadId: string;
   /** A conversation being re-opened, empty for a new one. */
   turns: Turn[];
+  /** This conversation exists, but its turns could not be fetched. */
+  unavailable: boolean;
 }
 
 // SimpleProvider rather than bootstrapProvider: the initial state carries this
@@ -32,7 +34,7 @@ export default function ChatPanel(options: ChatPanelOptions) {
       reducer={chatReducer}
       stateContext={ChatStateContext}
     >
-      <ChatBody locale={options.locale} t={options.t} />
+      <ChatBody locale={options.locale} t={options.t} unavailable={options.unavailable} />
     </SimpleProvider>
   );
 }

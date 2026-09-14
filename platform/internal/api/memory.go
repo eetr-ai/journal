@@ -42,9 +42,26 @@ func (s *Server) loadWorking(w http.ResponseWriter, r *http.Request) {
 // storing the bytes unexamined is what lets that format change without touching
 // this file.
 func (s *Server) saveWorking(w http.ResponseWriter, r *http.Request) {
-	value, err := io.ReadAll(io.LimitReader(r.Body, workingLimit))
+	// One byte past the limit, so an oversized body is refused rather than
+	// stored truncated — a half a serialized context loads as corrupt state.
+	value, err := io.ReadAll(io.LimitReader(r.Body, workingLimit+1))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", "the body could not be read")
+
+		return
+	}
+
+	if len(value) > workingLimit {
+		writeError(w, http.StatusRequestEntityTooLarge, "too_large",
+			"the context is larger than this implementation stores")
+
+		return
+	}
+
+	expected, ok := expectedVersion(r)
+
+	if !ok {
+		badVersion(w)
 
 		return
 	}
@@ -56,7 +73,7 @@ func (s *Server) saveWorking(w http.ResponseWriter, r *http.Request) {
 			Iteration: intHeader(r, iterationHeader),
 			Tokens:    intHeader(r, tokensHeader),
 		},
-		expectedVersion(r))
+		expected)
 	if err != nil {
 		s.fail(w, err, "save working memory")
 

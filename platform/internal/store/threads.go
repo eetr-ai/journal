@@ -37,6 +37,13 @@ func (s *PgStore) LoadWorking(ctx context.Context, agentID, threadKey string) (W
 func (s *PgStore) SaveWorking(ctx context.Context, agentID, threadKey, userID string, w Working, expected int64) (int64, error) {
 	var ret int64
 
+	// A positive expected version is a claim that something is already there.
+	// Without this the insert arm would take it, and a writer holding a stale
+	// version could bring an erased conversation back at version 1.
+	if expected > 0 {
+		return s.updateWorking(ctx, agentID, threadKey, w, expected)
+	}
+
 	err := s.pool.QueryRow(ctx,
 		`INSERT INTO agent_thread (
 		   agent_id, thread_key, oidc_subject, working, working_version, iteration, tokens, last_activity_at
@@ -49,9 +56,33 @@ func (s *PgStore) SaveWorking(ctx context.Context, agentID, threadKey, userID st
 		   iteration        = EXCLUDED.iteration,
 		   tokens           = EXCLUDED.tokens,
 		   last_activity_at = now()
-		 WHERE agent_thread.working_version = $7
+		 WHERE agent_thread.working_version = 0
 		 RETURNING working_version`,
-		agentID, threadKey, userID, w.Value, w.Iteration, w.Tokens, expected,
+		agentID, threadKey, userID, w.Value, w.Iteration, w.Tokens,
+	).Scan(&ret)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrConflict
+	}
+
+	return ret, err
+}
+
+// updateWorking is the arm that refuses to create. A row that is not there
+// cannot be at the version the caller believes it is.
+func (s *PgStore) updateWorking(ctx context.Context, agentID, threadKey string, w Working, expected int64) (int64, error) {
+	var ret int64
+
+	err := s.pool.QueryRow(ctx,
+		`UPDATE agent_thread SET
+		   working          = $3,
+		   working_version  = working_version + 1,
+		   iteration        = $4,
+		   tokens           = $5,
+		   last_activity_at = now()
+		 WHERE agent_id = $1 AND thread_key = $2 AND working_version = $6
+		 RETURNING working_version`,
+		agentID, threadKey, w.Value, w.Iteration, w.Tokens, expected,
 	).Scan(&ret)
 
 	if errors.Is(err, pgx.ErrNoRows) {
