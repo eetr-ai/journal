@@ -33,22 +33,7 @@ spec:
               value: {{ .Values.agent.port | quote }}
             - name: OCTO_OBSERVABILITY_ADDR
               value: ":{{ .Values.agent.adminPort }}"
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "journal.postgresSecretName" . }}
-                  key: {{ .Values.postgres.usernameKey }}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "journal.postgresSecretName" . }}
-                  key: {{ .Values.postgres.passwordKey }}
-            # Assembled by the kubelet from the two above, which is what keeps
-            # the credential out of this manifest. Nothing escapes them on the
-            # way in, so both have to be percent-encoded in the Secret if they
-            # contain anything with URI meaning — : / ? # @ [ ] and % itself.
-            - name: POSTGRES_DSN
-              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ required "postgres.host must name the database server" .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}?sslmode={{ .Values.postgres.sslmode }}
+            {{- include "journal.postgresEnv" . | nindent 12 }}
           # The image runs as nonroot on a distroless base and writes nothing,
           # so it needs no volume and no write access. The flows are in it.
           securityContext:
