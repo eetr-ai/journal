@@ -24,7 +24,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: "{{ .Values.migration.image.repository }}:{{ .Values.migration.image.tag }}"
+          image: "{{ .Values.migration.image.repository }}:{{ .Values.migration.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             {{- include "journal.postgresEnv" . | nindent 12 }}
@@ -39,10 +39,6 @@ spec:
                 echo "applying $file..."
                 psql --set ON_ERROR_STOP=1 -d "$POSTGRES_DSN" -f "$file"
               done
-          volumeMounts:
-            - name: schema
-              mountPath: /schema
-              readOnly: true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -50,8 +46,4 @@ spec:
               drop: ["ALL"]
           resources:
             {{- toYaml .Values.migration.resources | nindent 12 }}
-      volumes:
-        - name: schema
-          configMap:
-            name: {{ include "journal.fullname" . }}-schema
 {{- end }}
