@@ -96,8 +96,7 @@ flows:
                   connector: research
                   # The objective is what Parallel ranks against, so the site
                   # restriction belongs here as well as in the query.
-                  objective: >
-                    '"Find what goodreads.com says about this book: " + body.query'
+                  objective: '"Find what goodreads.com says about this book: " + body.query'
                   searchQueries: '["site:goodreads.com " + body.query]'
                   mode: fast
                   maxResults: 5
@@ -118,8 +117,7 @@ flows:
                 name: scripture
                 settings:
                   connector: research
-                  objective: >
-                    '"Find the Bible passage and its text: " + body.query'
+                  objective: '"Find the Bible passage and its text: " + body.query'
                   searchQueries: '["site:biblegateway.com " + body.query]'
                   mode: fast
                   maxResults: 5
