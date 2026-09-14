@@ -1,0 +1,118 @@
+# The read side of the chat:
+#
+#   GET    /chats/{subject}            the conversations, most recent first
+#   GET    /chats/{subject}/{thread}   one conversation and its turns
+#   DELETE /chats/{subject}/{thread}   forget one
+#
+# What the agent writes through the platform sidecar, read back as plain rows.
+# Persistence only, and every statement is scoped by the subject from the path —
+# so a caller holding somebody else's thread id still cannot read it.
+#
+# `agent_id` is the literal the chat flow declares. One agent, named in one
+# place: if a second one ever writes here, these become parameterised.
+flows:
+  - name: chats
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /chats/{subject}
+        methods: [GET]
+    process:
+      - type: sql
+        name: select-chats
+        settings:
+          connector: db
+          query: |
+            SELECT thread_key, title, turn_count, created_at, last_activity_at
+            FROM agent_thread
+            WHERE agent_id = 'journal' AND oidc_subject = $1
+            ORDER BY last_activity_at DESC
+            LIMIT 200
+          args:
+            - vars.subject
+      # A person with no conversations is an ordinary answer, not a 404: it is
+      # the first thing an empty drawer asks.
+      - type: set-payload
+        name: wrap
+        settings:
+          value: '{"chats": body}'
+
+  - name: chat-transcript
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /chats/{subject}/{thread}
+        methods: [GET, DELETE]
+    process:
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "GET"'
+            process:
+              # A sql block replaces the body with its result, so each result is
+              # parked in a variable before the next statement runs.
+              - type: sql
+                name: select-chat
+                settings:
+                  connector: db
+                  query: |
+                    SELECT thread_key, title, turn_count, created_at, last_activity_at
+                    FROM agent_thread
+                    WHERE agent_id = 'journal' AND oidc_subject = $1 AND thread_key = $2
+                  args:
+                    - vars.subject
+                    - vars.thread
+                  single: true
+              - type: set-variable
+                name: hold-chat
+                settings: { name: chat, value: body }
+              - type: if
+                name: check-found
+                condition: 'vars.chat == null'
+                then:
+                  process:
+                    - type: set-variable
+                      settings: { name: httpStatus, value: "404" }
+                    - type: set-payload
+                      settings:
+                        value: '{"error": "conversation not found"}'
+                else:
+                  process:
+                    # The join is what scopes the turns: a turn row does not
+                    # know whose it is.
+                    - type: sql
+                      name: select-turns
+                      settings:
+                        connector: db
+                        query: |
+                          SELECT t.seq, t.role, t.content, t.created_at
+                          FROM agent_turn t
+                          JOIN agent_thread h
+                            ON h.agent_id = t.agent_id AND h.thread_key = t.thread_key
+                          WHERE t.agent_id = 'journal'
+                            AND h.oidc_subject = $1
+                            AND t.thread_key = $2
+                          ORDER BY t.seq
+                        args:
+                          - vars.subject
+                          - vars.thread
+                    - type: set-payload
+                      name: combine
+                      settings:
+                        value: '{"chat": vars.chat, "turns": body}'
+
+          - when: 'vars.method == "DELETE"'
+            process:
+              # The turns go with it through the foreign key, so erasure cannot
+              # half-happen and leave a person's words behind.
+              - type: sql
+                name: delete-chat
+                settings:
+                  connector: db
+                  exec: true
+                  query: DELETE FROM agent_thread WHERE agent_id = 'journal' AND oidc_subject = $1 AND thread_key = $2
+                  args:
+                    - vars.subject
+                    - vars.thread

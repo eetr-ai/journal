@@ -34,6 +34,34 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- required "postgres.existingSecret must name a Secret holding the database username and password" .Values.postgres.existingSecret -}}
 {{- end -}}
 
+{{- define "journal.platformSecretName" -}}
+{{- required "platform.existingSecret must name a Secret holding REDIS_URL and SECRETS_KEY" .Values.platform.existingSecret -}}
+{{- end -}}
+
+{{- define "journal.modelSecretName" -}}
+{{- required "models.existingSecret must name a Secret holding OPENROUTER_API_KEY and PARALLEL_API_KEY" .Values.models.existingSecret -}}
+{{- end -}}
+
+{{/* OpenRouter, which two containers need for different reasons: the agent to
+     answer, the sidecar to embed what it remembers. Shared so they cannot come
+     from two different Secrets by accident. */}}
+{{- define "journal.openrouterEnv" -}}
+- name: OPENROUTER_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.modelSecretName" . }}
+      key: OPENROUTER_API_KEY
+{{- end -}}
+
+{{/* Web search, which only the agent does. */}}
+{{- define "journal.parallelEnv" -}}
+- name: PARALLEL_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.modelSecretName" . }}
+      key: PARALLEL_API_KEY
+{{- end -}}
+
 {{- define "journal.authSecretName" -}}
 {{- required "auth.existingSecret must name a Secret holding AUTH_SECRET and the AUTH_OIDC_* pair" .Values.auth.existingSecret -}}
 {{- end -}}

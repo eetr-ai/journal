@@ -7,6 +7,8 @@ vars:
   # The runtime is a Go binary installed from the octo repo. Pinned to latest
   # for now; pin a tag here once we care which version we are running.
   OCTO_PKG: github.com/juancavallotti/octo/runtime/octo@latest
+  # The sidecar, as the runtime reaches it.
+  PLATFORM_URL: http://127.0.0.1:8099
   # dolphin is octo's test runner: it drives flows the way `go test` drives a
   # package, from a *_test.yaml suite beside each flow file.
   DOLPHIN_PKG: github.com/juancavallotti/octo/runtime/dolphin@latest
@@ -17,15 +19,26 @@ vars:
   # Invoked by full path: `go install` adds nothing to PATH, so a machine whose
   # Go bin directory is not already on it would otherwise get "command not found".
   OCTO: '{{.GO_BIN}}/octo'
+  # The api-flavour binary, built with the platform-API services provider. It is
+  # what runs in the cluster, and agent memory only exists under it, so `dev`
+  # uses it too rather than developing against a runtime we do not ship.
+  OCTO_API: '{{.GO_BIN}}/octo-api'
   DOLPHIN: '{{.GO_BIN}}/dolphin'
 
 tasks:
   install:
     desc: Install the latest octo and dolphin binaries into the Go bin directory
     cmds:
-      - go install {{.OCTO_PKG}}
       - go install {{.DOLPHIN_PKG}}
-      - 'echo "installed {{.OCTO}} and {{.DOLPHIN}}"'
+      # The services provider is a build tag and the flavours are mutually
+      # exclusive, so this is a second binary rather than a flag on the first.
+      # `go install` names both after the package, hence the rename between
+      # them — and the standalone one is installed last so `octo` is the one
+      # that needs no sidecar.
+      - go install -tags api {{.OCTO_PKG}}
+      - mv {{.OCTO}} {{.OCTO_API}}
+      - go install {{.OCTO_PKG}}
+      - 'echo "installed {{.OCTO}}, {{.OCTO_API}} and {{.DOLPHIN}}"'
 
   test:
     desc: Run the flow test suites
@@ -34,11 +47,15 @@ tasks:
       - '{{.DOLPHIN}} test ./flows'
 
   dev:
-    desc: Run the flows with hot reload
+    desc: Run the flows with hot reload, against the platform sidecar
+    env:
+      # Where the runtime delegates storage, leases and agent memory. The
+      # sidecar answers on loopback, exactly as it does in the pod.
+      OCTO_PLATFORM_API_URL: '{{.PLATFORM_URL}}'
     cmds:
       # --watch reloads the config when a file under flows/ changes, so editing
       # a flow does not mean restarting the stack.
-      - '{{.OCTO}} run --config ./flows --watch'
+      - '{{.OCTO_API}} run --config ./flows --watch'
 
   invoke:
     desc: 'Invoke one flow directly, e.g. task agent:invoke -- hello'

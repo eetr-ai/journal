@@ -15,5 +15,8 @@ octo-store/
 .octo-run/
 .octo/
 
+# Claude Code's scratch worktrees.
+.claude/worktrees/
+
 .DS_Store
 *.log

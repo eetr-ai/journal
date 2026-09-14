@@ -2,7 +2,9 @@
 # reload is not fighting a bind mount.
 services:
   postgres:
-    image: postgres:17-alpine
+    # pgvector rather than stock Postgres, because the agent's memory is
+    # searched by meaning. The extension has to exist before 002 can create it.
+    image: pgvector/pgvector:pg17
     container_name: journal-postgres
     environment:
       POSTGRES_USER: journal
@@ -21,6 +23,19 @@ services:
     # `--wait` blocks on this, so a caller can assume the first query lands.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U journal -d journal']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    # Leases, leader election, and the queues and topics octo reaches through
+    # the platform sidecar. Nothing durable lives here.
+    image: redis:8-alpine
+    container_name: journal-redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 3s
       timeout: 3s
       retries: 20

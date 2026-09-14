@@ -1,0 +1,4 @@
+# The tests need a database and a Redis; the image does not carry either.
+*_test.go
+Dockerfile
+Taskfile.yml

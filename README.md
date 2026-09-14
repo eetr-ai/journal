@@ -6,12 +6,13 @@ and Postgres underneath. Driven by [go-task](https://taskfile.dev) from the root
 ```
 journal/
 ├── Taskfile.yml        # the entry point — `task` lists everything
-├── docker-compose.yml  # local Postgres, and nothing else
+├── docker-compose.yml  # local Postgres and Redis, and nothing else
 ├── .env.example        # the shape of the .env every task reads
 ├── sql/                # the schema, idempotent, and the image that applies it
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
 ├── agent/              # octo flows (one dir, many files) + dolphin suites + the image
-├── helm/               # the chart that deploys web + agent to the home lab
+├── platform/           # Go: octo's platform API, on our Postgres and our Redis
+├── helm/               # the chart that deploys it all to the home lab
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
 
@@ -29,17 +30,22 @@ openssl rand -base64 32          # paste into AUTH_SECRET
 # can stay empty until something uses them.
 
 task install                     # root + web dependencies
-task dev                         # Postgres, then web and agent together
+task dev                         # Postgres and Redis, then web, agent and sidecar
 ```
 
 - Web app: <http://localhost:3000>
-- Agent: <http://localhost:8080/hello> and `/profiles/{subject}` — flows hot-reload on save
+- Agent: <http://localhost:8080/hello>, `/profiles/{subject}`, `/chat/{subject}` —
+  flows hot-reload on save
 - Agent probes: <http://localhost:39999/healthz> and `/readyz`, served by the
   runtime itself on its own admin port
+- Platform sidecar: <http://localhost:8099/v1/discovery> — what the runtime asks
+  once at startup to find out what it may store
 - Octo visual editor (optional): `task agent:editor`, then <http://localhost:3100>
 - Postgres: `localhost:5432`, user/password/database all `journal`
+- Redis: `localhost:6379`
 
-One `Ctrl-C` stops both apps; Postgres keeps running (`task db:down` stops it).
+One `Ctrl-C` stops all three apps; Postgres and Redis keep running
+(`task db:down` stops them).
 
 Sign in with OIDC, and the app shell opens: a left drawer of recent chats and
 journal entries, a chat panel, and today's entry. **Those three panels are
@@ -88,6 +94,13 @@ the agent in Postgres.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.
 
+**The agent remembers, and it is stored in the clear.** A conversation belongs
+under the same encryption everything else is under, and is not: octo writes agent
+memory on its own behalf, so no block in a flow ever sees it and there is nothing
+to seal it with — [octo#504](https://github.com/juancavallotti/octo/issues/504).
+This is pre-release and deliberate, not an oversight, and `sql/002_chat.sql` says
+so where the columns are.
+
 **The schema only auto-applies to an empty database.** Postgres runs `sql/` on
 first boot and never again, so after the data directory exists a schema change
 reaches the database only through `task db:migrate`. Every statement in `sql/` is
@@ -114,11 +127,12 @@ We are pre-1.0 and versioning accordingly: **a breaking change bumps the minor,
 everything else bumps the patch.** No commit moves 0.x to 1.0 on its own — that
 is a deliberate call for when the shape stops moving.
 
-The tag publishes two OCI artifacts to this repo's GitHub Container Registry:
+The tag publishes these OCI artifacts to this repo's GitHub Container Registry:
 
 ```
 ghcr.io/eetr-ai/journal-web          # the web image (amd64 + arm64)
 ghcr.io/eetr-ai/journal-agent        # the octo runtime with our flows in it
+ghcr.io/eetr-ai/journal-platform     # the platform sidecar that runs beside it
 ghcr.io/eetr-ai/journal-migrate      # the schema, and a psql to apply it
 oci://ghcr.io/eetr-ai/charts/journal # the Helm chart
 ```
@@ -126,8 +140,14 @@ oci://ghcr.io/eetr-ai/charts/journal # the Helm chart
 ## Deploying
 
 The chart is deliberately thin: two Deployments, two Services, an HTTPRoute, a
-migration Job, and a Postgres that lives **outside** the cluster. It grows as we
-need it to.
+migration Job, and a Postgres and Redis that live **outside** the cluster. It
+grows as we need it to.
+
+The agent pod has two containers. The runtime is built with octo's platform-API
+services provider, which delegates storage, leases, queues and agent memory to an
+HTTP contract — and the sidecar beside it is what answers that contract, keeping
+what the agent remembers in Postgres and exclusive claims in Redis. It binds
+loopback, so the runtime can reach it and nothing else in the cluster can.
 
 The schema is applied by a `pre-install,pre-upgrade` hook Job — before the pods,
 so new code never meets a schema it was written against. It runs the
@@ -158,7 +178,7 @@ the agent reaches your host's Postgres at `host.k3d.internal`, which is the same
 shape as the real thing.
 
 **The agent image is the flows.** `agent/Dockerfile` copies `agent/flows` onto a
-pinned `juancavallotti/octo-runtime`, which already starts
+pinned `juancavallotti/octo-api`, which already starts
 `octo run --config /etc/octo/integrations`. So a release carries the integration
 it is a release of, and installing the chart needs nothing applied beside it. The
 dolphin suites are left out of the image — they test the flows, they are not part
@@ -173,6 +193,12 @@ names two that must already exist, and refuses to render without the names:
 | --- | --- |
 | `postgres.existingSecret` | `username`, `password` |
 | `auth.existingSecret` | `AUTH_SECRET`, `AUTH_OIDC_ID`, `AUTH_OIDC_SECRET` |
+| `platform.existingSecret` | `REDIS_URL`, `SECRETS_KEY` |
+| `models.existingSecret` | `OPENROUTER_API_KEY`, `PARALLEL_API_KEY` |
+
+`SECRETS_KEY` encrypts what octo writes to its own `*_secrets` namespaces — a
+connector credential a flow parked, not anything a person wrote. Rotating it
+makes whatever is already sealed unreadable.
 
 Only the credential is a secret. Where the server is — `postgres.host`, `port`,
 `database`, `sslmode` — are values, and the kubelet assembles the DSN from both.
@@ -199,6 +225,14 @@ kubectl create secret generic journal-auth -n journal \
   --from-literal=AUTH_SECRET=... \
   --from-literal=AUTH_OIDC_ID=... \
   --from-literal=AUTH_OIDC_SECRET=...
+
+kubectl create secret generic journal-platform -n journal \
+  --from-literal=REDIS_URL='redis://:...@redis:6379/0' \
+  --from-literal=SECRETS_KEY="$(openssl rand -base64 32)"
+
+kubectl create secret generic journal-models -n journal \
+  --from-literal=OPENROUTER_API_KEY=... \
+  --from-literal=PARALLEL_API_KEY=...
 ```
 
 Locally `task cluster:secrets` does exactly that from your `.env`, and

@@ -35,12 +35,50 @@ agent:
   adminPort: 39999
   service:
     port: 8080
+  # Which model answers, vendor-prefixed the way OpenRouter publishes ids.
+  chatModel: deepseek/deepseek-v4.1-flash
   # The agent trusts its caller, so the only thing keeping it to the BFF is this.
   # Turn it off only for a cluster whose CNI does not enforce policy, where it
   # would be a promise nothing keeps.
   networkPolicy:
     enabled: true
   resources: {}
+
+# octo's platform API, answered by a sidecar in the agent's pod: agent memory in
+# Postgres, leases and queues in Redis. It binds loopback, so it is reachable
+# from the runtime beside it and from nothing else in the cluster.
+platform:
+  image:
+    # Built from platform/Dockerfile.
+    repository: ghcr.io/eetr-ai/journal-platform
+    # Empty falls back to the chart's appVersion. Set it to pin a build.
+    tag: ""
+  port: 8099
+  # What the sidecar embeds memory with, through OpenRouter. It must produce
+  # 1024 dimensions to match the column, which is a deliberate truncation of a
+  # wider model: pgvector indexes nothing past 2000.
+  embeddingModel: qwen/qwen3-embedding-8b
+  # Holds REDIS_URL and SECRETS_KEY. Created before the release, never by it —
+  # the same reasoning as the database credential above.
+  #
+  #   kubectl create secret generic journal-platform \
+  #     --from-literal=REDIS_URL='redis://:...@redis:6379/0' \
+  #     --from-literal=SECRETS_KEY="$(openssl rand -base64 32)"
+  #
+  # SECRETS_KEY encrypts what octo writes to its own *_secrets namespaces. It is
+  # not what protects a person's writing, and rotating it makes anything already
+  # sealed unreadable.
+  existingSecret: journal-platform
+  resources: {}
+
+# The model providers. Two containers read these: the agent to answer, the
+# sidecar to embed what it remembers.
+#
+#   kubectl create secret generic journal-models \
+#     --from-literal=OPENROUTER_API_KEY=... \
+#     --from-literal=PARALLEL_API_KEY=...
+models:
+  existingSecret: journal-models
 
 # The schema, applied as a hook before the pods on every install and upgrade.
 # Every statement in it is idempotent, so this is a no-op against a database

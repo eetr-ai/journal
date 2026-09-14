@@ -1,6 +1,10 @@
 # Everything else is the chart's default: the Secrets are journal-db
-# (username, password) and journal-auth, on port 5432, database journal.
-# Neither Secret is created by the chart.
+# (username, password), journal-auth, journal-platform (REDIS_URL, SECRETS_KEY)
+# and journal-models (OPENROUTER_API_KEY, PARALLEL_API_KEY), on port 5432,
+# database journal. None of them is created by the chart.
+#
+# The database needs the pgvector extension available — the agent's memory is
+# searched by meaning — and the migration creates it.
 
 postgres:
   host: eetr01
