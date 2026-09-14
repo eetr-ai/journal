@@ -24,6 +24,7 @@ vars:
   NAMESPACE: journal
   WEB_IMAGE: journal-web:local
   AGENT_IMAGE: journal-agent:local
+  MIGRATE_IMAGE: journal-migrate:local
 
 tasks:
   default:
@@ -66,7 +67,7 @@ tasks:
       - docker compose down
 
   db:reset:
-    desc: Destroy the local Postgres data directory and rebuild it from the schema
+    desc: Destroy the local Postgres data directory and rebuild it from sql/
     prompt: This drops the journal database and everything in it. Continue?
     cmds:
       - docker compose down
@@ -75,13 +76,13 @@ tasks:
       - task: db:up
 
   db:migrate:
-    desc: Re-apply the chart's schema against the running Postgres
+    desc: Re-apply sql/ against the running Postgres
     deps:
       - db:up
     cmds:
       # Idempotent, so it is safe to re-run. Once the volume exists, this is the
       # only way a schema edit reaches the database.
-      - for f in helm/files/sql/*.sql; do echo "applying $f..."; {{.PSQL}} -f "/docker-entrypoint-initdb.d/$(basename $f)"; done
+      - for f in sql/*.sql; do echo "applying $f..."; {{.PSQL}} -f "/docker-entrypoint-initdb.d/$(basename $f)"; done
 
   db:seed:
     desc: Load the flow suites' fixture rows
@@ -157,15 +158,21 @@ tasks:
     cmds:
       - docker build -t {{.AGENT_IMAGE}} agent
 
+  image:migrate:
+    desc: Build the migration image — the schema with a psql to apply it
+    cmds:
+      - docker build -t {{.MIGRATE_IMAGE}} sql
+
   cluster:import:
     desc: Push the locally built images into the k3d cluster
     deps:
       - image:web
       - image:agent
+      - image:migrate
     cmds:
       # A local build is what we are testing, and the cluster has no credentials
       # for ghcr.
-      - k3d image import {{.WEB_IMAGE}} {{.AGENT_IMAGE}} -c {{.K3D_CLUSTER}}
+      - k3d image import {{.WEB_IMAGE}} {{.AGENT_IMAGE}} {{.MIGRATE_IMAGE}} -c {{.K3D_CLUSTER}}
 
   cluster:namespace:
     desc: Create the namespace the release lives in

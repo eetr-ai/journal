@@ -21,6 +21,11 @@ agent:
     repository: journal-agent
     tag: local
 
+migration:
+  image:
+    repository: journal-migrate
+    tag: local
+
 postgres:
   # The compose Postgres on your host, which k3d reaches at this name.
   host: host.k3d.internal

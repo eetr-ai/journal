@@ -48,9 +48,11 @@ agent:
 migration:
   enabled: true
   image:
-    # Stock Postgres, for psql and nothing else.
-    repository: postgres
-    tag: 17-alpine
+    # Postgres with the schema in it, built from sql/Dockerfile. Stock psql and
+    # our own SQL, so the migration needs nothing mounted beside it.
+    repository: ghcr.io/eetr-ai/journal-migrate
+    # Empty falls back to the chart's appVersion. Set it to pin a build.
+    tag: ""
   # A migration that fails twice more will not succeed on the fourth try; fail
   # the release instead and say so.
   backoffLimit: 2
