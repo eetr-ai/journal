@@ -8,10 +8,9 @@ journal/
 ├── Taskfile.yml        # the entry point — `task` lists everything
 ├── docker-compose.yml  # local Postgres, and nothing else
 ├── .env.example        # the shape of the .env every task reads
-├── sql/                # the schema, idempotent, re-applied with `task db:migrate`
 ├── web/                # Next.js 16 + Auth.js 5, the BFF you sign in to
 ├── agent/              # octo flows (one dir, many files) + dolphin suites + the image
-├── helm/               # the chart that deploys web + agent to the home lab
+├── helm/               # the chart, and files/sql — the schema it carries
 └── .github/workflows/  # validate on PR, release-please and OCI publish on main
 ```
 
@@ -88,10 +87,11 @@ the agent in Postgres.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.
 
-**The schema only auto-applies to an empty database.** Postgres runs `sql/` on
-first boot and never again, so after the volume exists a schema change reaches
-the database only through `task db:migrate`. Every statement in `sql/` is
-idempotent so that task is safe to run as often as you like.
+**The schema lives in the chart**, at `helm/files/sql`, because a release that
+cannot build its own database is not a release you can install. Locally, compose
+runs it on first boot and never again — after the data directory exists, a schema
+change reaches the database only through `task db:migrate`. Every statement is
+idempotent, so both that task and the cluster's migration Job are safe to re-run.
 
 ### Prerequisites
 
@@ -123,8 +123,16 @@ oci://ghcr.io/eetr-ai/charts/journal # the Helm chart
 
 ## Deploying
 
-The chart is deliberately thin: two Deployments, two Services, an HTTPRoute, and
-a Postgres that lives **outside** the cluster. It grows as we need it to.
+The chart is deliberately thin: two Deployments, two Services, an HTTPRoute, a
+migration Job, and a Postgres that lives **outside** the cluster. It grows as we
+need it to.
+
+The schema is applied by a `pre-install,pre-upgrade` hook Job — before the pods,
+so new code never meets a schema it was written against. It runs stock
+`postgres:17-alpine` for `psql`, mounts the SQL from a ConfigMap the chart
+renders out of `helm/files/sql`, and stops on the first error, so a failed
+migration fails the release instead of leaving a half-applied schema behind a
+green install.
 
 ### Locally, on k3d
 

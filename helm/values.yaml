@@ -42,6 +42,20 @@ agent:
     enabled: true
   resources: {}
 
+# The schema, applied as a hook before the pods on every install and upgrade.
+# Every statement in it is idempotent, so this is a no-op against a database
+# that is already current.
+migration:
+  enabled: true
+  image:
+    # Stock Postgres, for psql and nothing else.
+    repository: postgres
+    tag: 17-alpine
+  # A migration that fails twice more will not succeed on the fourth try; fail
+  # the release instead and say so.
+  backoffLimit: 2
+  resources: {}
+
 postgres:
   # The database is not in this chart and not in this cluster. Only the
   # credential is secret — where the server is, is not — so the Secret holds two

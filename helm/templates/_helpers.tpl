@@ -37,3 +37,24 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- define "journal.authSecretName" -}}
 {{- required "auth.existingSecret must name a Secret holding AUTH_SECRET and the AUTH_OIDC_* pair" .Values.auth.existingSecret -}}
 {{- end -}}
+
+{{/* The database connection, as environment. The credential is two keys of a
+     Secret and the rest is values, so the DSN is assembled by the kubelet and
+     never written down. Shared so the agent and the migration cannot drift. */}}
+{{- define "journal.postgresEnv" -}}
+- name: POSTGRES_USER
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.postgresSecretName" . }}
+      key: {{ .Values.postgres.usernameKey }}
+- name: POSTGRES_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.postgresSecretName" . }}
+      key: {{ .Values.postgres.passwordKey }}
+# Nothing escapes these on the way in, so both halves have to be
+# percent-encoded in the Secret if they carry anything with URI meaning —
+# : / ? # @ [ ] and % itself.
+- name: POSTGRES_DSN
+  value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ required "postgres.host must name the database server" .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}?sslmode={{ .Values.postgres.sslmode }}
+{{- end -}}

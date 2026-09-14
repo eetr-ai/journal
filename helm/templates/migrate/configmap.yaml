@@ -1,0 +1,18 @@
+{{- if .Values.migration.enabled -}}
+{{/* The schema, carried by the chart rather than applied beside it: a release
+     that cannot build its own database is not a release you can install. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "journal.fullname" . }}-schema
+  labels:
+    {{- include "journal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # Ahead of the Job that mounts it, and gone once that Job has run.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  {{- (.Files.Glob "files/sql/*.sql").AsConfig | nindent 2 }}
+{{- end }}

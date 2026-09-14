@@ -1,0 +1,57 @@
+{{- if .Values.migration.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "journal.fullname" . }}-migrate
+  labels:
+    {{- include "journal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # Before the pods rather than after them, so new code never meets the
+    # schema it was written against not existing yet. Every statement in the
+    # schema is idempotent, so running it on every upgrade costs nothing.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "journal.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.migration.image.repository }}:{{ .Values.migration.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- include "journal.postgresEnv" . | nindent 12 }}
+          command: ["/bin/sh", "-c"]
+          args:
+            # ON_ERROR_STOP so a failed statement fails the Job, and therefore
+            # the release, rather than leaving a half-applied schema behind a
+            # green install.
+            - |
+              set -eu
+              for file in /schema/*.sql; do
+                echo "applying $file..."
+                psql --set ON_ERROR_STOP=1 -d "$POSTGRES_DSN" -f "$file"
+              done
+          volumeMounts:
+            - name: schema
+              mountPath: /schema
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+      volumes:
+        - name: schema
+          configMap:
+            name: {{ include "journal.fullname" . }}-schema
+{{- end }}

@@ -17,7 +17,7 @@ services:
       - ./data/postgres:/var/lib/postgresql/data
       # Postgres runs these on first boot only, against an empty data
       # directory. An existing volume ignores any later edit to them.
-      - ./sql:/docker-entrypoint-initdb.d:ro
+      - ./helm/files/sql:/docker-entrypoint-initdb.d:ro
     # `--wait` blocks on this, so a caller can assume the first query lands.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U journal -d journal']
