@@ -178,3 +178,27 @@ jobs:
           # chart version release-please just wrote into Chart.yaml.
           helm push dist/journal-*.tgz \
             oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
+
+  deploy:
+    name: deploy
+    # Last, and only if everything it would deploy actually got published: the
+    # CI pulls the chart by version, and a version that is not in the registry
+    # is a rollout that never becomes ready.
+    needs: [web-image, agent-image, migrate-image, chart]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tell eetr the new chart version
+        env:
+          EETR_API_KEY: ${{ secrets.EETR_API_KEY }}
+          # The chart is versioned as `0.0.0`, the tag as `v0.0.0`.
+          CHART_VERSION: ${{ inputs.ref }}
+        run: |
+          if [ -z "$EETR_API_KEY" ]; then
+            echo "::error::EETR_API_KEY is not set; nothing was deployed." >&2
+            exit 1
+          fi
+          curl -sS --fail-with-body -X PATCH \
+            "https://eetr01.eetr.app/api/v1/charts/070a9a71-d752-4b58-a16a-854facd44404" \
+            -H "Authorization: Bearer $EETR_API_KEY" \
+            -H 'Content-Type: application/json' \
+            -d "$(printf '{"chartVersion":"%s"}' "${CHART_VERSION#v}")"
