@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.4](https://github.com/eetr-ai/journal/compare/v0.0.3...v0.0.4) (2026-09-14)
+
+
+### Features
+
+* apply the schema from the chart, before the pods ([#9](https://github.com/eetr-ai/journal/issues/9)) ([f1903a8](https://github.com/eetr-ai/journal/commit/f1903a80c3efffdac179cc3247d43d14cf5ca21b))
+
+
+### Bug Fixes
+
+* keep the schema in sql/, and ship it as an image ([#12](https://github.com/eetr-ai/journal/issues/12)) ([bc018de](https://github.com/eetr-ai/journal/commit/bc018de1da019881dd4ab0383d0edcb2aeb57c55))
+
 ## [0.0.3](https://github.com/eetr-ai/journal/compare/v0.0.2...v0.0.3) (2026-09-14)
 
 

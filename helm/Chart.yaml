@@ -4,5 +4,5 @@ description: The journal web app and its octo agent, for the home lab cluster
 type: application
 # release-please rewrites both lines on every release, keyed by the annotations.
 # Keep them in step: the chart is versioned with the thing it deploys.
-version: 0.0.3 # x-release-please-version
-appVersion: "0.0.3" # x-release-please-version
+version: 0.0.4 # x-release-please-version
+appVersion: "0.0.4" # x-release-please-version
