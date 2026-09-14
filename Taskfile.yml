@@ -29,9 +29,6 @@ vars:
   AGENT_IMAGE: journal-agent:local
   PLATFORM_IMAGE: journal-platform:local
   MIGRATE_IMAGE: journal-migrate:local
-  # The compose Redis on your host, as the cluster reaches it — the same shape
-  # as the database, which is also genuinely outside the cluster.
-  CLUSTER_REDIS_URL: redis://host.k3d.internal:6379/0
 
 tasks:
   default:
@@ -217,13 +214,17 @@ tasks:
         --from-literal=AUTH_OIDC_ID="$AUTH_OIDC_ID"
         --from-literal=AUTH_OIDC_SECRET="$AUTH_OIDC_SECRET"
         --dry-run=client -o yaml | kubectl apply -f -
-      # The Redis is the compose one on your host, reached the same way the
-      # database is. A missing SECRETS_KEY is not fatal — the sidecar says so on
-      # startup and stores octo's own secrets in the clear.
+      # A missing SECRETS_KEY is not fatal — the sidecar says so on startup and
+      # stores octo's own secrets in the clear.
       - >-
         kubectl create secret generic journal-platform -n {{.NAMESPACE}}
-        --from-literal=REDIS_URL="{{.CLUSTER_REDIS_URL}}"
         --from-literal=SECRETS_KEY="$SECRETS_KEY"
+        --dry-run=client -o yaml | kubectl apply -f -
+      # The compose Redis has no password. The Secret exists anyway, because the
+      # chart names it either way and an empty value is the honest local answer.
+      - >-
+        kubectl create secret generic journal-redis -n {{.NAMESPACE}}
+        --from-literal=password=""
         --dry-run=client -o yaml | kubectl apply -f -
       - >-
         kubectl create secret generic journal-models -n {{.NAMESPACE}}

@@ -11,6 +11,9 @@ auth:
 platform:
   existingSecret: ci-platform
 
+redis:
+  existingSecret: ci-redis
+
 models:
   existingSecret: ci-models
 

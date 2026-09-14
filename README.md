@@ -143,6 +143,11 @@ The chart is deliberately thin: two Deployments, two Services, an HTTPRoute, a
 migration Job, and a Postgres and Redis that live **outside** the cluster. It
 grows as we need it to.
 
+Redis lives outside the chart too, and reaching a shared one across namespaces
+is the cluster owner's call: ours admits a namespace labelled
+`home-lab.example/redis-access: "true"`, which the chart deliberately does not
+set on a namespace it did not create.
+
 The agent pod has two containers. The runtime is built with octo's platform-API
 services provider, which delegates storage, leases, queues and agent memory to an
 HTTP contract — and the sidecar beside it is what answers that contract, keeping
@@ -193,12 +198,20 @@ names two that must already exist, and refuses to render without the names:
 | --- | --- |
 | `postgres.existingSecret` | `username`, `password` |
 | `auth.existingSecret` | `AUTH_SECRET`, `AUTH_OIDC_ID`, `AUTH_OIDC_SECRET` |
-| `platform.existingSecret` | `REDIS_URL`, `SECRETS_KEY` |
+| `platform.existingSecret` | `SECRETS_KEY` |
+| `redis.existingSecret` | `password` |
 | `models.existingSecret` | `OPENROUTER_API_KEY`, `PARALLEL_API_KEY` |
 
 `SECRETS_KEY` encrypts what octo writes to its own `*_secrets` namespaces — a
 connector credential a flow parked, not anything a person wrote. Rotating it
 makes whatever is already sealed unreadable.
+
+Redis is addressed the same way the database is: `redis.host`, `port` and
+`database` are values, and only the password is secret. It is passed to the
+client as a password rather than spliced into the URL — a Redis password is
+commonly base64, a base64 password commonly contains a slash, and a slash ends
+the authority of a URI, so an embedded one is a connection to the wrong place.
+Nothing about the value needs escaping.
 
 Only the credential is a secret. Where the server is — `postgres.host`, `port`,
 `database`, `sslmode` — are values, and the kubelet assembles the DSN from both.
@@ -227,8 +240,13 @@ kubectl create secret generic journal-auth -n journal \
   --from-literal=AUTH_OIDC_SECRET=...
 
 kubectl create secret generic journal-platform -n journal \
-  --from-literal=REDIS_URL='redis://:...@redis:6379/0' \
   --from-literal=SECRETS_KEY="$(openssl rand -base64 32)"
+
+# A Secret cannot be read across a namespace, so the shared Redis's password is
+# copied into this one.
+kubectl create secret generic journal-redis -n journal \
+  --from-literal=password="$(kubectl -n platform-system get secret \
+    redis-password -o jsonpath='{.data.password}' | base64 -d)"
 
 kubectl create secret generic journal-models -n journal \
   --from-literal=OPENROUTER_API_KEY=... \

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -55,13 +56,26 @@ const (
 var Version = "dev"
 
 type config struct {
-	addr        string
-	dsn         string
-	redisURL    string
-	instance    string
-	embedAPIKey string
-	embedModel  string
-	secretsKey  string
+	addr          string
+	dsn           string
+	redisURL      string
+	redisPassword string
+	instance      string
+	embedAPIKey   string
+	embedModel    string
+	secretsKey    string
+	queueMaxLen   int64
+}
+
+// intOr reads a whole number from the environment, falling back when it is
+// absent or unreadable — the callee decides what its own sensible default is.
+func intOr(name string, fallback int64) int64 {
+	ret, err := strconv.ParseInt(os.Getenv(name), 10, 64)
+	if err != nil {
+		return fallback
+	}
+
+	return ret
 }
 
 func envOr(name, fallback string) string {
@@ -76,13 +90,15 @@ func envOr(name, fallback string) string {
 // restart reveals all of it rather than one value per attempt.
 func loadConfig() (config, error) {
 	ret := config{
-		addr:        envOr("HOST", defaultHost) + ":" + envOr("PORT", defaultPort),
-		dsn:         os.Getenv("POSTGRES_DSN"),
-		redisURL:    os.Getenv("REDIS_URL"),
-		instance:    envOr("OCTO_INSTANCE_ID", defaultInstance()),
-		embedAPIKey: os.Getenv("OPENROUTER_API_KEY"),
-		embedModel:  envOr("EMBEDDING_MODEL", defaultModel),
-		secretsKey:  os.Getenv("SECRETS_KEY"),
+		addr:          envOr("HOST", defaultHost) + ":" + envOr("PORT", defaultPort),
+		dsn:           os.Getenv("POSTGRES_DSN"),
+		redisURL:      os.Getenv("REDIS_URL"),
+		redisPassword: os.Getenv("REDIS_PASSWORD"),
+		instance:      envOr("OCTO_INSTANCE_ID", defaultInstance()),
+		embedAPIKey:   os.Getenv("OPENROUTER_API_KEY"),
+		embedModel:    envOr("EMBEDDING_MODEL", defaultModel),
+		secretsKey:    os.Getenv("SECRETS_KEY"),
+		queueMaxLen:   intOr("QUEUE_MAX_LEN", 0),
 	}
 
 	var missing []string
@@ -131,6 +147,14 @@ func load(ctx context.Context, cfg config, log *slog.Logger) (*api.Server, *back
 		return nil, nil, nil, fmt.Errorf("redis url: %w", err)
 	}
 
+	// The password is its own variable rather than part of the URL. Redis
+	// passwords are commonly base64, a base64 password commonly contains a
+	// slash, and a slash ends the authority of a URI — so embedding it turns a
+	// correct password into a connection to the wrong place.
+	if cfg.redisPassword != "" {
+		options.Password = cfg.redisPassword
+	}
+
 	client := redis.NewClient(options)
 
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -176,7 +200,7 @@ func load(ctx context.Context, cfg config, log *slog.Logger) (*api.Server, *back
 	server := api.NewServer(api.Config{
 		Store:         entries,
 		Locks:         locks.NewRedisLocks(client),
-		Bus:           bus.NewRedisBus(client, cfg.instance, ackDeadline),
+		Bus:           bus.NewRedisBus(client, cfg.instance, ackDeadline, cfg.queueMaxLen),
 		Embedder:      embedder,
 		Name:          "journal-platform",
 		Version:       Version,

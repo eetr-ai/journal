@@ -36,6 +36,13 @@ postgres:
   host: host.k3d.internal
   sslmode: disable
 
+redis:
+  # The compose Redis on your host, reached the same way. It has no password, so
+  # the Secret `task cluster:secrets` writes holds an empty one — which is fine
+  # locally and would not be anywhere else.
+  host: host.k3d.internal
+  database: 0
+
 image:
   # The images only exist in the cluster's own store.
   pullPolicy: IfNotPresent

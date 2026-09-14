@@ -1,7 +1,14 @@
-# Everything else is the chart's default: the Secrets are journal-db
-# (username, password), journal-auth, journal-platform (REDIS_URL, SECRETS_KEY)
-# and journal-models (OPENROUTER_API_KEY, PARALLEL_API_KEY), on port 5432,
-# database journal. None of them is created by the chart.
+# Everything else is the chart's default, which is already pointed at this
+# cluster's Redis — `redis.platform-system.svc.cluster.local`, database 1.
+#
+# Four Secrets, none of them created by the chart: journal-db (username,
+# password), journal-auth, journal-platform (SECRETS_KEY), journal-models
+# (OPENROUTER_API_KEY, PARALLEL_API_KEY), and journal-redis (password, copied
+# from platform-system/redis-password — a Secret cannot be read across a
+# namespace).
+#
+# The namespace also has to carry `home-lab.example/redis-access: "true"`, which
+# is what that Redis's NetworkPolicy admits. It already does.
 #
 # The database needs the pgvector extension available — the agent's memory is
 # searched by meaning — and the migration creates it.

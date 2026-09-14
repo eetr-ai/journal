@@ -37,7 +37,7 @@ func testBus(t *testing.T, ackDeadline time.Duration) *bus.RedisBus {
 
 	t.Cleanup(func() { _ = client.Close() })
 
-	return bus.NewRedisBus(client, "test-consumer", ackDeadline)
+	return bus.NewRedisBus(client, "test-consumer", ackDeadline, 0)
 }
 
 func message(text string) json.RawMessage {

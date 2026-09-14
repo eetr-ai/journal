@@ -35,7 +35,27 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "journal.platformSecretName" -}}
-{{- required "platform.existingSecret must name a Secret holding REDIS_URL and SECRETS_KEY" .Values.platform.existingSecret -}}
+{{- required "platform.existingSecret must name a Secret holding SECRETS_KEY" .Values.platform.existingSecret -}}
+{{- end -}}
+
+{{- define "journal.redisSecretName" -}}
+{{- required "redis.existingSecret must name a Secret holding the Redis password" .Values.redis.existingSecret -}}
+{{- end -}}
+
+{{/* Redis: the address is values, the password is one key of a Secret, and the
+     two are kept apart rather than joined into a URL. A Redis password is
+     commonly base64 and a base64 password commonly contains a slash, which ends
+     the authority of a URI — so a correct password embedded in one is a
+     connection to the wrong place. Unlike the database's DSN, this is our own
+     program reading it, so it can take the two halves. */}}
+{{- define "journal.redisEnv" -}}
+- name: REDIS_URL
+  value: redis://{{ required "redis.host must name the Redis server" .Values.redis.host }}:{{ .Values.redis.port }}/{{ .Values.redis.database }}
+- name: REDIS_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.redisSecretName" . }}
+      key: {{ .Values.redis.passwordKey }}
 {{- end -}}
 
 {{- define "journal.modelSecretName" -}}

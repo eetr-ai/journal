@@ -83,11 +83,9 @@ spec:
               value: "127.0.0.1"
             - name: PORT
               value: {{ .Values.platform.port | quote }}
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "journal.platformSecretName" . }}
-                  key: REDIS_URL
+            - name: QUEUE_MAX_LEN
+              value: {{ .Values.platform.queueMaxLen | quote }}
+            {{- include "journal.redisEnv" . | nindent 12 }}
             - name: SECRETS_KEY
               valueFrom:
                 secretKeyRef:

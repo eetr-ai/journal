@@ -28,7 +28,10 @@ const (
 	payloadField = "m"
 	// maxLen bounds a stream so an unread subject cannot grow without limit.
 	// Approximate, which is what lets Redis trim on whole nodes.
-	maxLen = 10_000
+	// defaultMaxLen bounds a stream when nothing says otherwise. Deliberately
+	// modest: an instance set to `noeviction` does not shed load when it fills,
+	// it refuses writes — for everything sharing it, not only for us.
+	defaultMaxLen = 1_000
 	// promoteBatch bounds how many held-back messages one receive puts back, so
 	// a burst coming due at once cannot stretch the poll past its window.
 	promoteBatch = 64
@@ -71,7 +74,11 @@ type RedisBus struct {
 	trimApproxTo int64
 }
 
-func NewRedisBus(client redis.UniversalClient, consumer string, ackDeadline time.Duration) *RedisBus {
+func NewRedisBus(client redis.UniversalClient, consumer string, ackDeadline time.Duration, maxLen int64) *RedisBus {
+	if maxLen <= 0 {
+		maxLen = defaultMaxLen
+	}
+
 	return &RedisBus{
 		client:       client,
 		consumer:     consumer,
