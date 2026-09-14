@@ -24,20 +24,15 @@ web:
 agent:
   replicaCount: 1
   image:
-    # The stock octo runtime. It carries the binary and nothing else; the flows
-    # arrive from a ConfigMap. Not octo-runtime-paas, which expects an
-    # orchestrator, and not juancavallotti/octo, which is the visual editor.
-    repository: juancavallotti/octo-runtime
-    # Pin this to an octo release once we care which runtime we are on.
-    tag: latest
+    # The octo runtime with our flows baked in, built from agent/Dockerfile. The
+    # runtime version it is based on is pinned there.
+    repository: ghcr.io/eetr-ai/journal-agent
+    # Empty falls back to the chart's appVersion. Set it to pin a build.
+    tag: ""
   # The port the flows' http connector binds, passed through as HTTP_PORT.
   port: 8080
   # Where the runtime serves /healthz and /readyz. Its own default.
   adminPort: 39999
-  # The ConfigMap holding the flow YAML, mounted at /etc/octo/integrations where
-  # the runtime looks for it. Built from agent/flows by `task helm:flows`, and
-  # kept outside the chart so the flows have one home in the repo.
-  flowsConfigMap: journal-flows
   service:
     port: 8080
   # The agent trusts its caller, so the only thing keeping it to the BFF is this.
@@ -48,18 +43,31 @@ agent:
   resources: {}
 
 postgres:
-  # The database is not in this chart and not in this cluster. A DSN is all the
-  # agent needs, and splitting it into parts here would only mean reassembling
-  # it there.
+  # The database is not in this chart and not in this cluster. Only the
+  # credential is secret — where the server is, is not — so the Secret holds two
+  # keys and the rest of the DSN is values you can read in a code review.
   #
   # The Secret is created before the release, by whoever holds the credential.
   # The chart reads it and never writes one, because anything passed as a value
   # ends up in `helm get values` and in the release object.
   #
-  #   kubectl create secret generic journal-postgres \
-  #     --from-literal=url='postgres://journal:...@postgres.internal:5432/journal'
-  existingSecret: journal-postgres
-  secretKey: url
+  #   kubectl create secret generic journal-db \
+  #     --from-literal=username=journal --from-literal=password='...'
+  existingSecret: journal-db
+  usernameKey: username
+  passwordKey: password
+  # No default: a wrong host is a connection error, a defaulted one is a
+  # connection to something you did not mean.
+  host: ""
+  port: 5432
+  database: journal
+  # `require` encrypts and verifies nothing: it accepts any certificate, so it
+  # stops a passive listener and not the attacker who can answer as the server.
+  # `verify-full` is the one that authenticates the host, and it needs the chain
+  # to resolve in the image's trust store — the chart mounts no CA bundle yet,
+  # so a private CA means `disable` and a network you are treating as the
+  # boundary, deliberately.
+  sslmode: verify-full
 
 auth:
   # Holds AUTH_SECRET and the AUTH_OIDC_* pair, mounted with envFrom so its keys

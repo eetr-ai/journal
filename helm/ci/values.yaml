@@ -3,6 +3,7 @@
 # names — and nothing else, because no credential passes through values.
 postgres:
   existingSecret: ci-postgres
+  host: ci-postgres.invalid
 
 auth:
   existingSecret: ci-auth

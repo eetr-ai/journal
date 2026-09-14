@@ -1,0 +1,24 @@
+# Everything else is the chart's default: the Secrets are journal-db
+# (username, password) and journal-auth, on port 5432, database journal.
+# Neither Secret is created by the chart.
+
+postgres:
+  host: eetr01
+  # The home lab's Postgres does not serve TLS at all, so there is nothing to
+  # verify and `require` would only fail to connect. The network between the
+  # cluster and eetr01 is the boundary here, by choice and not by accident.
+  sslmode: disable
+
+web:
+  authUrl: https://journal.inflightproject.com
+
+gateway:
+  parentRef:
+    # The Gateway to attach to. It belongs to whoever runs the cluster, so the
+    # chart references one and never creates it — and refuses to render until
+    # this names it. Leave `namespace` out entirely when the Gateway is in this
+    # namespace; an empty one is omitted, not sent as empty.
+    name: "" # FILL IN
+    # namespace: gateway-system
+  hostnames:
+    - journal.inflightproject.com

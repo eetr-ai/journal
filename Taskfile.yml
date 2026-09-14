@@ -23,6 +23,7 @@ vars:
   K3D_CLUSTER: journal-dev
   NAMESPACE: journal
   WEB_IMAGE: journal-web:local
+  AGENT_IMAGE: journal-agent:local
 
 tasks:
   default:
@@ -134,14 +135,6 @@ tasks:
       # linting supplies throwaway ones.
       - helm lint helm -f helm/ci/values.yaml
 
-  helm:flows:
-    desc: Apply agent/flows to the cluster as the ConfigMap the chart mounts
-    cmds:
-      # Generated rather than templated into the chart: Helm can only read files
-      # inside the chart directory, and copying the flows in would give them two
-      # homes that drift.
-      - kubectl create configmap journal-flows --from-file=agent/flows -n {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
-
   helm:template:
     desc: Render the Helm chart to stdout
     cmds:
@@ -159,14 +152,20 @@ tasks:
     cmds:
       - docker build -t {{.WEB_IMAGE}} web
 
+  image:agent:
+    desc: Build the agent image — the octo runtime with our flows in it
+    cmds:
+      - docker build -t {{.AGENT_IMAGE}} agent
+
   cluster:import:
-    desc: Push the locally built web image into the k3d cluster
+    desc: Push the locally built images into the k3d cluster
     deps:
       - image:web
+      - image:agent
     cmds:
-      # Nothing is published to ghcr yet, and a local build is what we are
-      # testing anyway.
-      - k3d image import {{.WEB_IMAGE}} -c {{.K3D_CLUSTER}}
+      # A local build is what we are testing, and the cluster has no credentials
+      # for ghcr.
+      - k3d image import {{.WEB_IMAGE}} {{.AGENT_IMAGE}} -c {{.K3D_CLUSTER}}
 
   cluster:namespace:
     desc: Create the namespace the release lives in
@@ -182,8 +181,9 @@ tasks:
       # given as a value is readable afterwards through `helm get values` and in
       # the release object. These exist before the release and outlive it.
       - >-
-        kubectl create secret generic journal-postgres -n {{.NAMESPACE}}
-        --from-literal=url="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@host.k3d.internal:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
+        kubectl create secret generic journal-db -n {{.NAMESPACE}}
+        --from-literal=username="$POSTGRES_USER"
+        --from-literal=password="$POSTGRES_PASSWORD"
         --dry-run=client -o yaml | kubectl apply -f -
       - >-
         kubectl create secret generic journal-auth -n {{.NAMESPACE}}
@@ -198,7 +198,6 @@ tasks:
       - cluster:import
       - cluster:secrets
     cmds:
-      - task: helm:flows
       - >-
         helm upgrade --install journal helm
         --namespace {{.NAMESPACE}}

@@ -31,7 +31,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
      does: a credential passed as a value lands in `helm get values`, in the
      release object in the cluster, and in whatever shell history put it there. */}}
 {{- define "journal.postgresSecretName" -}}
-{{- required "postgres.existingSecret must name a Secret holding the database URL" .Values.postgres.existingSecret -}}
+{{- required "postgres.existingSecret must name a Secret holding the database username and password" .Values.postgres.existingSecret -}}
 {{- end -}}
 
 {{- define "journal.authSecretName" -}}

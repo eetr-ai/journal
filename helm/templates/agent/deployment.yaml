@@ -33,17 +33,24 @@ spec:
               value: {{ .Values.agent.port | quote }}
             - name: OCTO_OBSERVABILITY_ADDR
               value: ":{{ .Values.agent.adminPort }}"
-            - name: POSTGRES_DSN
+            - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ include "journal.postgresSecretName" . }}
-                  key: {{ .Values.postgres.secretKey }}
-          volumeMounts:
-            - name: flows
-              mountPath: /etc/octo/integrations
-              readOnly: true
+                  key: {{ .Values.postgres.usernameKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "journal.postgresSecretName" . }}
+                  key: {{ .Values.postgres.passwordKey }}
+            # Assembled by the kubelet from the two above, which is what keeps
+            # the credential out of this manifest. Nothing escapes them on the
+            # way in, so both have to be percent-encoded in the Secret if they
+            # contain anything with URI meaning — : / ? # @ [ ] and % itself.
+            - name: POSTGRES_DSN
+              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ required "postgres.host must name the database server" .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}?sslmode={{ .Values.postgres.sslmode }}
           # The image runs as nonroot on a distroless base and writes nothing,
-          # so it needs no volume and no write access.
+          # so it needs no volume and no write access. The flows are in it.
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -63,7 +70,3 @@ spec:
             initialDelaySeconds: 2
           resources:
             {{- toYaml .Values.agent.resources | nindent 12 }}
-      volumes:
-        - name: flows
-          configMap:
-            name: {{ .Values.agent.flowsConfigMap }}

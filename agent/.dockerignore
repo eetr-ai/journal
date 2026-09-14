@@ -1,0 +1,9 @@
+# The dolphin suites and their fixtures test the flows; they are not part of the
+# thing being shipped, and the runtime would try to load them as flows.
+flows/*_test.yaml
+testdata/
+Taskfile.yml
+
+# The editor's local scratch state. It is gitignored, and it carries absolute
+# paths and a localhost endpoint from whoever last ran it.
+flows/.octo/
