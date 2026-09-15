@@ -56,9 +56,13 @@ flows:
       - type: set-variable
         name: hold-thread
         settings: { name: threadId, value: body.threadId }
-      # The reader's day, not the server's. Near midnight those are different
-      # dates, and an entry filed under the wrong one is filed under the wrong
-      # one forever.
+      # The reader's clock, not the server's. Every field of it is already in
+      # their zone; nothing here re-interprets it.
+      - type: set-variable
+        name: hold-now
+        settings: { name: now, value: 'has(body.now) ? body.now : {}' }
+      # Pulled out on its own because it is what an entry is filed under, and
+      # near midnight the server's day and theirs are different days.
       - type: set-variable
         name: hold-today
         settings: { name: today, value: 'has(body.now) ? body.now.date : ""' }
@@ -135,15 +139,26 @@ flows:
 
 
           Call read_today as well, and trust it over any sense you have of
-          what the date is. It is what an entry is filed under, and it is what
-          "last week" and "a year ago" are counted back from.
+          when it is. It carries the day of the week and the time of day where
+          they are, so never guess at either — telling somebody at breakfast
+          that the evening is getting on is the kind of small wrongness that
+          makes the rest of it hard to believe. It is also what an entry is
+          filed under, and what "last week" and "a year ago" are counted from.
 
 
           Keep this conversation's note as you go. What surfaced — what
           happened, how they are taking it, who the people in it are and how
           things stand between them, what they are dreading and what they are
           looking forward to — written with write_entry while you are still
-          talking rather than saved up for the end. Read the note back before
+          talking rather than saved up for the end.
+
+
+          Wait until there is something to write. A greeting, a question about
+          the date, or somebody saying they feel like writing is not a day: open
+          the note when they tell you the first real thing, not before, or their
+          journal fills up with days that say nothing happened. And what goes in
+          it is what they said, never what a tool told you — that there is
+          nothing written for last week is not something that happened to them. Read the note back before
           you rewrite it and hand back the whole of it, so nothing already there
           is lost. Title it with what the day was about.
 
@@ -236,15 +251,17 @@ flows:
 
           - name: read_today
             description: >
-              The day it is where this person is, and the day an entry written
-              now belongs to. Read it before writing anything down or working
-              out what "last week" or "a year ago" means. It does not change
-              within a conversation, so read it once.
+              The date, the day of the week and the time of day where this
+              person is — all of it already in their zone, so take it as given
+              rather than converting it. Read it before writing anything down,
+              before working out what "last week" or "a year ago" means, and
+              before saying anything about what time it is for them. Read it
+              once: it is the clock at the start of the conversation.
             process:
               - type: set-payload
                 name: today-result
                 settings:
-                  value: '{"today": vars.today}'
+                  value: 'vars.now'
 
           - name: write_entry
             description: >

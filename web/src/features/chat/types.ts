@@ -36,10 +36,11 @@ export interface ChatAsk {
  * dated by, and a date a caller chose is a date they could choose wrongly.
  */
 export interface Now {
-  iso: string;
-  /** YYYY-MM-DD in `timezone`. */
+  /** YYYY-MM-DD in `timezone`. What an entry is filed under. */
   date: string;
   weekday: string;
+  /** HH:MM in `timezone`, 24-hour. */
+  time: string;
   timezone: string;
 }
 
