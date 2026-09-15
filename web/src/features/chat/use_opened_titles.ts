@@ -12,6 +12,8 @@ import type { Conversation } from "./types";
  * for a beat — better than a line of base64, and the alternative is a server
  * that can read them.
  */
+const NOTHING: Record<string, string> = {};
+
 export function useOpenedTitles(
   conversations: Conversation[],
   subject: string,
@@ -52,5 +54,9 @@ export function useOpenedTitles(
     };
   }, [agentKey, sealed, unreadable]);
 
-  return ret;
+  // Withheld rather than cleared: locking takes the key away under a mounted
+  // drawer, and what was already opened must not stay on screen. Deciding it
+  // here rather than in the effect keeps the reaction in the same render as the
+  // key going away.
+  return agentKey ? ret : NOTHING;
 }

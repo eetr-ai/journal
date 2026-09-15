@@ -123,8 +123,11 @@ func (s *PgStore) AppendTurns(ctx context.Context, agentID, threadKey, userID st
 		seqs[i] = int64(count + i + 1)
 
 		_, err = tx.Exec(ctx,
-			`INSERT INTO agent_turn (agent_id, thread_key, seq, role, content, tokens, attrs, embedding)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			// embedded_at is the terminal marker the sweep reads, so a turn that
+			// arrives with a vector is stamped here — otherwise the sweep would
+			// pick it up and embed over the one it was given.
+			`INSERT INTO agent_turn (agent_id, thread_key, seq, role, content, tokens, attrs, embedding, embedded_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8::vector IS NULL THEN NULL ELSE now() END)`,
 			agentID, threadKey, seqs[i], turn.Role, turn.Text, turn.Tokens,
 			turn.Attrs, vectorLiteral(turn.Embedding))
 		if err != nil {

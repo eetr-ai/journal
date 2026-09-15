@@ -160,3 +160,79 @@ func (noopEmbedder) Semantic() bool { return false }
 func (noopEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
 	return make([][]float32, len(texts)), nil
 }
+
+// A store that never runs dry: every pass takes a full batch, so the worker
+// never reaches the idle branch.
+type endlessStore struct {
+	fakeStore
+	mu    sync.Mutex
+	given int
+}
+
+func (e *endlessStore) PendingVectors(_ context.Context, limit int) ([]store.Pending, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.given++
+
+	ret := make([]store.Pending, limit)
+
+	for i := range ret {
+		ret[i] = store.Pending{Kind: "turn", Text: "from the sweep"}
+	}
+
+	return ret, nil
+}
+
+func (e *endlessStore) SetVector(context.Context, store.Pending, []float32) error { return nil }
+
+// An offered row is the only copy: the sweep cannot read a sealed row, so an
+// offer that is never taken is a turn that never becomes searchable. A busy
+// database must not be able to starve it.
+func TestOfferedRowsAreNotStarvedByABusySweep(t *testing.T) {
+	rows := &endlessStore{}
+	taken := make(chan string, 1)
+
+	worker := backfill.New(rows, takingEmbedder{taken: taken}, quiet())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	go worker.Run(ctx)
+
+	worker.Offer([]store.Pending{{Kind: "turn", Text: "offered while the sweep is busy"}})
+
+	for {
+		select {
+		case text := <-taken:
+			if text == "offered while the sweep is busy" {
+				return
+			}
+		case <-ctx.Done():
+			t.Fatal("the offered row was never embedded, so a busy sweep starves it")
+		}
+	}
+}
+
+// Reports every text it is asked to embed, so a test can watch what the worker
+// actually reached for.
+type takingEmbedder struct {
+	taken chan string
+}
+
+func (takingEmbedder) Semantic() bool { return true }
+
+func (e takingEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
+	ret := make([][]float32, len(texts))
+
+	for i, text := range texts {
+		ret[i] = []float32{0.1}
+
+		select {
+		case e.taken <- text:
+		default:
+		}
+	}
+
+	return ret, nil
+}

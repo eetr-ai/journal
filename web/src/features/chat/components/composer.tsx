@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import ComposerActions from "./composer_actions";
 import { useChat } from "../chat_state";
 import { messageProblem } from "../rules";
@@ -45,7 +45,15 @@ export default function Composer(options: ComposerOptions) {
   const [draft, setDraft] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
   const { state } = useChat();
-  const { send, stop } = useChatStream({ locale: options.locale, subject: options.subject });
+  const { send, stop } = useChatStream({
+    locale: options.locale,
+    subject: options.subject,
+  });
+
+  // After the commit rather than on the keystroke: scrollHeight is read off the
+  // DOM, and on the keystroke that clears the box the DOM still holds the long
+  // message — so the box kept the height of what was just sent.
+  useLayoutEffect(() => fit(box.current), [draft]);
   const t = options.t.chat;
 
   const busy = state.status === "waiting" || state.status === "streaming";
@@ -69,7 +77,6 @@ export default function Composer(options: ComposerOptions) {
 
     const message = draft;
     setDraft("");
-    fit(box.current);
     box.current?.focus();
     await send(message);
   }
@@ -78,14 +85,15 @@ export default function Composer(options: ComposerOptions) {
     <div className="flex items-end gap-2 rounded-xl border border-border bg-surface px-3 py-2">
       <textarea
         className="max-h-44 flex-1 resize-none bg-transparent py-1 text-sm outline-none"
-        onChange={(event) => {
-          setDraft(event.target.value);
-          fit(event.target);
-        }}
+        onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           // Enter sends, shift-Enter is a new line — which is the convention
           // every chat box uses, and the reason this is a textarea at all.
-          if (event.key === "Enter" && !event.shiftKey) {
+          //
+          // Except while an input method is open, where Enter is how a
+          // candidate is chosen. Sending there would post a half-written word
+          // and swallow the keystroke that was going to finish it.
+          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
             event.preventDefault();
             void submit();
           }

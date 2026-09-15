@@ -372,3 +372,32 @@ func TestSearchHitsAreOpened(t *testing.T) {
 		t.Fatalf("search returned %q", hits[0].Text)
 	}
 }
+
+// The marker is a word someone can type. What protects this is not that the
+// word is rare: a sealed write produces a marker followed by this value's own
+// ciphertext, so what comes back is what was said. The ambiguity only exists
+// for a value stored in the clear, and a run that forwards no key does not get
+// as far as writing one.
+func TestSomeoneCanSayTheMarker(t *testing.T) {
+	inner := &recorder{}
+	private := privateOver(t, inner, &offered{})
+	ctx := context.Background()
+
+	said := "enc1:AAAA is what the database column looks like"
+
+	if _, _, err := private.AppendTurns(ctx, "journal", "t1", "who",
+		[]store.Turn{{Role: "user", Text: said}}); err != nil {
+		t.Fatal(err)
+	}
+
+	inner.read = inner.turns
+
+	_, turns, _, err := private.ReadThread(ctx, "journal", "t1", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if turns[0].Text != said {
+		t.Fatalf("read back %q", turns[0].Text)
+	}
+}

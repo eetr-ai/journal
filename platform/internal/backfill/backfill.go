@@ -76,6 +76,12 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 
 	for {
+		// Offers first, and before every pass rather than only when the sweep
+		// runs dry. A busy database would otherwise keep taking full batches and
+		// never reach the select, and an offer that is dropped is gone: the
+		// sweep cannot read a sealed row, so nothing would ever pick it up again.
+		w.drainOffers(ctx)
+
 		done, err := w.pass(ctx)
 		if err != nil && ctx.Err() == nil {
 			w.log.Warn("embedding backfill pass failed", "error", err)
@@ -89,11 +95,28 @@ func (w *Worker) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case rows := <-w.offers:
-			if _, err := w.attach(ctx, rows); err != nil && ctx.Err() == nil {
-				w.log.Warn("embedding offered rows failed", "error", err)
-			}
+			w.embedOffered(ctx, rows)
 		case <-time.After(interval):
 		}
+	}
+}
+
+// drainOffers takes whatever is waiting and returns; it never blocks, so an
+// empty queue costs one failed receive.
+func (w *Worker) drainOffers(ctx context.Context) {
+	for {
+		select {
+		case rows := <-w.offers:
+			w.embedOffered(ctx, rows)
+		default:
+			return
+		}
+	}
+}
+
+func (w *Worker) embedOffered(ctx context.Context, rows []store.Pending) {
+	if _, err := w.attach(ctx, rows); err != nil && ctx.Err() == nil {
+		w.log.Warn("embedding offered rows failed", "error", err)
 	}
 }
 

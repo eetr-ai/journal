@@ -392,3 +392,44 @@ func TestPagingDoesNotSkipConversationsFromTheSameInstant(t *testing.T) {
 		t.Fatalf("paging saw %d of %d conversations, so a page boundary skipped some", len(seen), count)
 	}
 }
+
+// A turn that arrives already embedded must be finished with. Leaving
+// embedded_at null would put it back in front of the sweep, which would embed
+// it again and write over the vector it was handed.
+func TestASuppliedVectorIsNotEmbeddedAgain(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	thread := "dolphin-supplied"
+
+	// A re-run starts from nothing; a thread that was never there is fine.
+	_ = s.DeleteThread(ctx, "test", thread)
+
+	vector := make([]float32, 1024)
+	vector[0] = 0.5
+
+	if _, _, err := s.AppendTurns(ctx, "test", thread, "dolphin-supplier", []store.Turn{
+		{Role: "user", Text: "arrived with a vector", Embedding: vector},
+		{Role: "assistant", Text: "arrived without one"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = s.DeleteThread(ctx, "test", thread) })
+
+	pending, err := s.PendingVectors(ctx, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var waiting []string
+
+	for _, row := range pending {
+		if row.ThreadKey == thread {
+			waiting = append(waiting, row.Text)
+		}
+	}
+
+	if len(waiting) != 1 || waiting[0] != "arrived without one" {
+		t.Fatalf("waiting to be embedded: %v", waiting)
+	}
+}

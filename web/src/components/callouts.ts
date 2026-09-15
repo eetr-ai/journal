@@ -50,7 +50,13 @@ function walk(node: Node): void {
       const kind = markerIn(child);
 
       if (kind && KINDS.includes(kind as (typeof KINDS)[number])) {
-        child.data = { ...child.data, hProperties: { className: `callout callout-${kind}` } };
+        // role="note" rather than a label: it tells a screen reader what this
+        // block is without putting an English word into a page that may not be
+        // in English. The kind itself is carried by the glyph in globals.css.
+        child.data = {
+          ...child.data,
+          hProperties: { className: `callout callout-${kind}`, role: "note" },
+        };
       }
     }
 
