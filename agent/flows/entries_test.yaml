@@ -1,0 +1,45 @@
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. Cases
+# run concurrently and share one database, so each suite owns its own subjects.
+#
+# This suite owns the drawer's route. The entries come back exactly as stored —
+# sealed — because the browser holds the key and the server does not; a case
+# that saw plaintext here would mean the seal had been undone somewhere.
+flow: entries
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a person's entries come back newest first, and still sealed
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-entries }
+    expect:
+      that:
+        - body.entries.size() == 5
+        - body.entries[0].id == "aaaaaaaa-0000-4000-8000-000000000001"
+        - body.entries[1].id == "aaaaaaaa-0000-4000-8000-000000000002"
+        - body.entries[4].id == "aaaaaaaa-0000-4000-8000-000000000004"
+        - body.entries[0].title.startsWith("enc1:")
+        - body.entries[0].content.startsWith("enc1:")
+
+  # The subject is the whole access check, so this is the case that matters
+  # most: one person's list must never carry another's entry.
+  - name: another person's entries are not in the list
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-entries-other }
+    expect:
+      that:
+        - body.entries.size() == 1
+        - body.entries[0].id == "bbbbbbbb-0000-4000-8000-000000000001"
+
+  - name: a person who has written nothing gets an empty list rather than a 404
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-vault-absent }
+    expect:
+      body:
+        entries: []
+      that:
+        - '!has(vars.httpStatus)'

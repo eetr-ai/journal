@@ -1,0 +1,35 @@
+# See entries_test.yaml. This suite owns the tool that opens one entry for the
+# model to read before it adds to it.
+flow: entry-read
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: an entry is opened for the model to read
+    input:
+      data: { id: aaaaaaaa-0000-4000-8000-000000000001 }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: true
+        id: aaaaaaaa-0000-4000-8000-000000000001
+        date: "2026-09-15"
+        title: A slow, good morning
+        content: Woke up before the alarm for once.
+
+  - name: another person's entry is not readable with its id alone
+    input:
+      data: { id: bbbbbbbb-0000-4000-8000-000000000001 }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false
+
+  - name: an id that names nothing is an answer rather than a failure
+    input:
+      data: { id: dddddddd-0000-4000-8000-00000000dead }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false

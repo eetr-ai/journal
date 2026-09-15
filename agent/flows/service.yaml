@@ -17,6 +17,11 @@ env:
   # decision, not a code change.
   - name: CHAT_MODEL
     default: deepseek/deepseek-v4.1-flash
+  # What turns an entry into something searchable by meaning. 1024 dimensions
+  # wherever it is asked for, because that is what the column indexes — the
+  # model is wider, and pgvector indexes nothing past 2000.
+  - name: EMBEDDING_MODEL
+    default: qwen/qwen3-embedding-8b
 
 # Skill bodies, resolved relative to this directory and pulled into a
 # conversation only when the agent asks for one by its alias.

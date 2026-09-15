@@ -1,0 +1,56 @@
+# See entries_test.yaml. This suite owns the tool that reaches back.
+#
+# `today` is passed as a fixed day and the fixtures are dated absolutely, so
+# "a year ago" means the same thing on every run — a suite that took the real
+# clock would start failing on its own one morning.
+flow: entry-recall
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a year back finds the entry from a year back
+    input:
+      data: { months: 12 }
+      vars: { subject: dolphin-entries, today: "2026-09-15", dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: true
+        id: aaaaaaaa-0000-4000-8000-000000000004
+        date: "2025-09-12"
+        title: The year before
+        content: Ana was still in Rosario then.
+
+  - name: six months back finds the six-month-old one and not the year-old one
+    input:
+      data: { months: 6 }
+      vars: { subject: dolphin-entries, today: "2026-09-15", dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.found == true
+        - body.title == "Six months back"
+
+  - name: a year is what it reaches for when no distance is named
+    input:
+      data: {}
+      vars: { subject: dolphin-entries, today: "2026-09-15", dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.found == true
+        - body.title == "The year before"
+
+  - name: nothing written back then is an ordinary answer rather than a failure
+    input:
+      data: { months: 60 }
+      vars: { subject: dolphin-entries, today: "2026-09-15", dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false
+
+  - name: another person's past is not reachable
+    input:
+      data: { months: 12 }
+      vars: { subject: dolphin-entries-other, today: "2026-09-15", dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false

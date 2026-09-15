@@ -1,0 +1,422 @@
+# The journal entries: what the agent writes down while a person talks.
+#
+#   GET /entries/{subject}       the most recent, newest first
+#   GET /entries/{subject}/{id}  one entry
+#
+# and, below the routes, the sourceless flows behind the agent's tools. They are
+# flows rather than inline tool chains so that each one is a unit dolphin can
+# run: chat.yaml cannot be tested, and everything the agent does to a person's
+# journal would otherwise be untestable with it.
+#
+# What a tool is told:
+#   vars.subject   whose journal this is, from the path — the whole access check
+#   vars.dataKey   the key this run seals under, base64, kept nowhere
+#   vars.threadId  the conversation, which is what a running note is keyed on
+#   vars.today     the reader's date, because the server's day is not theirs
+#
+# All four are lifted into vars by chat.yaml before the agent starts: a tool's
+# body is the model's arguments, so the request that carried them is gone by the
+# time one runs.
+#
+# Rows leave the routes sealed. The browser holds the key and opens them; the
+# tools open them here, because the model has to read what it is adding to.
+flows:
+  # The most recent, newest first. Deliberately unnarrowed: an octo route lifts
+  # path parameters and headers onto the message and nothing else, so there is
+  # no query string to filter by — and this is the drawer's query, which wants
+  # the recent ones anyway. Narrowing by date is a thing the agent does, through
+  # the tools below, where the filter arrives in the body.
+  - name: entries
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}
+        methods: [GET]
+    process:
+      - type: sql
+        name: select-entries
+        settings:
+          connector: db
+          query: |
+            SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+            FROM journal_entry
+            WHERE oidc_subject = $1
+            ORDER BY entry_date DESC, created_at DESC
+            LIMIT 200
+          args:
+            - vars.subject
+      # A person with nothing written is an ordinary answer, not a 404.
+      - type: set-payload
+        name: wrap
+        settings:
+          value: '{"entries": body}'
+
+  - name: entry
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/{id}
+        methods: [GET]
+    process:
+      - type: sql
+        name: select-entry
+        settings:
+          connector: db
+          query: |
+            SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+            FROM journal_entry
+            WHERE oidc_subject = $1 AND id = $2::uuid
+          args:
+            - vars.subject
+            - vars.id
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-variable
+              settings: { name: httpStatus, value: "404" }
+            - type: set-payload
+              settings:
+                value: '{"error": "entry not found"}'
+
+  # --- the agent's tools -----------------------------------------------------
+
+  # Write this conversation's note, or an older entry named by id.
+  #
+  # The note is rewritten whole every time rather than appended to: the model is
+  # handed what it wrote last and hands back the new version, so the entry reads
+  # as one piece of writing instead of a pile of additions.
+  - name: entry-write
+    process:
+      # Set before the embedding is attempted, so the path where there is no
+      # vector needs no branch of its own.
+      - type: set-variable
+        name: no-vector
+        settings: { name: vectorJson, value: '""' }
+      # Best effort, deliberately. An entry that could not be embedded is still
+      # an entry; losing what somebody said because a vector provider was down
+      # would be the wrong trade. It costs its place in search until it is
+      # written again.
+      - type: handle-errors
+        name: embed-if-we-can
+        process:
+          - type: ai-embed
+            name: embed-note
+            settings:
+              connector: router
+              model: ${EMBEDDING_MODEL}
+              dimensions: 1024
+              text: 'body.title + "\n\n" + body.content'
+              resultVar: vector
+          - type: set-variable
+            settings: { name: vectorJson, value: 'toJson(vars.vector)' }
+        error:
+          - type: set-variable
+            settings: { name: vectorJson, value: '""' }
+      # Sealed here, under the key this run was handed. The marker is ours, not
+      # octo's: it is what tells a reader whether a row predates the key.
+      - type: set-variable
+        name: seal-title
+        settings:
+          name: sealedTitle
+          value: '"enc1:" + base64.encode(toAes(body.title, base64.decode(vars.dataKey)))'
+      - type: set-variable
+        name: seal-content
+        settings:
+          name: sealedContent
+          value: '"enc1:" + base64.encode(toAes(body.content, base64.decode(vars.dataKey)))'
+      - type: if
+        name: new-or-known
+        condition: 'has(body.id) && body.id != ""'
+        then:
+          process:
+            # An older entry, named. Scoped by subject as well as id, so holding
+            # an id is not enough to write into somebody else's journal.
+            - type: sql
+              name: update-entry
+              settings:
+                connector: db
+                query: |
+                  UPDATE journal_entry
+                  SET title = $3,
+                      content = $4,
+                      embedding = COALESCE(NULLIF($5, '')::vector, embedding),
+                      embedded_at = CASE WHEN $5 = '' THEN embedded_at ELSE now() END,
+                      updated_at = now()
+                  WHERE oidc_subject = $1 AND id = $2::uuid
+                  RETURNING id, thread_key, entry_date, title, content, created_at, updated_at
+                args:
+                  - vars.subject
+                  - body.id
+                  - vars.sealedTitle
+                  - vars.sealedContent
+                  - vars.vectorJson
+                single: true
+        else:
+          process:
+            # One running note per conversation. The conflict target is the
+            # partial unique index, which is what makes "keep writing the same
+            # note" a guarantee rather than something the prompt has to get
+            # right every turn.
+            - type: sql
+              name: upsert-entry
+              settings:
+                connector: db
+                query: |
+                  INSERT INTO journal_entry
+                    (oidc_subject, thread_key, entry_date, title, content, embedding, embedded_at)
+                  VALUES
+                    ($1, $2, $3::date, $4, $5, NULLIF($6, '')::vector,
+                     CASE WHEN $6 = '' THEN NULL ELSE now() END)
+                  ON CONFLICT (oidc_subject, thread_key) WHERE thread_key <> ''
+                  DO UPDATE SET
+                    title = EXCLUDED.title,
+                    content = EXCLUDED.content,
+                    embedding = COALESCE(EXCLUDED.embedding, journal_entry.embedding),
+                    embedded_at = CASE
+                      WHEN EXCLUDED.embedding IS NULL THEN journal_entry.embedded_at
+                      ELSE now()
+                    END,
+                    updated_at = now()
+                  RETURNING id, thread_key, entry_date, title, content, created_at, updated_at
+                args:
+                  - vars.subject
+                  - vars.threadId
+                  - 'has(body.date) && body.date != "" ? body.date : vars.today'
+                  - vars.sealedTitle
+                  - vars.sealedContent
+                  - vars.vectorJson
+                single: true
+      - type: set-variable
+        name: hold-written
+        settings: { name: written, value: body }
+      - type: if
+        name: check-written
+        condition: 'vars.written == null'
+        then:
+          process:
+            # An id that named nothing of this person's. The model is told
+            # nothing was written rather than the tool failing under it: reaching
+            # for the wrong entry is an ordinary mistake to recover from.
+            - type: set-payload
+              settings: { value: '{"saved": false}' }
+        else:
+          process:
+            # The panel beside the conversation, repainted mid-run. Sealed,
+            # because the reader opens an entry exactly one way whether it
+            # arrived in a page or in a frame.
+            - type: if
+              name: tell-the-reader
+              condition: 'has(vars.sseStream) && vars.sseStream != ""'
+              then:
+                process:
+                  - type: sse-event
+                    name: entry-frame
+                    settings:
+                      event: entry
+                      data: 'toJson(vars.written)'
+                      ifClosed: ignore
+            # What the model gets back is what it just wrote, confirmed, so it
+            # knows the id to keep writing into.
+            - type: set-payload
+              name: written-result
+              settings:
+                value: >
+                  {"saved": true, "id": vars.written.id,
+                   "date": vars.written.entry_date.substring(0, 10)}
+
+  # Find entries — by a day, by a range, or by what they were about.
+  #
+  # The two searches are different questions, not one query with a switch in it:
+  # a date narrows, meaning ranks. A meaning search ignores dates entirely, and
+  # says so in its description, so the model does not expect both at once.
+  - name: entry-find
+    process:
+      - type: if
+        name: by-meaning-or-by-day
+        condition: 'has(body.query) && body.query != ""'
+        then:
+          process:
+            - type: ai-embed
+              name: embed-question
+              settings:
+                connector: router
+                model: ${EMBEDDING_MODEL}
+                dimensions: 1024
+                text: 'body.query'
+                resultVar: vector
+            # Cosine distance, matching the index. Rows written while the
+            # embedding provider was unreachable have no vector and cannot be
+            # ranked; they are still found by date.
+            - type: sql
+              name: search-entries
+              settings:
+                connector: db
+                query: |
+                  SELECT id, entry_date, title, content, created_at, updated_at
+                  FROM journal_entry
+                  WHERE oidc_subject = $1 AND embedding IS NOT NULL
+                  ORDER BY embedding <=> $2::vector
+                  LIMIT $3
+                args:
+                  - vars.subject
+                  - 'toJson(vars.vector)'
+                  - 'has(body.limit) && body.limit > 0 ? body.limit : 5'
+        else:
+          process:
+            - type: sql
+              name: list-entries
+              settings:
+                connector: db
+                query: |
+                  SELECT id, entry_date, title, content, created_at, updated_at
+                  FROM journal_entry
+                  WHERE oidc_subject = $1
+                    AND ($2 = '' OR entry_date = $2::date)
+                    AND ($3 = '' OR entry_date >= $3::date)
+                    AND ($4 = '' OR entry_date <= $4::date)
+                  ORDER BY entry_date DESC, created_at DESC
+                  LIMIT $5
+                args:
+                  - vars.subject
+                  - 'has(body.date) && body.date != "" ? body.date : ""'
+                  - 'has(body.from) && body.from != "" ? body.from : ""'
+                  - 'has(body.to) && body.to != "" ? body.to : ""'
+                  - 'has(body.limit) && body.limit > 0 ? body.limit : 10'
+      - type: set-payload
+        name: opened
+        settings:
+          value: >
+            {"entries": body.map(r, {
+              "id": r.id,
+              "date": r.entry_date.substring(0, 10),
+              "title": r.title.startsWith("enc1:") ? string(fromAes(base64.decode(r.title.substring(5)), base64.decode(vars.dataKey))) : r.title,
+              "content": r.content.startsWith("enc1:") ? string(fromAes(base64.decode(r.content.substring(5)), base64.decode(vars.dataKey))) : r.content
+            })}
+
+  # One entry, opened for the model to read before it adds to it.
+  - name: entry-read
+    process:
+      - type: sql
+        name: select-entry
+        settings:
+          connector: db
+          query: |
+            SELECT id, entry_date, title, content, created_at, updated_at
+            FROM journal_entry
+            WHERE oidc_subject = $1 AND id = $2::uuid
+          args:
+            - vars.subject
+            - body.id
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-payload
+              settings: { value: '{"found": false}' }
+        else:
+          process:
+            - type: set-payload
+              settings:
+                value: >
+                  {"found": true, "id": body.id, "date": body.entry_date.substring(0, 10),
+                   "title": body.title.startsWith("enc1:") ? string(fromAes(base64.decode(body.title.substring(5)), base64.decode(vars.dataKey))) : body.title,
+                   "content": body.content.startsWith("enc1:") ? string(fromAes(base64.decode(body.content.substring(5)), base64.decode(vars.dataKey))) : body.content}
+
+  # Something from around this day some months ago.
+  #
+  # The choice is made here rather than by the model, because a model asked to
+  # pick something at random picks the same kind of thing every time — and the
+  # point of this is to be surprised by what comes back.
+  - name: entry-recall
+    process:
+      - type: sql
+        name: select-recalled
+        settings:
+          connector: db
+          # A fortnight either side: far enough that a person who does not write
+          # daily still has something to find, near enough that "a year ago"
+          # stays true.
+          query: |
+            SELECT id, entry_date, title, content, created_at, updated_at
+            FROM journal_entry
+            WHERE oidc_subject = $1
+              AND entry_date BETWEEN
+                    ($2::date - make_interval(months => $3::int) - interval '15 days')
+                AND ($2::date - make_interval(months => $3::int) + interval '15 days')
+            ORDER BY random()
+            LIMIT 1
+          args:
+            - vars.subject
+            - vars.today
+            - 'has(body.months) && body.months > 0 ? body.months : 12'
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-payload
+              settings: { value: '{"found": false}' }
+        else:
+          process:
+            - type: set-payload
+              settings:
+                value: >
+                  {"found": true, "id": body.id, "date": body.entry_date.substring(0, 10),
+                   "title": body.title.startsWith("enc1:") ? string(fromAes(base64.decode(body.title.substring(5)), base64.decode(vars.dataKey))) : body.title,
+                   "content": body.content.startsWith("enc1:") ? string(fromAes(base64.decode(body.content.substring(5)), base64.decode(vars.dataKey))) : body.content}
+
+  # Move the reader's panel to an entry. Writes nothing.
+  #
+  # The frame carries the row sealed, the way the routes do, so the panel has
+  # exactly one kind of entry to open however it arrived.
+  - name: entry-open
+    process:
+      - type: sql
+        name: select-entry
+        settings:
+          connector: db
+          query: |
+            SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+            FROM journal_entry
+            WHERE oidc_subject = $1 AND id = $2::uuid
+          args:
+            - vars.subject
+            - body.id
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-payload
+              settings: { value: '{"opened": false}' }
+        else:
+          process:
+            - type: set-variable
+              name: hold-entry
+              settings: { name: opened, value: body }
+            # A tool that runs with nobody reading still has to answer the
+            # model; only the frame is conditional.
+            - type: if
+              name: tell-the-reader
+              condition: 'has(vars.sseStream) && vars.sseStream != ""'
+              then:
+                process:
+                  - type: sse-event
+                    name: open-frame
+                    settings:
+                      event: open
+                      data: 'toJson(vars.opened)'
+                      ifClosed: ignore
+            - type: set-payload
+              name: opened-result
+              settings:
+                value: '{"opened": true, "id": vars.opened.id, "date": vars.opened.entry_date.substring(0, 10)}'

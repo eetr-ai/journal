@@ -1,0 +1,100 @@
+# See entries_test.yaml. This suite owns the tool that writes a note.
+#
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. Cases
+# run concurrently and share one database, so this suite owns
+# `dolphin-entries-write` and nothing else writes there.
+#
+# The embedding is mocked everywhere in this file: a suite that reached
+# OpenRouter would need a key to run and would fail when the network did, and
+# what is worth proving here is what happens to a person's words, not that a
+# vector provider answers.
+flow: entry-write
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  # Fake by construction. The connector is built when the config loads whatever
+  # the cases do, and the block that would use it never runs.
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+mocks:
+  # Unreachable in every case, which is also the interesting half: an entry has
+  # to survive its embedding failing.
+  entry-write.embed-if-we-can[process].embed-note:
+    default:
+      error: no embedding provider here
+
+cases:
+  - name: a note is written, and comes back with the id to keep writing into
+    input:
+      data:
+        title: A slow, good morning
+        content: Woke up before the alarm for once.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-first
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.saved == true
+        - body.id != ""
+    # What reaches the statement is what is stored. The plaintext must not.
+    spies:
+      entry-write.new-or-known[else].upsert-entry:
+        records:
+          - input:
+              that:
+                - vars.sealedTitle.startsWith("enc1:")
+                - vars.sealedContent.startsWith("enc1:")
+                - vars.sealedTitle != body.title
+                - vars.sealedContent != body.content
+
+  # The conversation already has a note, seeded. Writing to the same one has to
+  # come back with the same id: a flow that inserted instead would mint a new
+  # one, and the person would have two halves of an evening.
+  - name: writing twice in one conversation updates the note rather than adding one
+    input:
+      data:
+        title: A slow, good morning
+        content: Woke up before the alarm. Coffee on the balcony.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-once
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.saved == true
+        - body.id == "cccccccc-0000-4000-8000-000000000001"
+
+  - name: an entry that could not be embedded is still written
+    input:
+      data:
+        title: Rain, and nothing else
+        content: It did not stop all day.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-unembedded
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.saved == true
+
+  # Holding an id is not enough: the statement is scoped by subject as well, so
+  # this updates nothing, and the answer says so rather than failing.
+  - name: another person's entry cannot be written into with its id alone
+    input:
+      data:
+        id: bbbbbbbb-0000-4000-8000-000000000001
+        title: Overwritten
+        content: Should not land.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-intruder
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
