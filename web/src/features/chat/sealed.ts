@@ -18,21 +18,20 @@ import { fromBase64 } from "@/features/vault/encoding";
 const MARKER = "enc1:";
 const NONCE_BYTES = 12;
 
-export function isSealed(value: string): boolean {
+function isSealed(value: string): boolean {
   return value.startsWith(MARKER);
 }
 
-let imported: { raw: string; key: CryptoKey } | null = null;
+// The pending import rather than the imported key: a transcript is opened as
+// one Promise.all, so caching the result would still let the whole first batch
+// import in parallel before any of them had finished storing it.
+let imported: { raw: string; key: Promise<CryptoKey> } | null = null;
 
-// One import per key rather than one per value: a transcript is a few dozen
-// values and importKey is not free.
-async function keyFor(agentKey: string): Promise<CryptoKey> {
+function keyFor(agentKey: string): Promise<CryptoKey> {
   if (imported?.raw !== agentKey) {
     imported = {
       raw: agentKey,
-      key: await crypto.subtle.importKey("raw", fromBase64(agentKey), "AES-GCM", false, [
-        "decrypt",
-      ]),
+      key: crypto.subtle.importKey("raw", fromBase64(agentKey), "AES-GCM", false, ["decrypt"]),
     };
   }
 

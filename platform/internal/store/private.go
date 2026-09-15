@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/base64"
 	"strings"
 
@@ -112,8 +113,10 @@ func (p *Private) sealBytes(plain []byte) ([]byte, error) {
 	return append([]byte(sealedPrefix), sealed...), nil
 }
 
+// bytes.HasPrefix rather than IsSealed over a conversion: working memory runs
+// to megabytes, and copying all of it to look at five bytes is a copy per read.
 func (p *Private) openBytes(stored []byte) ([]byte, error) {
-	if !IsSealed(string(stored)) {
+	if !bytes.HasPrefix(stored, []byte(sealedPrefix)) {
 		return stored, nil
 	}
 
