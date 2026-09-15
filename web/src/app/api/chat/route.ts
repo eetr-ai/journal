@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { vaultGate } from "@/features/vault/gate";
 import { chatClient } from "@/features/chat/client";
 import { askFrom } from "@/features/chat/rules";
+import { momentFor } from "@/features/chat/now";
+import { currentProfile } from "@/features/profile/service";
 
 /**
  * The chat stream, proxied from the agent to the browser.
@@ -40,26 +42,44 @@ async function body(request: Request): Promise<unknown> {
   }
 }
 
-export async function POST(request: Request): Promise<Response> {
+/**
+ * Who this is, or the answer that turns them away.
+ *
+ * Three refusals in a row, kept together so the handler below reads as what it
+ * does rather than what it guards against.
+ */
+type Admitted = { subject: string } | { refused: Response };
+
+async function admit(request: Request): Promise<Admitted> {
   // The session is the trust boundary. The subject never comes from the posted
   // body, which is what stops a caller writing into someone else's memory.
   const subject = (await auth())?.user?.subject;
 
   if (!subject) {
-    return new Response(null, { status: UNAUTHORIZED });
+    return { refused: new Response(null, { status: UNAUTHORIZED }) };
   }
 
   // A JSON content type forces a preflight for a cross-origin caller, on top of
   // the session cookie being SameSite=Lax.
   if (!request.headers.get("content-type")?.includes("application/json")) {
-    return new Response(null, { status: UNSUPPORTED_MEDIA });
+    return { refused: new Response(null, { status: UNSUPPORTED_MEDIA }) };
   }
 
   // The real gate, not the marker cookie beside it: the cookie is written by
   // client code, so trusting it alone would be a way into the app with no vault
   // — and there is no vault-less path through this app by design.
   if ((await vaultGate()) !== "open") {
-    return new Response(null, { status: LOCKED });
+    return { refused: new Response(null, { status: LOCKED }) };
+  }
+
+  return { subject };
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const admitted = await admit(request);
+
+  if ("refused" in admitted) {
+    return admitted.refused;
   }
 
   const ask = askFrom(await body(request));
@@ -68,7 +88,15 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: BAD_REQUEST });
   }
 
-  const stream = await chatClient.stream({ subject, ask, signal: request.signal });
+  // The agent has no clock of its own, and the day it files an entry under has
+  // to be the reader's day. The zone is theirs; the instant is ours.
+  const profile = await currentProfile();
+
+  const stream = await chatClient.stream({
+    subject: admitted.subject,
+    ask: { ...ask, now: momentFor(profile?.config.timezone ?? "") },
+    signal: request.signal,
+  });
 
   if (!stream) {
     return new Response(null, { status: BAD_GATEWAY });

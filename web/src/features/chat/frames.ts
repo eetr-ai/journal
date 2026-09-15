@@ -1,3 +1,4 @@
+import { entryFromEntity, type EntryEntity } from "@/features/entries/types";
 import type { AgentFrame } from "./types";
 import type { SseEvent } from "./sse";
 
@@ -48,6 +49,18 @@ function reasoningFrom(event: AgentEvent): AgentFrame | null {
   return typeof text === "string" && text !== "" ? { kind: "reasoning", text } : null;
 }
 
+// A row, as the entry flows send it. Anything without an id is not one, and is
+// dropped rather than rendered as an entry with no identity.
+function entryFrame(kind: "entry" | "open", body: unknown): AgentFrame | null {
+  const row = body as EntryEntity;
+
+  if (typeof body !== "object" || body === null || typeof row.id !== "string") {
+    return null;
+  }
+
+  return { kind, entry: entryFromEntity(row) };
+}
+
 export function frameFrom(event: SseEvent): AgentFrame | null {
   const body = parsed(event.data);
 
@@ -55,6 +68,12 @@ export function frameFrom(event: SseEvent): AgentFrame | null {
   // it arrives as a JSON string rather than an object.
   if (event.name === "answer") {
     return typeof body === "string" ? { kind: "answer", text: body } : null;
+  }
+
+  // Written by a tool straight onto the stream, rather than by the agent's own
+  // event path — so these are named frames and carry a row, not an event type.
+  if (event.name === "entry" || event.name === "open") {
+    return entryFrame(event.name, body);
   }
 
   if (typeof body !== "object" || body === null) {

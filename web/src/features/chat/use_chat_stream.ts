@@ -7,6 +7,7 @@ import { readFrames } from "./stream_reader";
 import { messageProblem } from "./rules";
 import { useAgentKey } from "./use_agent_key";
 import { ChatActionType, useChat, type ChatError } from "./chat_state";
+import { EntriesActionType, useEntries } from "@/features/entries/entries_state";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -25,6 +26,22 @@ export interface ChatStreamOptions {
 }
 
 const ABORTED = "AbortError";
+
+/**
+ * Frames that move the journal beside the conversation rather than the text in
+ * it. They go to a different reducer, so they are picked off before the chat's
+ * own mapping ever sees them.
+ */
+function panelAction(frame: AgentFrame): { type: EntriesActionType; data: unknown } | null {
+  switch (frame.kind) {
+    case "entry":
+      return { type: EntriesActionType.Arrived, data: frame.entry };
+    case "open":
+      return { type: EntriesActionType.Shown, data: frame.entry };
+    default:
+      return null;
+  }
+}
 
 function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } | null {
   switch (frame.kind) {
@@ -52,10 +69,23 @@ function refuse(message: string, agentKey: string | null): ChatError | null {
 }
 
 type Dispatcher = (action: { type: ChatActionType; data?: unknown }) => void;
+type PanelDispatcher = (action: { type: EntriesActionType; data?: unknown }) => void;
 
-/** Drains one run into the reducer. */
-async function pump(body: ReadableStream<Uint8Array>, dispatch: Dispatcher): Promise<void> {
+/** Drains one run into the two reducers it feeds. */
+async function pump(
+  body: ReadableStream<Uint8Array>,
+  dispatch: Dispatcher,
+  panel: PanelDispatcher,
+): Promise<void> {
   for await (const frame of readFrames(body)) {
+    const moved = panelAction(frame);
+
+    if (moved) {
+      panel(moved);
+
+      continue;
+    }
+
     const action = actionFor(frame);
 
     if (action) {
@@ -65,7 +95,12 @@ async function pump(body: ReadableStream<Uint8Array>, dispatch: Dispatcher): Pro
 }
 
 /** Opens a run and drains it. False when it never opened. */
-async function run(ask: ChatAsk, signal: AbortSignal, dispatch: Dispatcher): Promise<boolean> {
+async function run(
+  ask: ChatAsk,
+  signal: AbortSignal,
+  dispatch: Dispatcher,
+  panel: PanelDispatcher,
+): Promise<boolean> {
   const body = await openChat({ ask, signal });
 
   if (!body) {
@@ -78,7 +113,7 @@ async function run(ask: ChatAsk, signal: AbortSignal, dispatch: Dispatcher): Pro
   }
 
   dispatch({ type: ChatActionType.Started });
-  await pump(body, dispatch);
+  await pump(body, dispatch, panel);
 
   return true;
 }
@@ -88,11 +123,12 @@ async function runToEnd(
   ask: ChatAsk,
   controller: AbortController,
   dispatch: Dispatcher,
+  panel: PanelDispatcher,
 ): Promise<void> {
   try {
     // Settled only for a run that opened. It moves any status to idle, so
     // dispatching it after a failure would wipe the reason off the screen.
-    if (await run(ask, controller.signal, dispatch)) {
+    if (await run(ask, controller.signal, dispatch, panel)) {
       dispatch({ type: ChatActionType.Settled });
     }
   } catch (error) {
@@ -108,6 +144,9 @@ async function runToEnd(
 
 export function useChatStream(options: ChatStreamOptions) {
   const { state, dispatch } = useChat();
+  // The journal beside the conversation. The agent writes into it mid-run, so
+  // the stream that carries the answer carries those frames too.
+  const { dispatch: panel } = useEntries();
   const router = useRouter();
   const running = useRef<AbortController | null>(null);
   const agentKey = useAgentKey(options.subject);
@@ -157,7 +196,7 @@ export function useChatStream(options: ChatStreamOptions) {
       running.current = new AbortController();
 
       try {
-        await runToEnd(ask(message.trim(), "say"), running.current, dispatch);
+        await runToEnd(ask(message.trim(), "say"), running.current, dispatch, panel);
       } finally {
         running.current = null;
         // The conversation may be new, and the drawer beside this panel was
@@ -165,7 +204,7 @@ export function useChatStream(options: ChatStreamOptions) {
         router.refresh();
       }
     },
-    [agentKey, ask, dispatch, router],
+    [agentKey, ask, dispatch, panel, router],
   );
 
   /**

@@ -3,7 +3,7 @@ import { RestClient } from "@eetr/ts-rest-utils";
 import {
   conversationFromEntity,
   turnFromEntity,
-  type ChatAsk,
+  type AgentAsk,
   type Conversation,
   type ConversationsEntity,
   type TranscriptEntity,
@@ -53,7 +53,7 @@ function chatsPath(subject: string): string {
 
 export interface StreamParams {
   subject: string;
-  ask: ChatAsk;
+  ask: AgentAsk;
   signal?: AbortSignal;
 }
 

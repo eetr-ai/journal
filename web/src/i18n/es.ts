@@ -76,8 +76,16 @@ const es: Dictionary = {
     transcripts: "Charlas recientes",
     entries: "Diario",
     todayTitle: "Hoy",
-    mocked: "Contenido de ejemplo",
     resizeToday: "Redimensionar la entrada de hoy",
+  },
+
+  entries: {
+    empty: "Todavía no hay nada escrito. Seguí hablando y esto se va llenando.",
+    opening: "Abriendo...",
+    unreadable: "Esto no se pudo abrir con tu clave.",
+    none: "Todavía no hay nada escrito.",
+    open: "Abrir esta entrada",
+    backToToday: "Volver a hoy",
   },
 
   chat: {

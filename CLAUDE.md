@@ -56,9 +56,12 @@ and change the other.
   anything renders. Do not add a way around it.
 - **The password is stretched in the browser, with Argon2id.** A password that
   reaches the server is a key that reaches the server.
-- **Content is encrypted in the BFF**, because making an entry searchable means
-  reading it. What we hold is the ciphertext plus the keywords and embeddings
-  taken from it; what we never hold is anything that can derive the key.
+- **Content is encrypted in the integration flow**, because making an entry
+  searchable means reading it. The key arrives on the body of the request that
+  needs it and is lifted into the run's variables, where the entry flows seal
+  with it inline; a `crypto` connector is no use here because it holds one key
+  for everybody. What we hold is the ciphertext plus the embeddings taken from
+  it; what we never hold is anything that can derive the key.
 - **The key reaches the server only in the body of a request that needs it.** Not
   in a cookie — not because the session cookie is readable, it is a JWE, but
   because the server holds the key that decrypts it, so a key kept there would be

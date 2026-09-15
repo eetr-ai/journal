@@ -74,8 +74,17 @@ const en = {
     transcripts: "Recent chats",
     entries: "Journal",
     todayTitle: "Today",
-    mocked: "Sample content",
     resizeToday: "Resize today's entry",
+  },
+
+  entries: {
+    empty: "Nothing written down yet. Keep talking, and this fills in.",
+    // The entry is there; the key has not been through it yet.
+    opening: "Unlocking...",
+    unreadable: "This could not be unlocked with your key.",
+    none: "Nothing written yet.",
+    open: "Open this entry",
+    backToToday: "Back to today",
   },
 
   chat: {
