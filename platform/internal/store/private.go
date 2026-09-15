@@ -15,9 +15,13 @@ import (
 // outlives the call that made it.
 //
 // What is sealed: the recorded turns, the engine's working context, the
-// conversation's title and the value of every remembered fact. What is not: a
-// fact's NAME, because it is the key the upsert matches on and an AEAD is
-// randomized, so sealing it would make every write a new fact.
+// conversation's title, and both halves of every remembered fact.
+//
+// A fact's name is the primary key its row is addressed by, so it is sealed
+// stably — the same name has to keep naming the same row. Nothing is given up
+// by that here: the key is unique per person and name, so no two rows can share
+// a name for their sameness to show, and two people's keys differ. Search never
+// reads a name; it ranks on the vector taken from the value.
 
 // sealedPrefix makes a stored value say what it is, so a row written before
 // there was a key — or by a run that forwarded none — still reads back.
@@ -52,11 +56,21 @@ func IsSealed(value string) bool {
 }
 
 func (p *Private) sealText(plain string) (string, error) {
+	return p.sealWith(p.sealer.Seal, plain)
+}
+
+// sealName is stable, because a name is how its row is found again. The layout
+// is the same as any other sealed value, so opening one needs no special case.
+func (p *Private) sealName(plain string) (string, error) {
+	return p.sealWith(p.sealer.SealStably, plain)
+}
+
+func (p *Private) sealWith(how func([]byte) ([]byte, error), plain string) (string, error) {
 	if plain == "" {
 		return "", nil
 	}
 
-	sealed, err := p.sealer.Seal([]byte(plain))
+	sealed, err := how([]byte(plain))
 	if err != nil {
 		return "", err
 	}

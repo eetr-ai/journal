@@ -1,6 +1,7 @@
 package seal_test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"testing"
@@ -79,5 +80,71 @@ func TestAKeyOfTheWrongSizeIsRefusedAtStartup(t *testing.T) {
 
 	if _, err := seal.New("not base64 at all!!"); err == nil {
 		t.Fatal("a malformed key was accepted")
+	}
+}
+
+func sealerFor(t *testing.T, fill byte) *seal.Sealer {
+	t.Helper()
+
+	ret, err := seal.New(testKey(t, fill))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return ret
+}
+
+func stably(t *testing.T, sealer *seal.Sealer, plain string) []byte {
+	t.Helper()
+
+	ret, err := sealer.SealStably([]byte(plain))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return ret
+}
+
+// A stable seal is what lets a sealed value go on being a lookup key. The two
+// properties that matter pull against each other, so both are asserted: the
+// same name must land on the same bytes, and a different name must not.
+func TestSealStablyRepeats(t *testing.T) {
+	sealer := sealerFor(t, 1)
+
+	if !bytes.Equal(stably(t, sealer, "toca-el-bajo"), stably(t, sealer, "toca-el-bajo")) {
+		t.Fatal("the same name sealed twice must land on the same row")
+	}
+
+	if bytes.Equal(stably(t, sealer, "toca-el-bajo"), stably(t, sealer, "toca-la-guitarra")) {
+		t.Fatal("two names must not collide onto one row")
+	}
+}
+
+func TestSealStablyOpens(t *testing.T) {
+	sealer := sealerFor(t, 2)
+
+	opened, err := sealer.Open(stably(t, sealer, "formacion-rock-argentino"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(opened) != "formacion-rock-argentino" {
+		t.Fatalf("opened %q", opened)
+	}
+}
+
+// Two people's facts are sealed under two keys, so one name must not look the
+// same in both rows. This is the boundary a deterministic nonce could have cost
+// us, and the one that actually matters.
+func TestStableSealsDifferBetweenKeys(t *testing.T) {
+	if bytes.Equal(stably(t, sealerFor(t, 3), "religion"), stably(t, sealerFor(t, 4), "religion")) {
+		t.Fatal("the same name under two keys must not look the same")
+	}
+}
+
+// A stable nonce must not weaken the seal: another key still cannot open it.
+func TestStableSealsStillNeedTheirKey(t *testing.T) {
+	if _, err := sealerFor(t, 6).Open(stably(t, sealerFor(t, 5), "religion")); err == nil {
+		t.Fatal("another key opened a stably sealed value")
 	}
 }

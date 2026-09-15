@@ -20,6 +20,7 @@ type recorder struct {
 	memory  store.Memory
 	read    []store.Turn
 	hits    []store.Hit
+	deleted string
 }
 
 func (r *recorder) AppendTurns(_ context.Context, _, _, _ string, turns []store.Turn) (int64, []int64, error) {
@@ -56,6 +57,16 @@ func (r *recorder) PutMemory(_ context.Context, _, _ string, m store.Memory, _ i
 
 func (r *recorder) Search(context.Context, store.Query) ([]store.Hit, error) {
 	return r.hits, nil
+}
+
+func (r *recorder) ListMemories(context.Context, string, string) ([]store.Memory, error) {
+	return []store.Memory{r.memory}, nil
+}
+
+func (r *recorder) DeleteMemory(_ context.Context, _, _, name string) error {
+	r.deleted = name
+
+	return nil
 }
 
 type offered struct{ rows []store.Pending }
@@ -197,28 +208,148 @@ func TestTheWrongKeyIsAnError(t *testing.T) {
 	}
 }
 
-func TestMemoryValuesAreSealedButNamesAreNot(t *testing.T) {
+// Both halves of a fact are sealed. The name has to be, because a fact called
+// "toca-el-bajo" says most of what the fact says.
+func TestBothHalvesOfAFactAreSealed(t *testing.T) {
 	inner := &recorder{}
 	sink := &offered{}
 
 	_, err := privateOver(t, inner, sink).PutMemory(context.Background(), "journal", "who",
-		store.Memory{Name: "religion", Value: "buddhism"}, 0)
+		store.Memory{Name: "toca-el-bajo", Value: "plays bass in a band"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// The name is the key the upsert matches on, and an AEAD is randomized:
-	// sealing it would make every write a new fact.
-	if inner.memory.Name != "religion" {
-		t.Fatalf("name was changed to %q", inner.memory.Name)
+	if strings.Contains(inner.memory.Name, "bajo") {
+		t.Fatalf("the name reached the database: %q", inner.memory.Name)
 	}
 
-	if inner.memory.Value == "buddhism" {
-		t.Fatal("the value reached the database in the clear")
+	if strings.Contains(inner.memory.Value, "bass") {
+		t.Fatalf("the value reached the database: %q", inner.memory.Value)
 	}
 
-	if len(sink.rows) != 1 || sink.rows[0].Text != "buddhism" || sink.rows[0].Version != 3 {
+	// The vector still comes from the words, and the offer has to name the row
+	// the way the column holds it.
+	if len(sink.rows) != 1 || sink.rows[0].Text != "plays bass in a band" {
 		t.Fatalf("offered %v", sink.rows)
+	}
+
+	if sink.rows[0].Name != inner.memory.Name || sink.rows[0].Version != 3 {
+		t.Fatalf("offered a row the write-back cannot find: %v", sink.rows[0])
+	}
+}
+
+// The property the primary key depends on: remembering the same fact twice has
+// to address one row, not two.
+func TestRememberingTheSameFactTwiceIsOneRow(t *testing.T) {
+	inner := &recorder{}
+	private := privateOver(t, inner, &offered{})
+	ctx := context.Background()
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "religion", Value: "buddhism"}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	first := inner.memory.Name
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "religion", Value: "stoicism, mostly"}, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	if inner.memory.Name != first {
+		t.Fatal("the same name sealed to two different rows")
+	}
+
+}
+
+// The name is stable and the value beside it must not be. Stability is bought
+// for the one field that needs it, and nowhere else: two rows holding the same
+// answer should not be visibly the same answer.
+func TestTheValueIsNotStable(t *testing.T) {
+	inner := &recorder{}
+	private := privateOver(t, inner, &offered{})
+	ctx := context.Background()
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "religion", Value: "buddhism"}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	first := inner.memory.Value
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "religion", Value: "buddhism"}, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	if inner.memory.Value == first {
+		t.Fatal("the same answer sealed to the same bytes twice")
+	}
+}
+
+func TestADifferentFactIsADifferentRow(t *testing.T) {
+	inner := &recorder{}
+	private := privateOver(t, inner, &offered{})
+	ctx := context.Background()
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "religion", Value: "x"}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	first := inner.memory.Name
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "philosophy", Value: "x"}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	if inner.memory.Name == first {
+		t.Fatal("two names collided onto one row")
+	}
+}
+
+// Reading gives the agent back the name it wrote, so nothing above the store
+// learns that any of this happened.
+func TestFactNamesComeBackOpened(t *testing.T) {
+	inner := &recorder{}
+	private := privateOver(t, inner, &offered{})
+	ctx := context.Background()
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "toca-el-bajo", Value: "plays bass"}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	facts, err := private.ListMemories(ctx, "journal", "who")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if facts[0].Name != "toca-el-bajo" || facts[0].Value != "plays bass" {
+		t.Fatalf("read back %q / %q", facts[0].Name, facts[0].Value)
+	}
+}
+
+// Forgetting has to reach the row remembering wrote.
+func TestForgettingAddressesTheSameRow(t *testing.T) {
+	inner := &recorder{}
+	private := privateOver(t, inner, &offered{})
+	ctx := context.Background()
+
+	if _, err := private.PutMemory(ctx, "journal", "who",
+		store.Memory{Name: "toca-el-bajo", Value: "plays bass"}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := private.DeleteMemory(ctx, "journal", "who", "toca-el-bajo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if inner.deleted != inner.memory.Name {
+		t.Fatalf("delete addressed %q, the row is at %q", inner.deleted, inner.memory.Name)
 	}
 }
 
