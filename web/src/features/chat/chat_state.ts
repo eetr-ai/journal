@@ -32,6 +32,15 @@ export interface ChatUiState {
   status: ChatStatus;
   turns: ChatTurn[];
   error: ChatError | null;
+  /**
+   * How many transient turns this panel has minted, ever.
+   *
+   * Counting the list instead would reuse an id: a run that ends with nothing
+   * written drops its empty turn, and the next message would mint the id that
+   * turn had. Two React keys the same in one list renders the wrong text under
+   * the wrong turn.
+   */
+  issued: number;
 }
 
 export enum ChatActionType {
@@ -53,7 +62,7 @@ export type ChatAction = ReducerAction<ChatActionType>;
 const NO_TOOLS = { started: 0, finished: 0 };
 
 export function initialChatState(threadId: string, turns: Turn[] = []): ChatUiState {
-  return { threadId, status: "idle", turns: turns.map(chatTurnFrom), error: null };
+  return { threadId, status: "idle", turns: turns.map(chatTurnFrom), error: null, issued: 0 };
 }
 
 export function chatTurnFrom(turn: Turn): ChatTurn {
@@ -105,14 +114,15 @@ function ended(state: ChatUiState): ChatUiState {
  */
 const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) => ChatUiState> = {
   [ChatActionType.Sent]: (state, action) => {
-    // The two ids share the position and differ by prefix, so neither depends
-    // on the other having been counted.
-    const at = state.turns.length;
+    // The two ids share the number and differ by prefix, so neither depends on
+    // the other having been counted.
+    const at = state.issued;
 
     return {
       ...state,
       status: "waiting",
       error: null,
+      issued: at + 1,
       turns: [
         ...state.turns,
         said("you", `q${at}`, action.data as string),
@@ -129,9 +139,10 @@ const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) 
   [ChatActionType.FollowUp]: (state, action) => ({
     ...state,
     error: null,
+    issued: state.issued + 1,
     turns: [
       ...state.turns.slice(0, -1),
-      said("you", `q${state.turns.length}`, action.data as string),
+      said("you", `q${state.issued}`, action.data as string),
       ...state.turns.slice(-1),
     ],
   }),

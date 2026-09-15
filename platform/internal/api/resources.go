@@ -1,6 +1,9 @@
 package api
 
 import (
+	"errors"
+	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,30 +32,66 @@ func (r Resources) Supported() bool {
 	return r.root != ""
 }
 
-// resolve maps a requested name onto a path inside the root, and refuses
-// anything that would leave it.
+// named refuses a name that is a path rather than a name.
 //
 // The name arrives as a query parameter precisely because it may contain
-// slashes, so `../` is a shape the contract invites and this has to reject. The
-// check is on the cleaned absolute path rather than on the text, because
-// spelling traversal is far easier than enumerating its spellings.
-func (r Resources) resolve(name string) (string, bool) {
-	if r.root == "" || name == "" {
-		return "", false
+// slashes, so `..` is a shape the contract invites. It is refused rather than
+// normalized away: cleaning `../skills/x` leaves `skills/x`, which quietly
+// serves a real resource to a caller that asked for something else.
+func named(name string) bool {
+	if name == "" || filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
+		return false
 	}
 
-	root, err := filepath.Abs(r.root)
+	for _, part := range strings.Split(filepath.ToSlash(name), "/") {
+		if part == ".." {
+			return false
+		}
+	}
+
+	return true
+}
+
+// read returns the resource's bytes. A name that is not there — or is not a
+// file — comes back as fs.ErrNotExist, and everything else is a real failure
+// that must not be mistaken for one.
+//
+// os.Root does the confinement rather than a prefix check on the joined path,
+// because a prefix check is lexical and os.ReadFile follows symlinks: a link
+// inside the bundle pointing anywhere would otherwise be served.
+func (r Resources) read(name string) ([]byte, error) {
+	if !r.Supported() || !named(name) {
+		return nil, fs.ErrNotExist
+	}
+
+	root, err := os.OpenRoot(r.root)
 	if err != nil {
-		return "", false
+		return nil, err
 	}
 
-	ret := filepath.Join(root, filepath.Clean("/"+name))
+	defer func() { _ = root.Close() }()
 
-	if ret != root && !strings.HasPrefix(ret, root+string(filepath.Separator)) {
-		return "", false
+	info, err := root.Lstat(name)
+	if err != nil {
+		return nil, err
 	}
 
-	return ret, true
+	// A symlink is refused outright rather than followed and then judged. The
+	// bundle is a directory baked into an image, so there is no such thing as a
+	// legitimate link in it, and "refuse the shape" is a rule that holds without
+	// having to be right about where each link points.
+	if info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+		return nil, fs.ErrNotExist
+	}
+
+	file, err := root.Open(name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = file.Close() }()
+
+	return io.ReadAll(file)
 }
 
 func (s *Server) getResource(w http.ResponseWriter, r *http.Request) {
@@ -62,21 +101,18 @@ func (s *Server) getResource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path, ok := s.config.Resources.resolve(r.URL.Query().Get("name"))
+	content, err := s.config.Resources.read(r.URL.Query().Get("name"))
 
-	if !ok {
+	// Missing is an ordinary answer: the runtime reports the resource as absent
+	// and carries on. A volume that will not read is not that, and answering
+	// 404 for it would present a broken mount as an integration with no skills.
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
 		w.WriteHeader(http.StatusNotFound)
 
 		return
-	}
-
-	content, err := os.ReadFile(path)
-
-	// Missing is an ordinary answer — the runtime reports the resource as
-	// absent and carries on — and so is a name that turned out to be a
-	// directory. Neither is worth a 500.
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+	case err != nil:
+		s.fail(w, err, "read resource")
 
 		return
 	}

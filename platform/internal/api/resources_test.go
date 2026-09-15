@@ -81,3 +81,59 @@ func TestWithoutADirectoryResourcesAreNotImplemented(t *testing.T) {
 		t.Fatalf("got %d", got.Code)
 	}
 }
+
+// The escapes above all name something that does not exist once rebased. This
+// one names something that does: cleaning `../skills/counselling.md` leaves
+// `skills/counselling.md`, so a lenient resolver answers 200 with a real
+// resource the caller never asked for.
+func TestARebasedNameIsNotQuietlyServed(t *testing.T) {
+	handler, _ := withResources(t)
+
+	got := call(t, handler, http.MethodGet,
+		"/v1/resources/content?kind=template&name=../skills/counselling.md", "")
+
+	if got.Code != http.StatusNotFound {
+		t.Fatalf("a climbing name answered %d with %q", got.Code, got.Body.String())
+	}
+}
+
+// A prefix check is lexical and reading follows symlinks, so confinement has to
+// happen at the filesystem rather than on the string.
+func TestASymlinkCannotLeaveTheDirectory(t *testing.T) {
+	handler, root := withResources(t)
+
+	link := filepath.Join(root, "skills", "escape.md")
+
+	if err := os.Symlink(filepath.Join(filepath.Dir(root), "secrets.env"), link); err != nil {
+		t.Skipf("this filesystem will not make symlinks: %v", err)
+	}
+
+	got := call(t, handler, http.MethodGet,
+		"/v1/resources/content?kind=template&name=skills/escape.md", "")
+
+	if got.Code != http.StatusNotFound {
+		t.Fatalf("a symlink out answered %d with %q", got.Code, got.Body.String())
+	}
+}
+
+// A bundle that will not read is not a bundle with nothing in it. Answering 404
+// would present a broken mount as an integration that simply has no skills.
+func TestAnUnreadableResourceIsNotAMiss(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads everything, so there is no permission failure to see")
+	}
+
+	handler, root := withResources(t)
+	locked := filepath.Join(root, "skills", "locked.md")
+
+	if err := os.WriteFile(locked, []byte("secret"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+
+	got := call(t, handler, http.MethodGet,
+		"/v1/resources/content?kind=template&name=skills/locked.md", "")
+
+	if got.Code != http.StatusInternalServerError {
+		t.Fatalf("an unreadable resource answered %d, want 500", got.Code)
+	}
+}

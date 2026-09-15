@@ -64,18 +64,23 @@ async function pump(body: ReadableStream<Uint8Array>, dispatch: Dispatcher): Pro
   }
 }
 
-/** Opens a run and drains it, reporting how it ended. */
-async function run(ask: ChatAsk, signal: AbortSignal, dispatch: Dispatcher): Promise<void> {
+/** Opens a run and drains it. False when it never opened. */
+async function run(ask: ChatAsk, signal: AbortSignal, dispatch: Dispatcher): Promise<boolean> {
   const body = await openChat({ ask, signal });
 
   if (!body) {
-    dispatch({ type: ChatActionType.Failed, data: "unreachable" satisfies ChatError });
+    dispatch({
+      type: ChatActionType.Failed,
+      data: "unreachable" satisfies ChatError,
+    });
 
-    return;
+    return false;
   }
 
   dispatch({ type: ChatActionType.Started });
   await pump(body, dispatch);
+
+  return true;
 }
 
 /** One whole run, from the first frame to whatever ended it. */
@@ -85,8 +90,11 @@ async function runToEnd(
   dispatch: Dispatcher,
 ): Promise<void> {
   try {
-    await run(ask, controller.signal, dispatch);
-    dispatch({ type: ChatActionType.Settled });
+    // Settled only for a run that opened. It moves any status to idle, so
+    // dispatching it after a failure would wipe the reason off the screen.
+    if (await run(ask, controller.signal, dispatch)) {
+      dispatch({ type: ChatActionType.Settled });
+    }
   } catch (error) {
     // Stopping deliberately is not a failure, and what streamed before it stays
     // on screen.
@@ -127,9 +135,20 @@ export function useChatStream(options: ChatStreamOptions) {
 
       // A run already holds this conversation, so this joins it. The answer
       // keeps arriving where it already was.
+      //
+      // Shown only once it has landed: a follow-up the BFF refused never
+      // reached the conversation, and leaving it on screen would say it had.
       if (running.current) {
-        dispatch({ type: ChatActionType.FollowUp, data: message.trim() });
-        await steerChat(ask(message.trim(), "say"));
+        const joined = await steerChat(ask(message.trim(), "say"));
+
+        dispatch(
+          joined
+            ? { type: ChatActionType.FollowUp, data: message.trim() }
+            : {
+                type: ChatActionType.Failed,
+                data: "failed" satisfies ChatError,
+              },
+        );
 
         return;
       }
@@ -159,8 +178,15 @@ export function useChatStream(options: ChatStreamOptions) {
       return;
     }
 
-    await steerChat(ask("", "stop"));
-  }, [ask]);
+    // A stop that did not arrive leaves the run going, and the panel has to say
+    // so rather than showing a button that did nothing.
+    if (!(await steerChat(ask("", "stop")))) {
+      dispatch({
+        type: ChatActionType.Failed,
+        data: "failed" satisfies ChatError,
+      });
+    }
+  }, [ask, dispatch]);
 
   return { send, stop };
 }
