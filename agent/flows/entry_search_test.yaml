@@ -39,10 +39,14 @@ cases:
               results:
                 - id: aaaaaaaa-0000-4000-8000-000000000011
                   why: Se te fue la rodilla en las escaleras.
+                  quote: Bajando las escaleras se me fue la rodilla.
     expect:
       that:
         - body.results.size() == 1
         - body.results[0].why == "Se te fue la rodilla en las escaleras."
+        # Copied out of the day, not written about it: this is what the browser
+        # marks up, so it has to survive the rejoin verbatim.
+        - body.results[0].quote == "Bajando las escaleras se me fue la rodilla."
         # What the browser gets is what the drawer already knows how to open.
         - body.results[0].entry.title.startsWith("enc1:")
         - body.results[0].entry.content.startsWith("enc1:")

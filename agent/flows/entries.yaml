@@ -197,7 +197,10 @@ flows:
   # rank what it cannot read. It is lifted into a variable, used for the length
   # of the request the reader started, and kept nowhere. What leaves is the
   # entries still sealed — the browser opens those the way it opens any other —
-  # and one line of plaintext per hit saying why it is here.
+  # and, per hit, two lines of plaintext: one the model wrote saying why the day
+  # is here, and one copied out of the day itself saying where. Both are the
+  # same concession the disclaimer already names — searching means reading —
+  # and neither is written down.
   - name: entry-search
     source:
       connector: api
@@ -316,8 +319,19 @@ flows:
                   saying what in that day answers the question. Write it to
                   them, about their own day, and write it in the language named
                   by `answerIn` — that is the language they are reading in, and
-                  it is given to you rather than guessed at. Never invent an id,
-                  and never return one that was not given to you.
+                  it is given to you rather than guessed at.
+
+
+                  `quote` is the part of that day the answer rests on, copied
+                  out of it word for word: a sentence or two, in the words they
+                  wrote, in the language they wrote them in. Do not translate
+                  it, do not tidy it, and do not write one of your own — `why`
+                  is yours to write, `quote` is theirs. If nothing in the day
+                  can be quoted to that effect, keep the entry out.
+
+
+                  Never invent an id, and never return one that was not given to
+                  you.
                 outputSchema: |
                   {
                     "type": "object",
@@ -327,10 +341,11 @@ flows:
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "why"],
+                          "required": ["id", "why", "quote"],
                           "properties": {
                             "id": { "type": "string" },
-                            "why": { "type": "string" }
+                            "why": { "type": "string" },
+                            "quote": { "type": "string" }
                           }
                         }
                       }
@@ -339,6 +354,10 @@ flows:
             - type: set-variable
               name: hold-ranked
               settings: { name: ranked, value: body.results }
+            # The quote is asked for and not insisted on: a model that returns
+            # the day without the sentence still found the right day, and losing
+            # the excerpt is better than losing the search.
+            #
             # Rejoined to the rows as they are stored. An id the model invented
             # matches nothing and is dropped rather than answered with a hole,
             # which is also what makes the index below safe. An id it named
@@ -354,6 +373,7 @@ flows:
                     .map(i, vars.ranked[i])
                     .map(r, {
                       "why": r.why,
+                      "quote": has(r.quote) ? r.quote : "",
                       "entry": vars.found.filter(f, f.id == r.id).map(f, {
                         "id": f.id,
                         "thread_key": f.thread_key,
