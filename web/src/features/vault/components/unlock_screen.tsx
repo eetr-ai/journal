@@ -5,8 +5,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { SimpleProvider } from "@eetr/react-reducer-utils";
 import { FingerprintIcon } from "@phosphor-icons/react";
+import OfferPasskey from "./offer_passkey";
 import VaultError from "./vault_error";
 import VaultField from "./vault_field";
+import { passkeysAreAvailable } from "../passkey";
+import { declinePasskeyOffer, passkeyOfferDeclined } from "../offered";
 import { useVaultUnlock, type VaultIdentity } from "../use_vault_operations";
 import {
   VaultDispatchContext,
@@ -32,66 +35,122 @@ export interface UnlockScreenOptions {
   signOut: React.ReactNode;
 }
 
-function Body(options: UnlockScreenOptions) {
+interface UnlockFormOptions {
+  t: Dictionary;
+  identity: VaultIdentity;
+  password: string;
+  onPassword: (password: string) => void;
+  signOut: React.ReactNode;
+}
+
+function UnlockForm(options: UnlockFormOptions) {
   const { state } = useVault();
   const { byPassword, byPasskey } = useVaultUnlock(options.identity);
+  const t = options.t.vault;
+
+  return (
+    <div className="flex w-full max-w-sm flex-col gap-3">
+      <VaultField
+        autoComplete="current-password"
+        id="vault-gate"
+        label={t.password}
+        onChange={options.onPassword}
+        value={options.password}
+      />
+
+      <VaultError t={options.t} />
+
+      <div className="flex items-center gap-5">
+        <button
+          className="flex-1 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
+          disabled={state.busy}
+          onClick={() => void byPassword(options.password)}
+          type="button"
+        >
+          {state.busy ? t.unlocking : t.unlock}
+        </button>
+        {options.signOut}
+      </div>
+
+      {state.passkeys.length > 0 && (
+        <button
+          className="flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition hover:border-muted disabled:opacity-50"
+          disabled={state.busy}
+          onClick={() => void byPasskey()}
+          type="button"
+        >
+          <FingerprintIcon size={ICON_SIZE} weight="fill" />
+          {t.unlockWithPasskey}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Body(options: UnlockScreenOptions) {
+  const { state } = useVault();
   const [password, setPassword] = useState("");
   const router = useRouter();
   const t = options.t.vault;
+  const subject = options.identity.subject;
+
+  // A password unlock is a device that did not reach for a passkey, and the
+  // password is still in hand — the one moment worth asking that does not cost
+  // a second re-authentication.
+  //
+  // Derived rather than stored: nothing here is true until the vault is open,
+  // and it cannot be open on the server, so the two browser questions are never
+  // asked during a render that has to match one.
+  const offering =
+    state.status === "unlocked" &&
+    password !== "" &&
+    passkeysAreAvailable() &&
+    !passkeyOfferDeclined(subject);
 
   // The key and the marker the server reads are written together, so by the
   // time this fires the journal will render rather than bounce back here.
   useEffect(() => {
-    if (state.status === "unlocked") {
+    if (state.status === "unlocked" && !offering) {
       router.replace(`/${options.locale}`);
     }
-  }, [state.status, router, options.locale]);
+  }, [state.status, offering, router, options.locale]);
+
+  function go() {
+    router.replace(`/${options.locale}`);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-8 pb-16">
         <Image alt="" height={MASCOT_SIZE} priority src="/mascot.png" width={MASCOT_SIZE} />
 
-        <div className="text-center">
-          <h1 className="text-xl font-semibold">{t.unlockTitle}</h1>
-          <p className="mt-1 max-w-sm text-sm text-muted">{t.unlockPrompt}</p>
-        </div>
-
-        <div className="flex w-full max-w-sm flex-col gap-3">
-          <VaultField
-            autoComplete="current-password"
-            id="vault-gate"
-            label={t.password}
-            onChange={setPassword}
-            value={password}
+        {offering ? (
+          <OfferPasskey
+            identity={options.identity}
+            onEnrolled={go}
+            onSkipped={() => {
+              declinePasskeyOffer(subject);
+              go();
+            }}
+            password={password}
+            t={options.t}
           />
+        ) : (
+          <>
+            <div className="text-center">
+              <h1 className="text-xl font-semibold">{t.unlockTitle}</h1>
+              <p className="mt-1 max-w-sm text-sm text-muted">{t.unlockPrompt}</p>
+            </div>
 
-          <VaultError t={options.t} />
-
-          <div className="flex items-center gap-5">
-            <button
-              className="flex-1 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
-              disabled={state.busy}
-              onClick={() => void byPassword(password)}
-              type="button"
-            >
-              {state.busy ? t.unlocking : t.unlock}
-            </button>
-            {options.signOut}
-          </div>
-
-          {state.passkeys.length > 0 && (
-            <button
-              className="flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition hover:border-muted disabled:opacity-50"
-              disabled={state.busy}
-              onClick={() => void byPasskey()}
-              type="button"
-            >
-              <FingerprintIcon size={ICON_SIZE} weight="fill" />
-              {t.unlockWithPasskey}
-            </button>
-          )}
-        </div>
+            <UnlockForm
+              identity={options.identity}
+              onPassword={setPassword}
+              password={password}
+              signOut={options.signOut}
+              t={options.t}
+            />
+          </>
+        )}
       </main>
     </div>
   );
