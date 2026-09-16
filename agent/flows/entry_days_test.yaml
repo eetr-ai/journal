@@ -1,0 +1,36 @@
+# See entries_test.yaml. This suite owns the calendar's route.
+#
+# Days and nothing else leave here, so a case that saw a title would mean the
+# route had grown something it has no business carrying.
+flow: entry-days
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  # Five entries across four days: two of them share 2026-09-15 in the write
+  # suite's subject, not this one, so what this proves is the DISTINCT — a day
+  # appears once however much was written on it.
+  - name: the days with something on them come back, newest first
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-entries }
+    expect:
+      body:
+        days: ["2026-09-15", "2026-09-14", "2026-09-10", "2026-03-20", "2025-09-12"]
+
+  - name: another person's days are not in the list
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-entries-other }
+    expect:
+      body:
+        days: ["2026-09-15"]
+
+  - name: a person who has written nothing gets an empty calendar
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-vault-absent }
+    expect:
+      body:
+        days: []

@@ -1,4 +1,9 @@
-# See entries_test.yaml. This suite owns the route that reads one entry.
+# See entries_test.yaml. This suite owns the route that reads one entry, and
+# the one that throws it away.
+#
+# Cases in a suite are not ordered, so none of them may depend on another having
+# run: the delete below asserts on what the statement did, not on what a later
+# read would find.
 flow: entry
 
 env:
@@ -41,3 +46,29 @@ cases:
       vars: { httpStatus: 404 }
       body:
         error: entry not found
+
+  # `dolphin-entries-delete` owns a row of its own, put back by every run of the
+  # fixture, so this suite can really throw one away.
+  - name: an entry is thrown away, and its chunks go with it
+    input:
+      data: {}
+      vars:
+        method: DELETE
+        subject: dolphin-entries-delete
+        id: dddddddd-0000-4000-8000-000000000001
+    expect:
+      that:
+        - body.rowsAffected == 1
+
+  # The case that matters most: an id is not a capability. Nothing is removed,
+  # and the answer says so rather than failing.
+  - name: another person's entry is thrown away by nothing
+    input:
+      data: {}
+      vars:
+        method: DELETE
+        subject: dolphin-entries-delete
+        id: bbbbbbbb-0000-4000-8000-000000000001
+    expect:
+      that:
+        - body.rowsAffected == 0

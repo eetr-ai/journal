@@ -1,0 +1,122 @@
+# See entries_test.yaml. This suite owns the reader's search.
+#
+# Both model calls are mocked. What is worth proving here is the handling of a
+# person's words either side of the model — that the shortlist is opened before
+# it is handed over, that what comes back to the browser is still sealed, and
+# that an id the model made up cannot put a hole in the answer — not that a
+# provider answers.
+flow: entry-search
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+mocks:
+  # The first axis, which is where seed.sql puts the chunk fixtures.
+  entry-search.embed-question:
+    cases:
+      - when: "true"
+        body: {}
+        vars:
+          vector: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+cases:
+  # The whole shape of the thing, in one case: sealed in, opened for the model,
+  # sealed back out with one line of plaintext beside it.
+  - name: the shortlist is opened for the model and sealed again on the way back
+    input:
+      data:
+        query: what happened to the knee
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+      vars: { method: POST, subject: dolphin-entries-chunks }
+    mocks:
+      entry-search.anything-to-rank[else].rank-hits:
+        cases:
+          - when: "true"
+            body:
+              results:
+                - id: aaaaaaaa-0000-4000-8000-000000000011
+                  why: Se te fue la rodilla en las escaleras.
+    expect:
+      that:
+        - body.results.size() == 1
+        - body.results[0].why == "Se te fue la rodilla en las escaleras."
+        # What the browser gets is what the drawer already knows how to open.
+        - body.results[0].entry.title.startsWith("enc1:")
+        - body.results[0].entry.content.startsWith("enc1:")
+        - body.results[0].entry.id == "aaaaaaaa-0000-4000-8000-000000000011"
+    spies:
+      entry-search.anything-to-rank[else].rank-hits:
+        records:
+          - input:
+              that:
+                # Opened here, and only here. A model handed ciphertext would
+                # rank it by nothing at all.
+                - body.question == "what happened to the knee"
+                - body.entries[0].title == "A day in two halves"
+                - body.entries[0].text == "Then the knee went at the top of the stairs."
+                # The chunk that put the entry on the shortlist, not the whole
+                # day: DISTINCT ON is what keeps one long entry from filling it.
+                - body.entries.size() == 2
+
+  - name: an id the model invented is dropped rather than answered with a hole
+    input:
+      data:
+        query: what happened to the knee
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+      vars: { method: POST, subject: dolphin-entries-chunks }
+    mocks:
+      entry-search.anything-to-rank[else].rank-hits:
+        cases:
+          - when: "true"
+            body:
+              results:
+                - id: ffffffff-0000-4000-8000-00000000fake
+                  why: A day that was never written.
+                - id: aaaaaaaa-0000-4000-8000-000000000012
+                  why: Un dia tranquilo.
+    expect:
+      that:
+        - body.results.size() == 1
+        - body.results[0].entry.id == "aaaaaaaa-0000-4000-8000-000000000012"
+
+  # Nothing to rank is an ordinary answer, and no model call to pay for.
+  - name: a person with nothing written gets an empty answer and no model call
+    input:
+      data:
+        query: anything at all
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+      vars: { method: POST, subject: dolphin-vault-absent }
+    expect:
+      body:
+        results: []
+    spies:
+      entry-search.anything-to-rank[else].rank-hits:
+        count: 0
+
+  # The case that matters most. Somebody else's entry sits exactly on this
+  # question — closer than anything the searcher owns — so a statement that
+  # stopped scoping by subject would rank it first rather than miss it quietly.
+  - name: another person's entry is not on the shortlist, however well it matches
+    input:
+      data:
+        query: what happened to the knee
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+      vars: { method: POST, subject: dolphin-entries-chunks }
+    mocks:
+      entry-search.anything-to-rank[else].rank-hits:
+        cases:
+          - when: "true"
+            body:
+              results: []
+    expect:
+      body:
+        results: []
+    spies:
+      entry-search.anything-to-rank[else].rank-hits:
+        records:
+          - input:
+              that:
+                - body.entries.exists(e, e.id == "bbbbbbbb-0000-4000-8000-000000000001") == false
+                - body.entries.size() == 2
