@@ -4,21 +4,18 @@ import { useState } from "react";
 import {
   BookmarkSimpleIcon,
   CalendarBlankIcon,
-  MagnifyingGlassIcon,
   NotePencilIcon,
   NotebookIcon,
 } from "@phosphor-icons/react";
 import { EntriesActionType, useEntries } from "../entries_state";
 import { draftEntry } from "../types";
-import SearchProvider from "./search_provider";
-import EntrySearch from "./entry_search";
 import DayPicker from "./day_picker";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
 const ICON_SIZE = 16;
 
-type Panel = "none" | "search" | "days";
+type Panel = "none" | "days";
 
 export interface JournalBarOptions {
   t: Dictionary;
@@ -50,7 +47,7 @@ export default function JournalBar(options: JournalBarOptions) {
   }
 
   return (
-    <SearchProvider>
+    <>
       <header className="flex items-center gap-1 px-4 py-3">
         <span className="shrink-0 text-muted">
           <NotebookIcon size={ICON_SIZE} weight="fill" />
@@ -61,15 +58,6 @@ export default function JournalBar(options: JournalBarOptions) {
             it read as two different things. */}
         <Action label={options.t.entries.new} on={false} onPress={start}>
           <NotePencilIcon size={ICON_SIZE} />
-        </Action>
-        <Action
-          label={
-            panel === "search" ? options.t.entries.search.close : options.t.entries.search.open
-          }
-          on={panel === "search"}
-          onPress={() => toggle("search")}
-        >
-          <MagnifyingGlassIcon size={ICON_SIZE} />
         </Action>
         <Action
           label={panel === "days" ? options.t.entries.days.close : options.t.entries.days.open}
@@ -86,11 +74,8 @@ export default function JournalBar(options: JournalBarOptions) {
           <BookmarkSimpleIcon size={ICON_SIZE} weight={options.keptOnly ? "fill" : "regular"} />
         </Action>
       </header>
-      {panel === "search" && (
-        <EntrySearch locale={options.locale} subject={options.subject} t={options.t} />
-      )}
       {panel === "days" && <DayPicker locale={options.locale} t={options.t} />}
-    </SearchProvider>
+    </>
   );
 }
 

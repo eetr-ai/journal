@@ -38,6 +38,7 @@ export enum SearchActionType {
   Asked = "asked",
   Answered = "answered",
   Failed = "failed",
+  Cleared = "cleared",
 }
 
 export type SearchAction = ReducerAction<SearchActionType>;
@@ -66,6 +67,14 @@ const handlers: Record<
 
     return ask === state.asks ? { ...state, status: "answered", hits } : state;
   },
+
+  // Back to nothing asked: the answer goes with the question, so a later ask
+  // cannot be shown under a query nobody typed.
+  //
+  // The count is not reset with it. A search still in flight is answered under
+  // the number it was asked with, and starting again from zero would hand that
+  // number to the next question and let the older answer land on it.
+  [SearchActionType.Cleared]: (state) => ({ ...initialSearchState(), asks: state.asks }),
 
   [SearchActionType.Failed]: (state, action) => {
     const { ask } = action.data as { ask: number };
