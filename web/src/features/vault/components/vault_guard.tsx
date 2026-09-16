@@ -21,27 +21,33 @@ export interface VaultGuardOptions {
 export default function VaultGuard(options: VaultGuardOptions) {
   const router = useRouter();
 
-  const lock = useCallback(
-    async function lock() {
-      await forgetKey(options.subject);
-      router.replace(`/${options.locale}/unlock`);
-    },
-    [options.subject, options.locale, router],
+  const toUnlock = useCallback(
+    () => router.replace(`/${options.locale}/unlock`),
+    [options.locale, router],
   );
 
-  const onLocked = useCallback(() => void lock(), [lock]);
+  const onLocked = useCallback(
+    function onLocked() {
+      void forgetKey(options.subject).then(toUnlock);
+    },
+    [options.subject, toUnlock],
+  );
 
   useIdleLock(options.subject, onLocked);
 
+  // A failed recall has already thrown the record away and cleared the marker,
+  // so this only has somewhere to send the person. Forgetting again would be a
+  // second delete deciding the fate of whatever is there by then, which on a
+  // browser with two tabs open may be a key the other one has just stored.
   useEffect(() => {
     async function check() {
       if (!(await recallKey(options.subject))) {
-        await lock();
+        toUnlock();
       }
     }
 
     void check();
-  }, [options.subject, lock]);
+  }, [options.subject, toUnlock]);
 
   return null;
 }

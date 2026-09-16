@@ -56,22 +56,6 @@ function open(): Promise<IDBDatabase | null> {
   return settled(request);
 }
 
-async function read<T>(work: (store: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
-  try {
-    const database = await open();
-
-    if (!database) {
-      return null;
-    }
-
-    return await settled(work(database.transaction(STORE, "readonly").objectStore(STORE)));
-  } catch {
-    // Private windows and storage-blocking settings both land here. Losing the
-    // cached key means unlocking again, not losing anything.
-    return null;
-  }
-}
-
 /** Resolves on the transaction, not on the request: a request can succeed and
  *  the transaction still abort, which would leave nothing written down. */
 function committed(transaction: IDBTransaction): Promise<boolean> {
@@ -141,53 +125,65 @@ function live(value: VaultKeysEntity | null | undefined): value is VaultKeysEnti
   );
 }
 
-export async function recallKey(subject: string): Promise<VaultKeys | null> {
-  const value = await read<VaultKeysEntity>((store) => store.get(subject));
-
-  // The one place a key is handed out, which is why it is the one place the
-  // deadline is checked.
-  if (live(value)) {
-    return value;
-  }
-
-  await forgetKey(subject);
-
-  return null;
-}
-
 /**
- * Reads the key, checks it and renews it in a single transaction.
+ * Reads the record and settles it in the same transaction: a live one is kept,
+ * and its deadline pushed out if asked, while anything else is thrown away.
  *
- * Split across two, there is a gap in the middle: a lock landing in it would be
- * undone by the write that follows, and the key would come back with the marker
- * on it. IndexedDB serialises this against the delete instead.
+ * One transaction rather than a read and then a write, because either gap is a
+ * place another tab can act. A lock landing in it would be undone by the
+ * renewal that followed; a key stored in it would be deleted by a verdict
+ * reached before it existed. IndexedDB serialises this instead.
  */
-async function renew(subject: string): Promise<boolean> {
+async function settle(subject: string, renewing: boolean): Promise<VaultKeysEntity | null> {
   try {
     const database = await open();
 
     if (!database) {
-      return false;
+      return null;
     }
 
     const transaction = database.transaction(STORE, "readwrite");
     const store = transaction.objectStore(STORE);
     const request = store.get(subject);
-    let renewed = false;
+    const held: { value: VaultKeysEntity | null } = { value: null };
 
     request.addEventListener("success", () => {
       const value = request.result as VaultKeysEntity | undefined;
 
-      if (live(value)) {
+      if (!live(value)) {
+        store.delete(subject);
+
+        return;
+      }
+
+      held.value = value;
+
+      if (renewing) {
         store.put(entityFor(value), subject);
-        renewed = true;
       }
     });
 
-    return (await committed(transaction)) && renewed;
+    return (await committed(transaction)) ? held.value : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+// The one place a key is handed out, which is why it is the one place the
+// deadline is checked. Reading it is not activity: only what the person does
+// pushes the deadline, so a tab left open does not keep the vault awake.
+export async function recallKey(subject: string): Promise<VaultKeys | null> {
+  const value = await settle(subject, false);
+
+  if (!value) {
+    setMarker(false);
+  }
+
+  return value;
+}
+
+async function renew(subject: string): Promise<boolean> {
+  return Boolean(await settle(subject, true));
 }
 
 /**
