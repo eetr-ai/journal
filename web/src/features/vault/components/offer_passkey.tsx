@@ -14,7 +14,8 @@ export interface OfferPasskeyOptions {
   identity: VaultIdentity;
   /** Still in hand from the step before, so this does not ask for it again. */
   password: string;
-  onDone: () => void;
+  onEnrolled: () => void;
+  onSkipped: () => void;
 }
 
 /**
@@ -31,7 +32,7 @@ export default function OfferPasskey(options: OfferPasskeyOptions) {
 
   async function add() {
     if (await enroll(options.password, deviceLabel())) {
-      options.onDone();
+      options.onEnrolled();
     }
   }
 
@@ -58,7 +59,7 @@ export default function OfferPasskey(options: OfferPasskeyOptions) {
         <button
           className="text-sm text-muted hover:text-foreground"
           disabled={state.busy}
-          onClick={options.onDone}
+          onClick={options.onSkipped}
           type="button"
         >
           {t.notNow}
