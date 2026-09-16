@@ -5,8 +5,8 @@ import {
   BookmarkSimpleIcon,
   CalendarBlankIcon,
   MagnifyingGlassIcon,
+  NotePencilIcon,
   NotebookIcon,
-  PlusIcon,
 } from "@phosphor-icons/react";
 import { EntriesActionType, useEntries } from "../entries_state";
 import { draftEntry } from "../types";
@@ -56,8 +56,11 @@ export default function JournalBar(options: JournalBarOptions) {
           <NotebookIcon size={ICON_SIZE} weight="fill" />
         </span>
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{options.t.shell.entries}</h2>
+        {/* The same compose icon the conversations above use: starting an entry
+            and starting a chat are the same act on two lists, and two glyphs for
+            it read as two different things. */}
         <Action label={options.t.entries.new} on={false} onPress={start}>
-          <PlusIcon size={ICON_SIZE} />
+          <NotePencilIcon size={ICON_SIZE} />
         </Action>
         <Action
           label={

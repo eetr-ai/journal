@@ -149,6 +149,14 @@ const en = {
     journal: "The journal said",
     noConversations: "No conversations yet.",
     delete: "Forget this conversation",
+    deleteConfirm: {
+      title: "Forget this conversation?",
+      body: "The conversation goes for good. Anything it wrote into the journal stays — those are entries of their own. This cannot be undone.",
+      confirm: "Forget it",
+      cancel: "Keep it",
+    },
+    deleteFailed:
+      "This conversation could not be forgotten. It is still here — try again in a moment.",
     newChat: "New conversation",
     aborted: "You stopped this one. What is above is all of it.",
     retry: "Try again",
