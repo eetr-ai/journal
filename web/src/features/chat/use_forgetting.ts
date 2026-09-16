@@ -29,7 +29,12 @@ export function useForgetting(threadId: string, locale: Locale): Forgetting {
     setAsking(false);
     setFailed(false);
 
-    if (!(await forgetConversationAction(threadId))) {
+    // Caught rather than trusted to return: the action resolves the session
+    // before its own guard, so a signed-out tab rejects here instead of
+    // answering false, and a thrown one says nothing to anybody.
+    const gone = await forgetConversationAction(threadId).catch(() => false);
+
+    if (!gone) {
       setFailed(true);
 
       return;

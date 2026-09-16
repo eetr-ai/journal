@@ -38,7 +38,11 @@ export default function ChatBody(options: ChatBodyOptions) {
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-background md:min-w-64 lg:min-w-80">
-      <ChatHeader onForget={going.ask} started={state.turns.length > 0} t={options.t} />
+      <ChatHeader
+        onForget={going.ask}
+        started={state.turns.length > 0 || options.unavailable}
+        t={options.t}
+      />
 
       {going.failed && (
         <p className="border-b border-border px-5 py-2 text-xs text-accent">{t.deleteFailed}</p>
@@ -97,7 +101,10 @@ function Nothing(options: { t: Dictionary; unavailable: boolean }) {
 interface ChatHeaderOptions {
   t: Dictionary;
   /** Nothing stored yet has nothing to forget, and the agent has never been
-   *  told this id, so asking it to would only 404. */
+   *  told this id, so asking it to would only 404. A conversation whose turns
+   *  would not load is the other way round — it is there, it is just not
+   *  readable, and that is a reason to want it gone rather than to hide the
+   *  way out. */
   started: boolean;
   onForget: () => void;
 }
