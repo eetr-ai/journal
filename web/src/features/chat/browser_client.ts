@@ -18,20 +18,34 @@ export interface OpenParams {
   signal?: AbortSignal;
 }
 
-/** The answer stream, or null when the BFF refused. */
-export async function openChat(params: OpenParams): Promise<ReadableStream<Uint8Array> | null> {
+/**
+ * The answer stream, and the status that came with it.
+ *
+ * The status travels because the refusals are not all the same thing to a
+ * reader: one of them is "not yet" and the rest are "not at all", and a panel
+ * that cannot tell them apart has to guess which to say.
+ */
+export interface ChatResponse {
+  status: number;
+  body: ReadableStream<Uint8Array> | null;
+}
+
+export async function openChat(params: OpenParams): Promise<ChatResponse> {
   const response = await fetch(CHAT_ENDPOINT, {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    headers: {
+      "content-type": "application/json",
+      accept: "text/event-stream",
+    },
     body: JSON.stringify(params.ask),
     signal: params.signal,
   });
 
   if (!response.ok || !response.body) {
-    return null;
+    return { status: response.status, body: null };
   }
 
-  return response.body;
+  return { status: response.status, body: response.body };
 }
 
 /**
@@ -42,7 +56,7 @@ export async function openChat(params: OpenParams): Promise<ReadableStream<Uint8
  * is drained and dropped rather than read for frames.
  */
 export async function steerChat(ask: ChatAsk): Promise<boolean> {
-  const body = await openChat({ ask });
+  const { body } = await openChat({ ask });
 
   if (!body) {
     return false;

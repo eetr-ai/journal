@@ -1,0 +1,30 @@
+# See entries_test.yaml. This suite owns the tool that moves the reader's panel.
+#
+# No case supplies `sseStream`, which is the point of the guard around the
+# frame: a tool invoked with nobody reading still has to answer the model.
+flow: entry-open
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: opening an entry answers even when nobody is reading
+    input:
+      data: { id: aaaaaaaa-0000-4000-8000-000000000001 }
+      vars: { subject: dolphin-entries }
+    expect:
+      body:
+        opened: true
+        id: aaaaaaaa-0000-4000-8000-000000000001
+        date: "2026-09-15"
+    spies:
+      entry-open.check-found[else].tell-the-reader[then].open-frame:
+        count: 0
+
+  - name: another person's entry cannot be opened with its id alone
+    input:
+      data: { id: bbbbbbbb-0000-4000-8000-000000000001 }
+      vars: { subject: dolphin-entries }
+    expect:
+      body:
+        opened: false

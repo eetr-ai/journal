@@ -1,7 +1,6 @@
-import { ChatsCircleIcon, NotePencilIcon, NotebookIcon } from "@phosphor-icons/react/dist/ssr";
+import { ChatsCircleIcon, NotePencilIcon } from "@phosphor-icons/react/dist/ssr";
 import ConversationList from "@/features/chat/components/conversation_list";
-import DrawerSection from "./drawer_section";
-import { sampleContent } from "../mocks";
+import EntryList from "@/features/entries/components/entry_list";
 import type { Conversation } from "@/features/chat/types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -18,8 +17,6 @@ export interface LeftDrawerOptions {
 }
 
 export default function LeftDrawer(options: LeftDrawerOptions) {
-  const samples = sampleContent(options.locale);
-
   return (
     <aside className="flex w-64 shrink-0 flex-col divide-y divide-border border-r border-border bg-surface">
       <section className="flex min-h-0 flex-1 flex-col">
@@ -54,12 +51,7 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
           timezone={options.timezone}
         />
       </section>
-      <DrawerSection
-        icon={<NotebookIcon size={ICON_SIZE} weight="fill" />}
-        items={samples.entries}
-        mockedLabel={options.t.shell.mocked}
-        title={options.t.shell.entries}
-      />
+      <EntryList locale={options.locale} t={options.t} />
     </aside>
   );
 }

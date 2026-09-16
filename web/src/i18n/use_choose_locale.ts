@@ -30,4 +30,7 @@ export function useChooseLocale() {
   };
 }
 
-export const localeNames: Record<Locale, string> = { en: "English", es: "Español" };
+export const localeNames: Record<Locale, string> = {
+  en: "English",
+  es: "Español",
+};

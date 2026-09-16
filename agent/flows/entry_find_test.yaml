@@ -1,0 +1,83 @@
+# See entries_test.yaml. This suite owns the tool that finds entries.
+#
+# Where a case reads a title back in the clear, that is the seal being opened:
+# the fixtures are really sealed, under the throwaway key passed as `dataKey`.
+#
+# What is NOT proved here is the ORDER a meaning search returns. Ranking needs
+# vectors on the fixtures and a query vector to rank them against — a thousand
+# floats apiece, in a file a person has to read — and a case that mocked them
+# with something arbitrary would assert nothing about relevance. What the last
+# case does prove is that a query takes the meaning path at all; the ranking is
+# checked by hand against a real provider.
+flow: entry-find
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+cases:
+  - name: a day's entries come back, opened
+    input:
+      data: { date: "2026-09-15" }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        entries:
+          - id: aaaaaaaa-0000-4000-8000-000000000001
+            date: "2026-09-15"
+            title: A slow, good morning
+            content: Woke up before the alarm for once.
+
+  - name: a range selects the days inside it and nothing either side
+    input:
+      data: { from: "2026-09-10", to: "2026-09-14" }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.entries.size() == 2
+        - body.entries[0].title == "Ran the loop again"
+        - body.entries[1].title == "Rain, and nothing else"
+
+  - name: a day with nothing written is an empty answer
+    input:
+      data: { date: "2026-09-13" }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        entries: []
+
+  - name: the most recent are what comes back when no day is named
+    input:
+      data: { limit: 3 }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.entries.size() == 3
+        - body.entries[0].date == "2026-09-15"
+        - body.entries[2].date == "2026-09-10"
+
+  - name: another person's entries are not found
+    input:
+      data: { date: "2026-09-15" }
+      vars: { subject: dolphin-entries-other, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.entries.size() == 1
+        - body.entries[0].title == "Not yours to read"
+
+  # The embedding is mocked into failure, so what this proves is which way the
+  # flow went: the date list must not have run.
+  - name: a question goes to the meaning search rather than the date list
+    input:
+      data: { query: what was the morning like }
+      vars: { subject: dolphin-entries, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    mocks:
+      entry-find.by-meaning-or-by-day[then].embed-question:
+        default:
+          error: no embedding provider here
+    expect:
+      error: no embedding provider here
+    spies:
+      entry-find.by-meaning-or-by-day[else].list-entries:
+        count: 0

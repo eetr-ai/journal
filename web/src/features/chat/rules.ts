@@ -65,7 +65,13 @@ export function askFrom(value: unknown): ChatAsk | null {
   // A stop carries no message, and would be refused for being empty if it were
   // held to the same rule.
   if (value.intent === "stop") {
-    return { threadId: value.threadId, message: "", locale, key: value.key, intent: "stop" };
+    return {
+      threadId: value.threadId,
+      message: "",
+      locale,
+      key: value.key,
+      intent: "stop",
+    };
   }
 
   return messageProblem(value.message)

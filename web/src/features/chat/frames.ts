@@ -1,3 +1,4 @@
+import { entryFromEntity, type EntryEntity } from "@/features/entries/types";
 import type { AgentFrame } from "./types";
 import type { SseEvent } from "./sse";
 
@@ -48,6 +49,35 @@ function reasoningFrom(event: AgentEvent): AgentFrame | null {
   return typeof text === "string" && text !== "" ? { kind: "reasoning", text } : null;
 }
 
+// Every field the mapper reads, because it reads them as strings — and one that
+// is not is not a broken entry, it is an exception thrown out of the parser and
+// caught as a failed run. Dropping the frame is the contract this file keeps.
+const ENTRY_FIELDS = [
+  "id",
+  "thread_key",
+  "entry_date",
+  "title",
+  "content",
+  "created_at",
+  "updated_at",
+] as const;
+
+// A row, as the entry flows send it. Anything that is not a whole one is
+// dropped rather than rendered as half an entry.
+function entryFrame(kind: "entry" | "open", body: unknown): AgentFrame | null {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+
+  const row = body as Record<string, unknown>;
+
+  if (ENTRY_FIELDS.some((field) => typeof row[field] !== "string")) {
+    return null;
+  }
+
+  return { kind, entry: entryFromEntity(body as EntryEntity) };
+}
+
 export function frameFrom(event: SseEvent): AgentFrame | null {
   const body = parsed(event.data);
 
@@ -55,6 +85,12 @@ export function frameFrom(event: SseEvent): AgentFrame | null {
   // it arrives as a JSON string rather than an object.
   if (event.name === "answer") {
     return typeof body === "string" ? { kind: "answer", text: body } : null;
+  }
+
+  // Written by a tool straight onto the stream, rather than by the agent's own
+  // event path — so these are named frames and carry a row, not an event type.
+  if (event.name === "entry" || event.name === "open") {
+    return entryFrame(event.name, body);
   }
 
   if (typeof body !== "object" || body === null) {

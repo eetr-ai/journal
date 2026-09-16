@@ -84,7 +84,12 @@ export async function chatView(requested?: string): Promise<ChatView> {
   const list = await conversations();
 
   if (!requested) {
-    return { threadId: newThreadId(), turns: [], conversations: list, unavailable: false };
+    return {
+      threadId: newThreadId(),
+      turns: [],
+      conversations: list,
+      unavailable: false,
+    };
   }
 
   try {
@@ -92,8 +97,18 @@ export async function chatView(requested?: string): Promise<ChatView> {
 
     return turns
       ? { threadId: requested, turns, conversations: list, unavailable: false }
-      : { threadId: newThreadId(), turns: [], conversations: list, unavailable: false };
+      : {
+          threadId: newThreadId(),
+          turns: [],
+          conversations: list,
+          unavailable: false,
+        };
   } catch {
-    return { threadId: requested, turns: [], conversations: list, unavailable: true };
+    return {
+      threadId: requested,
+      turns: [],
+      conversations: list,
+      unavailable: true,
+    };
   }
 }

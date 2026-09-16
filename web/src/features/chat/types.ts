@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/config";
+import type { Entry } from "@/features/entries/types";
 
 /**
  * What a conversation is, on both sides of the agent boundary.
@@ -27,6 +28,24 @@ export interface ChatAsk {
   key: string;
   intent?: "say" | "stop";
 }
+
+/**
+ * When the run is happening, in the reader's terms.
+ *
+ * Added by the BFF rather than sent by the browser: it is what an entry is
+ * dated by, and a date a caller chose is a date they could choose wrongly.
+ */
+export interface Now {
+  /** YYYY-MM-DD in `timezone`. What an entry is filed under. */
+  date: string;
+  weekday: string;
+  /** HH:MM in `timezone`, 24-hour. */
+  time: string;
+  timezone: string;
+}
+
+/** What actually reaches the agent: the ask, plus what the browser cannot say. */
+export type AgentAsk = ChatAsk & { now: Now };
 
 /** Who said it. The agent's roles are the model's; ours are the reader's. */
 export type Speaker = "you" | "journal";
@@ -105,4 +124,9 @@ export type AgentFrame =
   | { kind: "reasoning"; text: string }
   | { kind: "tool"; done: boolean }
   | { kind: "answer"; text: string }
+  // The agent writing in the journal beside the conversation, and moving the
+  // reader to an entry. Both carry it sealed, the way a page does, so there is
+  // one kind of entry in the browser however it arrived.
+  | { kind: "entry"; entry: Entry }
+  | { kind: "open"; entry: Entry }
   | { kind: "done" };

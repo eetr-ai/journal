@@ -8,10 +8,15 @@
 # The subject comes from the path and never from the body, so a caller cannot
 # write into someone else's memory by asking nicely.
 #
-# What this flow stores is encrypted. No block here ever sees agent memory —
-# the runtime writes it on its own behalf — so the key travels instead: the BFF
-# puts it on the body, forwardContext lifts it onto every memory call, and the
-# platform sidecar is what seals with it. Nothing between them keeps a copy.
+# What this flow stores is encrypted, under a key that arrives with the request
+# and is kept by nobody.
+#
+# It reaches two places, because two things are written. No block here ever sees
+# agent memory — the runtime writes that on its own behalf — so for memory the
+# key travels: the BFF puts it on the body, forwardContext lifts it onto every
+# memory call, and the platform sidecar seals with it. Entries are ours to write,
+# so for those the key is lifted into a variable below and the entry flows seal
+# with it themselves.
 flows:
   - name: chat
     source:
@@ -36,6 +41,31 @@ flows:
           heartbeat: 15s
           maxDuration: 10m
     process:
+      # Lifted onto the message before the agent starts, because a tool cannot
+      # reach back for them: a tool's body is the model's arguments, and the
+      # request that carried these is gone by the time one runs. forwardContext
+      # is no help either — it is resolved for the runtime's own writes and is
+      # never a variable.
+      #
+      # The key is one of them. It lives in this message for the length of a
+      # request the person initiated, is never written down and is never logged,
+      # which is the same tolerance the sidecar already works under.
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: hold-thread
+        settings: { name: threadId, value: body.threadId }
+      # The reader's clock, not the server's. Every field of it is already in
+      # their zone; nothing here re-interprets it.
+      - type: set-variable
+        name: hold-now
+        settings: { name: now, value: 'has(body.now) ? body.now : {}' }
+      # Pulled out on its own because it is what an entry is filed under, and
+      # near midnight the server's day and theirs are different days.
+      - type: set-variable
+        name: hold-today
+        settings: { name: today, value: 'has(body.now) ? body.now.date : ""' }
       - type: ai-agent
         name: journal-chat
         connector: router
@@ -108,10 +138,81 @@ flows:
           conversation, so do not read it twice.
 
 
+          Call read_today as well, and trust it over any sense you have of
+          when it is. It carries the day of the week and the time of day where
+          they are, so never guess at either — telling somebody at breakfast
+          that the evening is getting on is the kind of small wrongness that
+          makes the rest of it hard to believe. It is also what an entry is
+          filed under, and what "last week" and "a year ago" are counted from.
+
+
+          Keep this conversation's note as you go. What surfaced — what
+          happened, how they are taking it, who the people in it are and how
+          things stand between them, what they are dreading and what they are
+          looking forward to — written with write_entry while you are still
+          talking rather than saved up for the end.
+
+
+          Wait until there is something to write. A greeting, a question about
+          the date, or somebody saying they feel like writing is not a day: open
+          the note when they tell you the first real thing, not before, or their
+          journal fills up with days that say nothing happened. And what goes in
+          it is what they said, never what a tool told you — that there is
+          nothing written for last week is not something that happened to them.
+
+
+          Write the note in their voice, in the first person, in their
+          language — "volví a escalar", never "volvió a escalar". It is their
+          journal: a journal that talks about them in the third person reads
+          like a file somebody is keeping on them, and nobody wants to open that
+          a year later.
+
+
+          And write it like a person writing, not like minutes of a meeting.
+          This is the place to be vivid — the detail they actually gave you, the
+          thing that made the day that day rather than any other. Lean on the
+          markdown here in a way an answer never should: a heading when the day
+          had parts to it, **bold** on the thing that carried the weight, a list
+          when several things happened, a quote for something worth keeping in
+          the words it was said in.
+
+
+          Give the day a face. An emoji in the title, and one or two in the body
+          where they actually carry something — a day is easier to find again a
+          year later when it looks like the day it was, and a wall of plain
+          paragraphs is not what anybody wants to reread. A row of them in one
+          line is noise; one that lands is worth more than three that decorate.
+          Title it with what the day was, in their words, not "Entrada del 15 de
+          septiembre". Long enough to be worth reading again, short enough that
+          they will. Read the note back before
+          you rewrite it and hand back the whole of it, so nothing already there
+          is lost. Title it with what the day was about.
+
+
+          Write it before you reply, not after: what you say last is what they
+          read, and an answer with note-keeping after it reads as an answer that
+          trailed off. Do not narrate any of it either — it is note-taking, and
+          being told about it every turn is worse than not having it at all.
+
+
+          Open a conversation by picking up what was left. Before your first
+          answer, look at the last few days with find_entries; if something was
+          unfinished — a thing they were dreading, a conversation they had not
+          had yet, something that was going to be decided — ask about that
+          instead of greeting them cold. One thing, not a list of them, and let
+          it go if they would rather talk about today.
+
+
+          Now and then, and nowhere near every time, bring back something from a
+          year ago with recall_entry and put it in front of them with
+          open_entry. It is worth doing when it rhymes with the day they are
+          having, and not worth doing otherwise.
+
+
           Use remember when they tell you something durable about themselves — a
           name, a relationship, what they are working towards — and never for the
-          content of a single day. Use search_memory before saying you do not
-          know something.
+          content of a single day, which belongs in that day's note instead. Use
+          search_memory before saying you do not know something.
 
 
           Two things are worth knowing about someone and are not worth an
@@ -173,6 +274,113 @@ flows:
                     - type: set-payload
                       settings:
                         value: '{"found": true, "name": body.name, "preferences": fromJson(body.config)}'
+
+          - name: read_today
+            description: >
+              The date, the day of the week and the time of day where this
+              person is — all of it already in their zone, so take it as given
+              rather than converting it. Read it before writing anything down,
+              before working out what "last week" or "a year ago" means, and
+              before saying anything about what time it is for them. Read it
+              once: it is the clock at the start of the conversation.
+            process:
+              - type: set-payload
+                name: today-result
+                settings:
+                  value: 'vars.now'
+
+          - name: write_entry
+            description: >
+              Write this conversation's note in the journal, or rewrite an older
+              entry named by id. The whole note every time: you are handed what
+              stands and you hand back what should stand instead, so it reads as
+              one piece of writing rather than a pile of additions. Called
+              without an id it keeps writing the same note for this
+              conversation, so there is no need to remember one.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "content": { "type": "string" },
+                  "id": { "type": "string" },
+                  "date": { "type": "string" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: write
+                settings: { flow: entry-write }
+
+          - name: find_entries
+            description: >
+              Look through what they have written. Name a date, or a from and a
+              to, to read a day or a stretch of days; ask a question instead to
+              find the entries that were about something, whenever they were
+              written. One or the other — a question ignores the dates.
+            inputSchema: |
+              {
+                "type": "object",
+                "properties": {
+                  "query": { "type": "string" },
+                  "date": { "type": "string" },
+                  "from": { "type": "string" },
+                  "to": { "type": "string" },
+                  "limit": { "type": "integer" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: find
+                settings: { flow: entry-find }
+
+          - name: read_entry
+            description: >
+              One entry in full, by id. Read the note before you rewrite it, so
+              what you hand back keeps what was already there.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string" } }
+              }
+            process:
+              - type: flow-ref
+                name: read
+                settings: { flow: entry-read }
+
+          - name: recall_entry
+            description: >
+              Something they wrote around this day some months ago — a year by
+              default. Which one it is is not yours to choose; that is what
+              makes it worth bringing up.
+            inputSchema: |
+              {
+                "type": "object",
+                "properties": { "months": { "type": "integer" } }
+              }
+            process:
+              - type: flow-ref
+                name: recall
+                settings: { flow: entry-recall }
+
+          - name: open_entry
+            description: >
+              Put an entry on the page beside this conversation, so they are
+              looking at what you are talking about. Use it when you bring an
+              old entry up, not for the note you are writing as you go — that
+              one appears on its own.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string" } }
+              }
+            process:
+              - type: flow-ref
+                name: open
+                settings: { flow: entry-open }
 
           - name: search_books
             description: >

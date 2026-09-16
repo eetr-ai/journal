@@ -76,8 +76,16 @@ const es: Dictionary = {
     transcripts: "Charlas recientes",
     entries: "Diario",
     todayTitle: "Hoy",
-    mocked: "Contenido de ejemplo",
     resizeToday: "Redimensionar la entrada de hoy",
+  },
+
+  entries: {
+    empty: "Todavía no hay nada escrito. Seguí hablando y esto se va llenando.",
+    opening: "Abriendo...",
+    unreadable: "Esto no se pudo abrir con tu clave.",
+    none: "Todavía no hay nada escrito.",
+    open: "Abrir esta entrada",
+    backToToday: "Volver a hoy",
   },
 
   chat: {
@@ -106,6 +114,7 @@ const es: Dictionary = {
       tooLong: "Eso es más largo de lo que puede ser un mensaje. Mandalo en dos.",
       locked: "Tu diario se bloqueó mientras escribías. Desbloqueálo y mandálo de nuevo.",
       unauthorized: "Cerraste sesión. Iniciá sesión y mandálo otra vez.",
+      notReady: "Todavía estamos viendo qué día es donde estás. Probá en un momento.",
       unreachable: "No se pudo llegar al diario, así que no se mandó nada.",
       failed: "Esa respuesta se cortó a la mitad. Lo de arriba es todo.",
     },
