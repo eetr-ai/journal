@@ -74,15 +74,23 @@ interface HitOptions {
 
 function Hit(options: HitOptions) {
   const { state } = useEntries();
+  const search = useSearch();
   const show = useShowEntry();
   const title = state.opened[options.hit.entry.id]?.title ?? options.t.entries.opening;
+
+  // Picking one is done asking. The entry comes up where this is, so leaving
+  // the list over it would hide the thing that was just asked for.
+  function open() {
+    search.dispatch({ type: SearchActionType.Cleared });
+    show(options.hit.entry);
+  }
 
   return (
     <li>
       <button
         aria-label={options.t.entries.open}
         className="w-full rounded-lg px-3 py-3 text-left hover:bg-surface-muted"
-        onClick={() => show(options.hit.entry)}
+        onClick={open}
         type="button"
       >
         <p className="truncate text-sm font-medium">{title}</p>

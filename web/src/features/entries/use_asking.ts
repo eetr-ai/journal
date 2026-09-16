@@ -33,7 +33,12 @@ export function useAsking(locale: Locale, subject: string) {
 
     dispatch({ type: SearchActionType.Asked, data: asked });
 
-    const outcome = await searchEntriesAction(asked, agentKey, locale);
+    // Caught rather than trusted to return: the action settles the session
+    // before its own guard, so a signed-out tab rejects here instead of
+    // answering, and the panel would sit reading forever.
+    const outcome = await searchEntriesAction(asked, agentKey, locale).catch(
+      () => ({ status: "failed" }) as const,
+    );
 
     if (outcome.status !== "found") {
       dispatch({ type: SearchActionType.Failed, data: { ask } });

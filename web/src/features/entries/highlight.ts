@@ -24,8 +24,12 @@ function fold(value: string): string {
 /** The words worth looking for: the short ones match everywhere and mean nothing. */
 const MIN_WORD = 3;
 
+// Letters and digits only. Splitting on spaces leaves the punctuation attached,
+// and `rodilla?` never finds `rodilla`.
+const WORD = /[\p{L}\p{N}]+/gu;
+
 function wordsOf(query: string): string[] {
-  return [...new Set(fold(query).split(/\s+/u))].filter((word) => word.length >= MIN_WORD);
+  return [...new Set(fold(query).match(WORD) ?? [])].filter((word) => word.length >= MIN_WORD);
 }
 
 function spansIn(folded: string, words: string[]): Array<[number, number]> {

@@ -326,8 +326,10 @@ flows:
                   out of it word for word: a sentence or two, in the words they
                   wrote, in the language they wrote them in. Do not translate
                   it, do not tidy it, and do not write one of your own — `why`
-                  is yours to write, `quote` is theirs. If nothing in the day
-                  can be quoted to that effect, keep the entry out.
+                  is yours to write, `quote` is theirs. If the day answers the
+                  question but no one sentence in it carries the answer, keep
+                  the day and leave `quote` out — dropping a day that belongs in
+                  the list is the worse mistake of the two.
 
 
                   Never invent an id, and never return one that was not given to
@@ -341,7 +343,7 @@ flows:
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "why", "quote"],
+                          "required": ["id", "why"],
                           "properties": {
                             "id": { "type": "string" },
                             "why": { "type": "string" },
