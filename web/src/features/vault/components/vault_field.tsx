@@ -16,7 +16,7 @@ export default function VaultField(options: VaultFieldOptions) {
       </label>
       <input
         autoComplete={options.autoComplete}
-        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+        className="rounded-lg border border-border bg-surface px-3 py-2 text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 md:text-sm"
         id={options.id}
         onChange={(event) => options.onChange(event.target.value)}
         type="password"
