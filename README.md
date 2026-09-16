@@ -107,6 +107,16 @@ reaches the database only through `task db:migrate`. Every statement in `sql/` i
 idempotent, so that task and the cluster's migration Job are both safe to re-run
 as often as you like.
 
+**pgvector is a prerequisite of the server, not part of the schema.** Creating an
+extension is superuser-only, and the role a migration connects as is not one, so
+nothing in `sql/` creates it — `deploy/local/postgres-extensions.sql` is what
+compose feeds a fresh local database, and a server somebody else owns gets the
+same statement by hand, once, before the first install:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
 ### Prerequisites
 
 - [go-task](https://taskfile.dev/installation/) — `brew install go-task`
@@ -158,7 +168,8 @@ The schema is applied by a `pre-install,pre-upgrade` hook Job — before the pod
 so new code never meets a schema it was written against. It runs the
 `journal-migrate` image, which is `sql/` on top of stock Postgres, and stops on
 the first error, so a failed migration fails the release instead of leaving a
-half-applied schema behind a green install.
+half-applied schema behind a green install. It assumes pgvector is already
+installed on the server — see above — because it cannot install it itself.
 
 ### Locally, on k3d
 

@@ -73,6 +73,7 @@ jobs:
 
       - name: Apply the schema and the fixtures
         run: |
+          psql -v ON_ERROR_STOP=1 -f deploy/local/postgres-extensions.sql
           for f in sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
           psql -v ON_ERROR_STOP=1 -f agent/testdata/seed.sql
         env:
@@ -141,7 +142,9 @@ jobs:
 
       - name: Apply the schema
         working-directory: .
-        run: for f in sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+        run: |
+          psql -v ON_ERROR_STOP=1 -f deploy/local/postgres-extensions.sql
+          for f in sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
         env:
           PGHOST: localhost
           PGUSER: journal
