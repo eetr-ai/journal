@@ -21,6 +21,12 @@ import type { SearchHit } from "./types";
 export interface SearchUiState {
   /** What is in the field, which is not what was asked until it is sent. */
   query: string;
+  /**
+   * How many times this panel has been asked something. An answer carries the
+   * number it was asked under, so one that overtook a later question is
+   * dropped rather than shown in its place.
+   */
+  asks: number;
   /** What was asked, so a result can say what it answered. */
   asked: string;
   status: "idle" | "searching" | "answered" | "failed";
@@ -37,7 +43,7 @@ export enum SearchActionType {
 export type SearchAction = ReducerAction<SearchActionType>;
 
 export function initialSearchState(): SearchUiState {
-  return { query: "", asked: "", status: "idle", hits: [] };
+  return { query: "", asks: 0, asked: "", status: "idle", hits: [] };
 }
 
 const handlers: Record<
@@ -51,16 +57,21 @@ const handlers: Record<
   [SearchActionType.Asked]: (state, action) => ({
     ...state,
     asked: action.data as string,
+    asks: state.asks + 1,
     status: "searching",
   }),
 
-  [SearchActionType.Answered]: (state, action) => ({
-    ...state,
-    status: "answered",
-    hits: action.data as SearchHit[],
-  }),
+  [SearchActionType.Answered]: (state, action) => {
+    const { ask, hits } = action.data as { ask: number; hits: SearchHit[] };
 
-  [SearchActionType.Failed]: (state) => ({ ...state, status: "failed", hits: [] }),
+    return ask === state.asks ? { ...state, status: "answered", hits } : state;
+  },
+
+  [SearchActionType.Failed]: (state, action) => {
+    const { ask } = action.data as { ask: number };
+
+    return ask === state.asks ? { ...state, status: "failed", hits: [] } : state;
+  },
 };
 
 export function searchReducer(state: SearchUiState, action: SearchAction): SearchUiState {

@@ -28,8 +28,10 @@ const REQUEST_TIMEOUT_MS = 5_000;
 const NOT_FOUND = 404;
 const ATTEMPTS = 2;
 // A search waits on a model reading the shortlist, which the five seconds every
-// other call gets would cut off mid-thought.
-const SEARCH_TIMEOUT_MS = 45_000;
+// other call gets would cut off mid-thought. Longer than the flow's own 60s
+// deadline, and deliberately: a client that gives up first turns a slow answer
+// into a failed one, and the reader is told the search broke when it did not.
+const SEARCH_TIMEOUT_MS = 70_000;
 // And it is not retried: a second attempt is a second model call, paid for, for
 // a question the reader can simply ask again.
 const SEARCH_ATTEMPTS = 1;

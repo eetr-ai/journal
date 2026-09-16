@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { EntriesActionType, useEntries } from "../entries_state";
 import { entriesOnDayAction } from "../actions";
@@ -27,16 +27,21 @@ export interface DayPickerOptions {
 export default function DayPicker(options: DayPickerOptions) {
   const { state, dispatch } = useEntries();
   const [month, setMonth] = useState(() => monthOf(state.today));
+  // The day last asked for. Two days picked quickly can come back in the other
+  // order, and the one the reader chose second is the one they want.
+  const wanted = useRef("");
   const t = options.t.entries.days;
   const written = new Set(state.days);
 
   // A day the drawer's capped list does not hold is fetched; one it holds is
   // shown without a round trip.
   async function pick(date: string) {
+    wanted.current = date;
+
     const held = state.entries.find((entry) => entry.date === date);
     const entry = held ?? (await entriesOnDayAction(date)).at(0);
 
-    if (entry) {
+    if (entry && wanted.current === date) {
       dispatch({ type: EntriesActionType.Shown, data: entry });
     }
   }

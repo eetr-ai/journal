@@ -43,13 +43,16 @@ export default function EntrySearch(options: EntrySearchOptions) {
     }
 
     const asked = state.query.trim();
+    // The number this answer belongs to. Two searches in flight finish in
+    // whatever order they finish in, and the older one must not land.
+    const ask = state.asks + 1;
 
     dispatch({ type: SearchActionType.Asked, data: asked });
 
     const outcome = await searchEntriesAction(asked, agentKey, options.locale);
 
     if (outcome.status !== "found") {
-      dispatch({ type: SearchActionType.Failed });
+      dispatch({ type: SearchActionType.Failed, data: { ask } });
 
       return;
     }
@@ -60,7 +63,7 @@ export default function EntrySearch(options: EntrySearchOptions) {
       entries.dispatch({ type: EntriesActionType.Arrived, data: hit.entry });
     }
 
-    dispatch({ type: SearchActionType.Answered, data: outcome.hits });
+    dispatch({ type: SearchActionType.Answered, data: { ask, hits: outcome.hits } });
   }
 
   return (
@@ -85,7 +88,15 @@ export default function EntrySearch(options: EntrySearchOptions) {
         </button>
       </form>
       {tooLong && <p className="text-xs text-accent">{t.tooLong}</p>}
-      <Answer hits={state.hits} locale={options.locale} status={state.status} t={options.t} />
+      {/* An answer outlives the entries it names: these are kept while the
+          panel is closed, and one thrown away in the meantime is no longer
+          something to offer. */}
+      <Answer
+        hits={state.hits.filter((hit) => !entries.state.discarded.includes(hit.entry.id))}
+        locale={options.locale}
+        status={state.status}
+        t={options.t}
+      />
     </div>
   );
 }

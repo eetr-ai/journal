@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { EntriesActionType, useEntries } from "./entries_state";
-import { deleteEntryAction } from "./actions";
+import { deleteEntryAction, writtenDaysAction } from "./actions";
 import type { Entry } from "./types";
 
 /**
@@ -32,9 +32,14 @@ export function useThrowAway(): ThrowAway {
     dispatch({ type: EntriesActionType.Removed, data: going });
 
     if ((await deleteEntryAction(going.id)) === "failed") {
-      dispatch({ type: EntriesActionType.Shown, data: going });
+      dispatch({ type: EntriesActionType.Restored, data: going });
       setFailed(true);
+
+      return;
     }
+
+    // Only the agent knows whether that was the last thing written on its day.
+    dispatch({ type: EntriesActionType.DaysArrived, data: await writtenDaysAction() });
   }
 
   return {

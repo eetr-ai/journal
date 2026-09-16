@@ -129,3 +129,57 @@ cases:
               that:
                 - body.entries.exists(e, e.id == "bbbbbbbb-0000-4000-8000-000000000001") == false
                 - body.entries.size() == 2
+
+  # The schema does not require the ranked ids to be distinct, and a day cannot
+  # be two results.
+  - name: an id the model named twice is answered once
+    input:
+      data:
+        query: what happened to my knee
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        locale: es
+      vars: { method: POST, subject: dolphin-entries-chunks }
+    mocks:
+      entry-search.anything-to-rank[else].rank-hits:
+        cases:
+          - when: "true"
+            body:
+              results:
+                - id: aaaaaaaa-0000-4000-8000-000000000011
+                  why: La primera vez.
+                - id: aaaaaaaa-0000-4000-8000-000000000012
+                  why: Otro dia.
+                - id: aaaaaaaa-0000-4000-8000-000000000011
+                  why: Y otra vez la misma.
+    expect:
+      that:
+        - body.results.size() == 2
+        # Kept where it was first put, not where it was repeated.
+        - body.results[0].entry.id == "aaaaaaaa-0000-4000-8000-000000000011"
+        - body.results[0].why == "La primera vez."
+        - body.results[1].entry.id == "aaaaaaaa-0000-4000-8000-000000000012"
+
+  # A caller that can reach the agent port is not always the BFF.
+  - name: a shortlist longer than the cap is cut down to it
+    input:
+      data:
+        query: what happened to my knee
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        locale: es
+        limit: 500
+      vars: { method: POST, subject: dolphin-entries-chunks }
+    mocks:
+      entry-search.anything-to-rank[else].rank-hits:
+        cases:
+          - when: "true"
+            body:
+              results: []
+    expect:
+      body:
+        results: []
+    spies:
+      entry-search.search-chunks:
+        records:
+          - input:
+              that:
+                - vars.shortlist == 20

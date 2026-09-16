@@ -18,27 +18,30 @@ export interface ConfirmDialogOptions {
  * the app, and giving it a URL would put "are you sure?" in someone's history
  * and let a reload re-ask a question about an entry that may already be gone.
  *
- * Focus lands on Cancel and goes back where it came from on the way out, so the
- * dangerous answer is never the one a stray Return key finds.
+ * Focus lands on Cancel and goes back where it came from on the way out.
  */
-function useConfirmFocus(onCancel: () => void) {
-  const ref = useRef<HTMLButtonElement>(null);
+/**
+ * Opened with showModal(), which is what makes it a modal rather than a
+ * rectangle that looks like one: the browser traps focus, makes the page behind
+ * inert, and turns Escape into a `cancel` event. Doing that by hand means
+ * reimplementing a focus trap, and a confirmation a keyboard can walk out of is
+ * a confirmation that can be answered by the thing behind it.
+ *
+ * The overlay cover elsewhere in the app cannot do this — it belongs to a route
+ * and the top layer would take the page's scroll position with it. This one
+ * belongs to a moment.
+ */
+function useModal(onCancel: () => void) {
+  const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
+    const dialog = ref.current;
     const previous = document.activeElement;
 
-    ref.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onCancel();
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
+    dialog?.showModal();
 
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      dialog?.close();
 
       // The page behind may have moved on while the question was up.
       if (previous instanceof HTMLElement && previous.isConnected) {
@@ -51,49 +54,48 @@ function useConfirmFocus(onCancel: () => void) {
 }
 
 export default function ConfirmDialog(options: ConfirmDialogOptions) {
-  const cancelRef = useConfirmFocus(options.onCancel);
+  const ref = useModal(options.onCancel);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-      {/* The backdrop cancels. Hidden from assistive tech and out of the tab
-          order, because the button below is the same answer with a real name. */}
-      <button
-        aria-hidden
-        className="absolute inset-0 cursor-default"
-        onClick={options.onCancel}
-        tabIndex={-1}
-        type="button"
-      />
-      <dialog
-        aria-labelledby="confirm-title"
-        aria-modal
-        className="relative m-0 w-full max-w-sm rounded-lg border border-border bg-background p-0 text-foreground shadow-2xl"
-        open
-      >
-        <div className="px-6 py-5">
-          <h2 className="text-base font-semibold" id="confirm-title">
-            {options.title}
-          </h2>
-          <p className="mt-2 text-sm text-muted">{options.body}</p>
-        </div>
-        <footer className="flex justify-end gap-2 border-t border-border px-6 py-4">
-          <button
-            className="rounded-md px-3 py-1.5 text-sm hover:bg-surface-muted"
-            onClick={options.onCancel}
-            ref={cancelRef}
-            type="button"
-          >
-            {options.cancelLabel}
-          </button>
-          <button
-            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:opacity-90"
-            onClick={options.onConfirm}
-            type="button"
-          >
-            {options.confirmLabel}
-          </button>
-        </footer>
-      </dialog>
-    </div>
+    <dialog
+      aria-labelledby="confirm-title"
+      className="m-auto w-full max-w-sm rounded-lg border border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/40"
+      // Escape arrives here, not as a keydown: the browser raises `cancel` and
+      // would otherwise close the dialog without telling the page that owns it.
+      onCancel={(event) => {
+        event.preventDefault();
+        options.onCancel();
+      }}
+      // No backdrop dismissal: a stray click beside a question about throwing
+      // somebody's day away should not answer it. Escape and Cancel are the two
+      // ways out, and both say the same thing.
+      ref={ref}
+    >
+      <div className="px-6 py-5">
+        <h2 className="text-base font-semibold" id="confirm-title">
+          {options.title}
+        </h2>
+        <p className="mt-2 text-sm text-muted">{options.body}</p>
+      </div>
+      <footer className="flex justify-end gap-2 border-t border-border px-6 py-4">
+        {/* First in the order the browser focuses, so the dangerous answer is
+            never the one a stray Return key finds. */}
+        <button
+          autoFocus
+          className="rounded-md px-3 py-1.5 text-sm hover:bg-surface-muted"
+          onClick={options.onCancel}
+          type="button"
+        >
+          {options.cancelLabel}
+        </button>
+        <button
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:opacity-90"
+          onClick={options.onConfirm}
+          type="button"
+        >
+          {options.confirmLabel}
+        </button>
+      </footer>
+    </dialog>
   );
 }
