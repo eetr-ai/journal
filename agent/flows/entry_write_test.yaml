@@ -130,7 +130,7 @@ cases:
       # The provider is down in this case, so the chunks that are already there
       # are the best ones there are. Emptying them would take the entry out of
       # search until somebody happened to write it again.
-      entry-write.check-written[else].chunks-to-write[then].clear-chunks:
+      entry-write.check-written[else].chunks-to-write[then].write-chunks:
         count: 0
 
   # Every other case in this file forces the embedding to fail, which leaves the
@@ -140,9 +140,14 @@ cases:
   # The wall of numbers is the price of that, so there is one paragraph here and
   # one wall. The column is vector(1024) and Postgres counts: a vector of the
   # wrong length, or one that did not serialize, fails the INSERT rather than
-  # being stored wrong. The INSERT is its own block, so `saved == true` can only
-  # be true if what was built went into a vector(1024) column and was accepted.
-  - name: the vectors that come back are stored beside the chunks, sealed
+  # being stored wrong, so `saved == true` can only be true if what was built
+  # went into a vector(1024) column and was accepted.
+  #
+  # The seeded entry this rewrites already has three chunks and this note has
+  # one, so the write is also the case for replacing a set that shrank: the
+  # statement upserts the one and trims the other two. A replace written as a
+  # delete followed by an insert fails here on the duplicate key instead.
+  - name: the vectors that come back are stored beside the chunks, and the tail is trimmed
     input:
       data:
         title: A vector came back

@@ -117,6 +117,10 @@ VALUES
   (UUID 'cccccccc-0000-4000-8000-000000000001', 'dolphin-entries-write', 'dolphin-write-once', DATE '2026-09-15',
    'enc1:AHFQqW1YtRXJVZr6z6Hv7WbxBcPPuje57RGd/82w1yYzcXPslF5FSFEE',
    'enc1:FG6N152Xxxow4lIe7AWooA0Akbvwr1zt79QH93E/8pBby7u+NsYrcNro/4rUpVflTg=='),
+  -- Three chunks already, so the suite's one embedded write has a tail to trim.
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 'dolphin-entries-write', 'dolphin-write-embedded', DATE '2026-09-15',
+   'enc1:O5/5ZaL3W736KRS0ZHGo9eHxjJtagXqu7V5wreWVfCYK+0oDN2I/z7uWNrFpB+5pycQ=',
+   'enc1:xrX0xYIu8pYasJIIX9Lu2+jMljbC4QxUe6h7aN7xPdwd+ey7gS7cMVC/8AXQJA=='),
   (UUID 'bbbbbbbb-0000-4000-8000-000000000001', 'dolphin-entries-other', 'dolphin-entry-x', DATE '2026-09-15',
    'enc1:t34nYLl8H7w3WVHbHcZcfldVPDUP8zVlXbEQC1CsNEWBFd3qVdzHdxkfI1jN',
    'enc1:3MNTiWhviwM9r193UiUAtDZ5eGVALs+hIasNC9leDv9lkYmd6diSCk4Fznvh5NJMxcwV');
@@ -175,4 +179,11 @@ VALUES
    dolphin_vector('{"6": 1}'), now()),
   (UUID 'aaaaaaaa-0000-4000-8000-000000000012', 0,
    'enc1:TWypegYrKhJglW3vNeC9VbhVrFaYsioHyCefkEe132mAeftBOjneTyi+',
-   dolphin_vector('{"0": 1, "1": 1.7320508}'), now());
+   dolphin_vector('{"0": 1, "1": 1.7320508}'), now()),
+  -- The tail the write suite trims back to one.
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 0,
+   'enc1:tqg4ceI2l2tAsEzOJwcyWx7Br6+CpEa3ZduhaYZ1plo=', dolphin_vector('{"2": 1}'), now()),
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 1,
+   'enc1:cfNwgcp0ly8m3SFy8UDbQnw+yXoVr3G1bSAw2z+393A=', dolphin_vector('{"3": 1}'), now()),
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 2,
+   'enc1:Rke+goCimSRn+f0YcCuSJ+Xphkmk7UyxX7QXChlnYKyYZw==', dolphin_vector('{"4": 1}'), now());
