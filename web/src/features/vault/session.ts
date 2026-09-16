@@ -126,30 +126,68 @@ export async function rememberKey(subject: string, keys: VaultKeys): Promise<boo
   return stored;
 }
 
+/**
+ * A record this version can still open with. A record written by an older
+ * version holds a bare CryptoKey, or no deadline: unusable rather than
+ * half-usable, because locking again is one password and a conversation sealed
+ * under nothing is forever.
+ */
+function live(value: VaultKeysEntity | null | undefined): value is VaultKeysEntity {
+  return (
+    value?.dataKey instanceof CryptoKey &&
+    typeof value.agentKey === "string" &&
+    typeof value.expiresAt === "number" &&
+    Date.now() < value.expiresAt
+  );
+}
+
 export async function recallKey(subject: string): Promise<VaultKeys | null> {
   const value = await read<VaultKeysEntity>((store) => store.get(subject));
 
-  // A record written by an older version of this file holds a bare CryptoKey,
-  // or no deadline. Unusable rather than half-usable: locking again is one
-  // password, and a conversation sealed under nothing is forever.
-  const usable =
-    value?.dataKey instanceof CryptoKey &&
-    typeof value.agentKey === "string" &&
-    typeof value.expiresAt === "number";
-
-  if (!usable) {
-    return null;
-  }
-
   // The one place a key is handed out, which is why it is the one place the
   // deadline is checked.
-  if (Date.now() >= value.expiresAt) {
-    await forgetKey(subject);
-
-    return null;
+  if (live(value)) {
+    return value;
   }
 
-  return value;
+  await forgetKey(subject);
+
+  return null;
+}
+
+/**
+ * Reads the key, checks it and renews it in a single transaction.
+ *
+ * Split across two, there is a gap in the middle: a lock landing in it would be
+ * undone by the write that follows, and the key would come back with the marker
+ * on it. IndexedDB serialises this against the delete instead.
+ */
+async function renew(subject: string): Promise<boolean> {
+  try {
+    const database = await open();
+
+    if (!database) {
+      return false;
+    }
+
+    const transaction = database.transaction(STORE, "readwrite");
+    const store = transaction.objectStore(STORE);
+    const request = store.get(subject);
+    let renewed = false;
+
+    request.addEventListener("success", () => {
+      const value = request.result as VaultKeysEntity | undefined;
+
+      if (live(value)) {
+        store.put(entityFor(value), subject);
+        renewed = true;
+      }
+    });
+
+    return (await committed(transaction)) && renewed;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -157,17 +195,13 @@ export async function recallKey(subject: string): Promise<VaultKeys | null> {
  * there was no key to push, which is the caller's cue that the vault is shut.
  */
 export async function touchKey(subject: string): Promise<boolean> {
-  const keys = await recallKey(subject);
+  const renewed = await renew(subject);
 
-  if (!keys) {
-    return false;
+  if (renewed) {
+    setMarker(true);
   }
 
-  const stored = await write((store) => store.put(entityFor(keys), subject));
-
-  setMarker(stored);
-
-  return stored;
+  return renewed;
 }
 
 // Locking clears the marker whether or not the delete went through: a browser
