@@ -179,6 +179,21 @@ body {
 }
 
 /*
+ * Where a screen is pinned to the viewport there is nothing behind it to
+ * scroll, so the document does not: on a phone that stray scroll is what
+ * rubber-bands the whole app and arms pull-to-refresh under a thumb that was
+ * only ever trying to move the conversation.
+ *
+ * Scoped by `:has` rather than set on the document outright, because the
+ * standalone screens are ordinary pages and some of them are taller than the
+ * phone they are read on.
+ */
+html:has(.viewport-pinned),
+body:has(.viewport-pinned) {
+  overflow: hidden;
+}
+
+/*
  * A control big enough to hit with a thumb. Only where the pointer is coarse:
  * on a mouse these are icon buttons sized to their icon, and growing them there
  * would space the toolbars out for no one.

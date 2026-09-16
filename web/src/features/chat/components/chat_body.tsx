@@ -37,7 +37,7 @@ export default function ChatBody(options: ChatBodyOptions) {
       </header>
 
       <div
-        className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-6"
+        className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 py-6"
         onScroll={onScroll}
         ref={region}
       >
