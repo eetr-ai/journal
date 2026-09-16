@@ -61,7 +61,9 @@ export default async function SignIn(options: SignInOptions) {
       <form
         action={async () => {
           "use server";
-          await signIn(PROVIDER_ID, { redirectTo: `/${locale}` });
+          // Not `/${locale}`: which language this person uses is on their
+          // profile, and the landing is what reads it.
+          await signIn(PROVIDER_ID, { redirectTo: "/api/signed-in" });
         }}
       >
         <button
