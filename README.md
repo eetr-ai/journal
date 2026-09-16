@@ -140,12 +140,14 @@ is a deliberate call for when the shape stops moving.
 The tag publishes these OCI artifacts to this repo's GitHub Container Registry:
 
 ```
-ghcr.io/eetr-ai/journal-web          # the web image (amd64 + arm64)
+ghcr.io/eetr-ai/journal-web          # the web image
 ghcr.io/eetr-ai/journal-agent        # the octo runtime with our flows in it
 ghcr.io/eetr-ai/journal-platform     # the platform sidecar that runs beside it
 ghcr.io/eetr-ai/journal-migrate      # the schema, and a psql to apply it
 oci://ghcr.io/eetr-ai/charts/journal # the Helm chart
 ```
+
+The images are `linux/amd64` only — that is what we deploy to.
 
 ## Deploying
 
