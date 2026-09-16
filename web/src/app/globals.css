@@ -163,6 +163,20 @@ body {
 }
 
 /*
+ * A screen that is exactly the part of the window you can see: the dynamic
+ * viewport, less whatever the on-screen keyboard is covering. `dvh` alone is
+ * the height with no keyboard up, which is the wrong one at the only moment it
+ * matters.
+ */
+@utility h-screen-visible {
+  height: calc(100dvh - var(--keyboard-inset, 0px));
+}
+
+@utility min-h-screen-visible {
+  min-height: calc(100dvh - var(--keyboard-inset, 0px));
+}
+
+/*
  * A control big enough to hit with a thumb. Only where the pointer is coarse:
  * on a mouse these are icon buttons sized to their icon, and growing them there
  * would space the toolbars out for no one.

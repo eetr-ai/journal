@@ -37,7 +37,7 @@ export default async function SignIn(options: SignInOptions) {
   const { error } = await options.searchParams;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
+    <main className="flex min-h-screen-visible flex-col items-center justify-center gap-8 p-8">
       <div className="absolute right-6 top-6">
         <LanguagePicker current={locale} label={t.language} />
       </div>
