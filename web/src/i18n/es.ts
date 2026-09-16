@@ -86,6 +86,35 @@ const es: Dictionary = {
     none: "Todavía no hay nada escrito.",
     open: "Abrir esta entrada",
     backToToday: "Volver a hoy",
+    delete: "Tirar esta entrada",
+    deleteConfirm: {
+      title: "\u00bfTirar esta entrada?",
+      body: "Este d\u00eda se va para siempre, y con \u00e9l todo lo que pod\u00eda encontrarlo. No se puede deshacer.",
+      confirm: "Tirarla",
+      cancel: "Conservarla",
+    },
+    deleteFailed:
+      "No se pudo tirar esta entrada. Sigue aqu\u00ed: prob\u00e1 de nuevo en un momento.",
+    search: {
+      open: "Buscar en el diario",
+      close: "Cerrar la b\u00fasqueda",
+      placeholder: "\u00bfQu\u00e9 est\u00e1s buscando?",
+      submit: "Buscar",
+      searching: "Releyendo tus d\u00edas...",
+      none: "Nada de lo que escribiste tiene que ver con eso.",
+      tooLong:
+        "Eso es m\u00e1s largo de lo que puede ser una b\u00fasqueda. Prob\u00e1 pedirlo en una frase.",
+      failed:
+        "No se pudo hacer la b\u00fasqueda. No se cambi\u00f3 nada: prob\u00e1 de nuevo en un momento.",
+    },
+    days: {
+      open: "Elegir un d\u00eda",
+      close: "Cerrar el calendario",
+      previous: "Mes anterior",
+      next: "Mes siguiente",
+      written: "Algo escrito",
+      nothing: "Nada escrito",
+    },
   },
 
   chat: {

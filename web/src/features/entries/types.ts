@@ -58,3 +58,34 @@ export function entryFromEntity(entity: EntryEntity): Entry {
     updatedAt: entity.updated_at,
   };
 }
+
+/**
+ * A search result: the entry exactly as stored, and the one line of plaintext
+ * that came back with it.
+ *
+ * The entry stays sealed so the browser opens it the way it opens any other.
+ * `why` is the exception, and a deliberate one — it is written by the model
+ * that read the shortlist, so it is the only part of a search that reaches the
+ * server in the clear and comes back that way.
+ */
+export interface SearchHit {
+  entry: Entry;
+  why: string;
+}
+
+export interface SearchHitEntity {
+  entry: EntryEntity;
+  why: string;
+}
+
+export interface SearchEntity {
+  results: SearchHitEntity[];
+}
+
+export interface DaysEntity {
+  days: string[];
+}
+
+export function hitFromEntity(entity: SearchHitEntity): SearchHit {
+  return { entry: entryFromEntity(entity.entry), why: entity.why };
+}

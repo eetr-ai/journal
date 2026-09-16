@@ -85,6 +85,33 @@ const en = {
     none: "Nothing written yet.",
     open: "Open this entry",
     backToToday: "Back to today",
+    delete: "Throw this entry away",
+    deleteConfirm: {
+      title: "Throw this entry away?",
+      body: "This day goes for good, and so does everything that could find it. This cannot be undone.",
+      confirm: "Throw it away",
+      cancel: "Keep it",
+    },
+    deleteFailed: "This entry could not be thrown away. It is still here — try again in a moment.",
+    search: {
+      open: "Search the journal",
+      close: "Close the search",
+      placeholder: "What are you looking for?",
+      submit: "Search",
+      // A model is reading the entries that came back, which takes a beat.
+      searching: "Reading back through your days...",
+      none: "Nothing you have written bears on that.",
+      tooLong: "That is longer than a search can be. Try asking it in a sentence.",
+      failed: "The search could not be run. Nothing was changed — try again in a moment.",
+    },
+    days: {
+      open: "Pick a day",
+      close: "Close the calendar",
+      previous: "Previous month",
+      next: "Next month",
+      written: "Something written",
+      nothing: "Nothing written",
+    },
   },
 
   chat: {

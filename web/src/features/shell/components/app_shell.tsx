@@ -45,6 +45,7 @@ export default function AppShell(options: AppShellOptions) {
         t={options.t}
       />
       <EntriesProvider
+        days={options.journal.days}
         entries={options.journal.entries}
         showing={options.journal.showing}
         today={options.journal.today}

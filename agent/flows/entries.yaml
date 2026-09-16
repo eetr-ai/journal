@@ -174,6 +174,14 @@ flows:
       - type: set-variable
         name: hold-question
         settings: { name: question, value: body.query }
+      # Lifted with the rest: by the time the shortlist is built the body is
+      # what the last statement returned, and the request that carried this is
+      # gone.
+      - type: set-variable
+        name: hold-locale
+        settings:
+          name: answerIn
+          value: 'has(body.locale) && body.locale != "" ? body.locale : "en"'
       - type: ai-embed
         name: embed-question
         settings:
@@ -182,7 +190,7 @@ flows:
           dimensions: 1024
           text: 'vars.question'
           resultVar: vector
-      # One row per entry, carrying the chunk that put it here. DISTINCT ON is
+      # One row per entry, ranked by the chunk that got it here. DISTINCT ON is
       # what keeps a long day from filling the shortlist with itself.
       - type: sql
         name: search-chunks
@@ -193,7 +201,6 @@ flows:
               SELECT DISTINCT ON (e.id)
                      e.id, e.thread_key, e.entry_date, e.title, e.content,
                      e.created_at, e.updated_at,
-                     c.content AS chunk,
                      (c.embedding <=> $2::vector) AS distance
               FROM journal_entry e
               JOIN journal_entry_chunk c ON c.entry_id = e.id
@@ -220,17 +227,26 @@ flows:
               settings: { value: '{"results": []}' }
         else:
           process:
+            # The whole day, not the paragraph that matched it.
+            #
+            # Chunks are how an entry is found; they are not how it is judged. A
+            # model shown one paragraph of a day answers about that paragraph —
+            # asked what happened to somebody's knee, and handed the morning run
+            # from the same entry, it will correctly say it does not know.
+            #
             # Opened here and nowhere else. This body is what the model is
             # handed; it is never stored and never logged.
             - type: set-payload
               name: open-the-shortlist
               settings:
                 value: >
-                  {"question": vars.question, "entries": vars.found.map(r, {
+                  {"question": vars.question,
+                   "answerIn": vars.answerIn,
+                   "entries": vars.found.map(r, {
                     "id": r.id,
                     "date": r.entry_date.substring(0, 10),
                     "title": r.title.startsWith("enc1:") ? string(fromAes(base64.decode(r.title.substring(5)), base64.decode(vars.dataKey))) : r.title,
-                    "text": r.chunk.startsWith("enc1:") ? string(fromAes(base64.decode(r.chunk.substring(5)), base64.decode(vars.dataKey))) : r.chunk
+                    "text": r.content.startsWith("enc1:") ? string(fromAes(base64.decode(r.content.substring(5)), base64.decode(vars.dataKey))) : r.content
                   })}
             - type: ai-mapping
               name: rank-hits
@@ -249,11 +265,12 @@ flows:
                   was asked.
 
 
-                  For each one you keep, `why` is a single short sentence, in
-                  the language the entry is written in, saying what in that day
-                  answers the question. Write it to them, about their own day.
-                  Never invent an id, and never return one that was not given to
-                  you.
+                  For each one you keep, `why` is a single short sentence
+                  saying what in that day answers the question. Write it to
+                  them, about their own day, and write it in the language named
+                  by `answerIn` — that is the language they are reading in, and
+                  it is given to you rather than guessed at. Never invent an id,
+                  and never return one that was not given to you.
                 outputSchema: |
                   {
                     "type": "object",

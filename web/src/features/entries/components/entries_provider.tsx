@@ -15,6 +15,8 @@ export interface EntriesProviderOptions {
   today: string;
   /** The entry the URL asked for, null for today's. */
   showing: string | null;
+  /** Every day with something on it, for the calendar. */
+  days: string[];
   children: React.ReactNode;
 }
 
@@ -29,7 +31,12 @@ export default function EntriesProvider(options: EntriesProviderOptions) {
   return (
     <SimpleProvider
       dispatchContext={EntriesDispatchContext}
-      initialState={initialEntriesState(options.entries, options.today, options.showing)}
+      initialState={initialEntriesState(
+        options.entries,
+        options.today,
+        options.showing,
+        options.days,
+      )}
       reducer={entriesReducer}
       stateContext={EntriesStateContext}
     >

@@ -41,6 +41,11 @@ const BYTES_PER_GROUP = 3;
 // middle, is what makes atob() throw rather than return something wrong.
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
+
+// The key the browser hands the agent, base64: AES-256 is 32 bytes, which is 43
+// characters and one pad. Checked wherever one is accepted, because an unusable
+// key is discovered mid-run having already half-written something.
+const AGENT_KEY = /^[A-Za-z0-9+/]{43}=$/u;
 const PADDING = /=+$/;
 
 function base64Bytes(value: string): number {
@@ -91,4 +96,9 @@ export function passkeyIsStorable(passkey: Omit<VaultPasskey, "createdAt">): boo
     isBase64Of(passkey.wrappedKey, WRAPPED_KEY_BYTES, WRAPPED_KEY_BYTES) &&
     passkey.label.length <= MAX_LABEL_CHARS
   );
+}
+
+/** The shape of the key that travels on a request body. Never its value. */
+export function isAgentKey(value: string): boolean {
+  return AGENT_KEY.test(value);
 }

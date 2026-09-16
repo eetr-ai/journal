@@ -29,6 +29,7 @@ cases:
       data:
         query: what happened to the knee
         key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        locale: es
       vars: { method: POST, subject: dolphin-entries-chunks }
     mocks:
       entry-search.anything-to-rank[else].rank-hits:
@@ -55,16 +56,22 @@ cases:
                 # rank it by nothing at all.
                 - body.question == "what happened to the knee"
                 - body.entries[0].title == "A day in two halves"
-                - body.entries[0].text == "Then the knee went at the top of the stairs."
-                # The chunk that put the entry on the shortlist, not the whole
-                # day: DISTINCT ON is what keeps one long entry from filling it.
+                # The whole day, not the paragraph that matched: a model shown
+                # one paragraph answers about that paragraph.
+                - body.entries[0].text.contains("Ran the loop again before work.")
+                - body.entries[0].text.contains("Then the knee went at the top of the stairs.")
+                # One row per entry, not one per chunk — DISTINCT ON is what
+                # keeps a three-part day from filling the shortlist itself.
                 - body.entries.size() == 2
+                # Named by the caller, never guessed from the entry.
+                - body.answerIn == "es"
 
   - name: an id the model invented is dropped rather than answered with a hole
     input:
       data:
         query: what happened to the knee
         key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        locale: es
       vars: { method: POST, subject: dolphin-entries-chunks }
     mocks:
       entry-search.anything-to-rank[else].rank-hits:
@@ -87,6 +94,7 @@ cases:
       data:
         query: anything at all
         key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        locale: es
       vars: { method: POST, subject: dolphin-vault-absent }
     expect:
       body:
@@ -103,6 +111,7 @@ cases:
       data:
         query: what happened to the knee
         key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        locale: es
       vars: { method: POST, subject: dolphin-entries-chunks }
     mocks:
       entry-search.anything-to-rank[else].rank-hits:
