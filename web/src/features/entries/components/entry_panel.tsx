@@ -62,7 +62,11 @@ export default function EntryPanel(options: EntryPanelOptions) {
         onWidth={today.onWidth}
         width={today.width}
       />
-      <aside className="flex min-h-0 flex-1 flex-col bg-surface">
+      {/* min-w-0 because this is a flex item with no width of its own: the
+          automatic minimum is the widest thing inside it, and a header that
+          cannot shrink would otherwise carry the whole panel past the box
+          holding it and off the side of a phone. */}
+      <aside className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-surface">
         <PanelHeader
           entry={entry}
           locale={options.locale}
