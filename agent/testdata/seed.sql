@@ -122,6 +122,11 @@ VALUES
   (UUID 'cccccccc-0000-4000-8000-000000000003', 'dolphin-entries-write', 'dolphin-write-embedded', DATE '2026-09-15',
    'enc1:O5/5ZaL3W736KRS0ZHGo9eHxjJtagXqu7V5wreWVfCYK+0oDN2I/z7uWNrFpB+5pycQ=',
    'enc1:xrX0xYIu8pYasJIIX9Lu2+jMljbC4QxUe6h7aN7xPdwd+ey7gS7cMVC/8AXQJA=='),
+  -- Started by the reader rather than by a conversation, so thread_key is
+  -- empty: the write suite addresses it the way the browser does, by id.
+  (UUID 'cccccccc-0000-4000-8000-000000000002', 'dolphin-entries-write', '', DATE '2026-09-15',
+   'enc1:6QATtVDq+9llXNOyUiumSSpGxYaPM+mmCV2gLtfPt1vYH3QLGJz0796NWFWZ8wogew==',
+   'enc1:nttfj/CLX4oyoqtjj1b29iNa6b5Aqf2bDXu0h6kaNVY8bDM46XmWCHreH+LoBOQLrRfIBX12pedqTa70'),
   (UUID 'bbbbbbbb-0000-4000-8000-000000000001', 'dolphin-entries-other', 'dolphin-entry-x', DATE '2026-09-15',
    'enc1:t34nYLl8H7w3WVHbHcZcfldVPDUP8zVlXbEQC1CsNEWBFd3qVdzHdxkfI1jN',
    'enc1:3MNTiWhviwM9r193UiUAtDZ5eGVALs+hIasNC9leDv9lkYmd6diSCk4Fznvh5NJMxcwV'),

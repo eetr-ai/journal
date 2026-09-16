@@ -87,6 +87,24 @@ export async function deleteEntry(id: string): Promise<RemoveOutcome> {
   }
 }
 
+/**
+ * Keep an entry, or let it go. The answer is the row as it now stands, so the
+ * browser holds what the agent holds rather than what it hoped for.
+ */
+export async function setBookmark(id: string, keep: boolean): Promise<Entry | null> {
+  const subject = (await auth())?.user?.subject;
+
+  if (!subject) {
+    return null;
+  }
+
+  try {
+    return await entriesClient.bookmark(subject, id, keep);
+  } catch {
+    return null;
+  }
+}
+
 export type SearchOutcome =
   | { status: "found"; hits: SearchHit[] }
   | { status: "invalid" }

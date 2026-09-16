@@ -20,6 +20,8 @@ export interface Entry {
   title: string;
   /** Sealed. */
   content: string;
+  /** Kept by hand. In the clear, like the day it was written on. */
+  bookmarked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +38,7 @@ export interface EntryEntity {
   entry_date: string;
   title: string;
   content: string;
+  bookmarked: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +57,7 @@ export function entryFromEntity(entity: EntryEntity): Entry {
     date: entity.entry_date.slice(0, DAY_CHARS),
     title: entity.title,
     content: entity.content,
+    bookmarked: entity.bookmarked,
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,
   };
@@ -88,4 +92,42 @@ export interface DaysEntity {
 
 export function hitFromEntity(entity: SearchHitEntity): SearchHit {
   return { entry: entryFromEntity(entity.entry), why: entity.why };
+}
+
+/**
+ * An entry the reader started, before anything has been written into it.
+ *
+ * The id is minted here rather than by the agent so the panel and the address
+ * bar have something to point at straight away, and so the first thing written
+ * lands in this entry rather than in a second one. Nothing is stored until the
+ * agent writes: a draft nobody says anything to leaves no row behind.
+ *
+ * `title` and `content` are empty rather than sealed, which is what the opening
+ * side reads as "nothing here yet".
+ */
+/**
+ * Whether this entry exists only in the browser.
+ *
+ * Both fields empty is the tell, and it is a safe one: a stored entry always
+ * carries sealed text, because nothing can be written without a title and a
+ * body. It matters for anything that addresses the row rather than the reader's
+ * copy of it — there is nothing on the other side to address yet.
+ */
+export function isDraft(entry: Entry): boolean {
+  return entry.title === "" && entry.content === "";
+}
+
+export function draftEntry(date: string): Entry {
+  const at = new Date().toISOString();
+
+  return {
+    id: crypto.randomUUID(),
+    threadId: "",
+    date,
+    title: "",
+    content: "",
+    bookmarked: false,
+    createdAt: at,
+    updatedAt: at,
+  };
 }

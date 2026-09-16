@@ -10,9 +10,11 @@ import type { ChatAsk } from "./types";
 
 export const MAX_MESSAGE_CHARS = 4_000;
 
-// A thread id is minted in the browser with crypto.randomUUID(), so the shape
-// is fixed and worth checking: it becomes a key in someone's memory.
-const THREAD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+// Minted in the browser with crypto.randomUUID(), so the shape is fixed and
+// worth checking: one of these becomes a key in someone's memory, and the other
+// becomes the primary key of a row in their journal.
+const MINTED_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
 export type MessageProblem = "empty" | "tooLong";
 
@@ -24,6 +26,24 @@ export function messageProblem(message: string): MessageProblem | null {
   }
 
   return trimmed.length > MAX_MESSAGE_CHARS ? "tooLong" : null;
+}
+
+/**
+ * The open entry, or nothing. Dropped rather than refused when it is malformed:
+ * a bad one means the note goes to the conversation's own entry, which is where
+ * it would have gone anyway, and refusing the whole message over it would lose
+ * what the person said.
+ */
+function workingIn(value: Record<string, unknown>): ChatAsk["working"] {
+  const working = value.working as { id?: unknown; date?: unknown } | undefined;
+
+  if (typeof working?.id !== "string" || typeof working.date !== "string") {
+    return undefined;
+  }
+
+  return MINTED_ID.test(working.id) && DAY.test(working.date)
+    ? { id: working.id, date: working.date }
+    : undefined;
 }
 
 function isAsk(value: unknown): value is ChatAsk {
@@ -52,7 +72,7 @@ export function askFrom(value: unknown): ChatAsk | null {
     return null;
   }
 
-  if (!THREAD_ID.test(value.threadId) || !isLocale(value.locale) || !isAgentKey(value.key)) {
+  if (!MINTED_ID.test(value.threadId) || !isLocale(value.locale) || !isAgentKey(value.key)) {
     return null;
   }
 
@@ -70,6 +90,8 @@ export function askFrom(value: unknown): ChatAsk | null {
     };
   }
 
+  const working = workingIn(value as unknown as Record<string, unknown>);
+
   return messageProblem(value.message)
     ? null
     : {
@@ -78,6 +100,7 @@ export function askFrom(value: unknown): ChatAsk | null {
         locale,
         key: value.key,
         intent: "say",
+        ...(working ? { working } : {}),
       };
 }
 

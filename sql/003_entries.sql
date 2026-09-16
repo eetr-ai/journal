@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS journal_entry (
   entry_date   date        NOT NULL,
   title        text        NOT NULL DEFAULT '',
   content      text        NOT NULL DEFAULT '',
+  -- Kept by hand. Not sealed, and deliberately: which days somebody went back
+  -- to is the same kind of fact as which days they wrote on, and 002 already
+  -- concedes that one.
+  bookmarked   boolean     NOT NULL DEFAULT false,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -41,3 +45,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS journal_entry_per_conversation
 -- The drawer's query, and every lookup by day or range.
 CREATE INDEX IF NOT EXISTS journal_entry_by_day
   ON journal_entry (oidc_subject, entry_date DESC, created_at DESC);
+
+-- Added rather than assumed: this file is re-applied over databases that were
+-- built before the column existed, and CREATE TABLE IF NOT EXISTS above is a
+-- no-op for them.
+ALTER TABLE journal_entry ADD COLUMN IF NOT EXISTS bookmarked boolean NOT NULL DEFAULT false;
+
+-- Partial, because the kept ones are a handful out of years of days and the
+-- index has no business carrying the rest.
+CREATE INDEX IF NOT EXISTS journal_entry_kept
+  ON journal_entry (oidc_subject, entry_date DESC) WHERE bookmarked;

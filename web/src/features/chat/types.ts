@@ -27,6 +27,17 @@ export interface ChatAsk {
   locale: Locale;
   key: string;
   intent?: "say" | "stop";
+  /**
+   * The entry the reader has open, when they opened one — so the agent writes
+   * where they are looking instead of into this conversation's own note.
+   *
+   * The id may name nothing yet: pressing New entry mints one in the browser,
+   * the way a thread id is minted, and the row appears the first time something
+   * is written into it. The date travels with it because a day started by hand
+   * has to be filed under the day they started it on; it decides nothing for an
+   * entry that already exists.
+   */
+  working?: { id: string; date: string };
 }
 
 /**

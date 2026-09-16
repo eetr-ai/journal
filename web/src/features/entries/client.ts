@@ -79,6 +79,23 @@ export const entriesClient = {
   },
 
   /**
+   * Keep an entry, or let it go. The method is the verb; there is no body,
+   * because a flag is not content and no key belongs on this call.
+   */
+  async bookmark(subject: string, id: string, keep: boolean): Promise<Entry | null> {
+    const path = `${entriesPath(subject)}/${encodeURIComponent(id)}/bookmark`;
+    const response = keep
+      ? await agent().put<EntryEntity>(path)
+      : await agent().delete<EntryEntity>(path);
+
+    if (response.status === NOT_FOUND) {
+      return null;
+    }
+
+    return entryFromEntity(response.getOrThrow());
+  },
+
+  /**
    * Throw one away. An id that named nothing of this person's is not an error:
    * asking twice for the same entry to be gone is the same request.
    */

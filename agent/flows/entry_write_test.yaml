@@ -41,7 +41,7 @@ cases:
         - body.id != ""
     # What reaches the statement is what is stored. The plaintext must not.
     spies:
-      entry-write.new-or-known[else].upsert-entry:
+      entry-write.new-or-known[2].upsert-entry:
         records:
           - input:
               that:
@@ -181,3 +181,79 @@ cases:
                 # The words are the person's, here as much as in the entry.
                 - fromJson(vars.chunkJson)[0].content.startsWith("enc1:")
                 - fromJson(vars.chunkJson)[0].ordinal == 0
+
+  # The reader pressed New entry, and their browser chose the id. Nothing with
+  # that id has ever been written, so this is an insert that looks exactly like
+  # the update below — which is the point of addressing it by key.
+  - name: an entry the reader started is written into, under the id their browser chose
+    input:
+      data:
+        title: An entry they started
+        content: Begun by hand, not by the agent.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-open-new
+        entryId: eeeeeeee-0000-4000-8000-000000000001
+        entryDate: "2026-01-20"
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.saved == true
+        - body.id == "eeeeeeee-0000-4000-8000-000000000001"
+        # Filed under the day they started it, not the day the server is having.
+        - body.date == "2026-01-20"
+
+  # The same id a second time. Without the ON CONFLICT this is a duplicate key
+  # and the case fails on the statement rather than on an assertion.
+  - name: writing again into the entry they have open updates it rather than adding one
+    input:
+      data:
+        title: An entry they started, and added to
+        content: Begun by hand, and carried on.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-open-again
+        entryId: cccccccc-0000-4000-8000-000000000002
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.saved == true
+        - body.id == "cccccccc-0000-4000-8000-000000000002"
+        # entry_date is never moved by a write, so it is still the seeded day.
+        - body.date == "2026-09-15"
+
+  # The case that pays for letting a browser choose a primary key. A reader who
+  # sent somebody else's id as the entry they have open writes nothing, and is
+  # told so exactly as if the id had named nothing at all.
+  - name: an id belonging to somebody else is not written into, open or not
+    input:
+      data:
+        title: Overwritten
+        content: Should not land.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-open-intruder
+        entryId: bbbbbbbb-0000-4000-8000-000000000001
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
+
+  # The conversation's own note is what a write still reaches when the reader is
+  # looking at today rather than at something they opened.
+  - name: with no entry open the note is still keyed on the conversation
+    input:
+      data:
+        title: Back to the running note
+        content: Nothing was open.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-once
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.id == "cccccccc-0000-4000-8000-000000000001"

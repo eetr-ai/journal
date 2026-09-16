@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from "react";
+
+import { BookmarkSimpleIcon } from "@phosphor-icons/react";
 import JournalBar from "./journal_bar";
 import { EntriesActionType, useEntries } from "../entries_state";
 import { shortDayIn } from "../days";
 import type { Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
+
+const ICON_SIZE = 12;
 
 export interface EntryListOptions {
   t: Dictionary;
@@ -23,20 +28,24 @@ export interface EntryListOptions {
  */
 export default function EntryList(options: EntryListOptions) {
   const { state, dispatch } = useEntries();
+  const [keptOnly, setKeptOnly] = useState(false);
   const showing = state.showing ?? state.entries.find((e) => e.date === state.today)?.id;
+  const shown = keptOnly ? state.entries.filter((entry) => entry.bookmarked) : state.entries;
 
-  if (state.entries.length === 0) {
+  if (shown.length === 0) {
     return (
-      <Section bar={options}>
-        <p className="px-2 py-2 text-xs text-muted">{options.t.entries.none}</p>
+      <Section bar={options} keptOnly={keptOnly} onFilter={setKeptOnly}>
+        <p className="px-2 py-2 text-xs text-muted">
+          {keptOnly ? options.t.entries.keptNone : options.t.entries.none}
+        </p>
       </Section>
     );
   }
 
   return (
-    <Section bar={options}>
+    <Section bar={options} keptOnly={keptOnly} onFilter={setKeptOnly}>
       <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-        {state.entries.map((entry) => (
+        {shown.map((entry) => (
           <li key={entry.id}>
             <Row
               current={entry.id === showing}
@@ -44,7 +53,11 @@ export default function EntryList(options: EntryListOptions) {
               label={options.t.entries.open}
               locale={options.locale}
               onShow={() => dispatch({ type: EntriesActionType.Shown, data: entry })}
-              title={state.opened[entry.id]?.title ?? options.t.entries.opening}
+              title={
+                // `||` not `??`: a draft opens to an empty title, which is a
+                // title nobody can read rather than one that has not arrived.
+                state.opened[entry.id]?.title || options.t.entries.untitled
+              }
             />
           </li>
         ))}
@@ -53,10 +66,23 @@ export default function EntryList(options: EntryListOptions) {
   );
 }
 
-function Section(options: { bar: EntryListOptions; children: React.ReactNode }) {
+interface SectionOptions {
+  bar: EntryListOptions;
+  keptOnly: boolean;
+  onFilter: (only: boolean) => void;
+  children: React.ReactNode;
+}
+
+function Section(options: SectionOptions) {
   return (
     <section className="flex min-h-0 flex-1 flex-col">
-      <JournalBar locale={options.bar.locale} subject={options.bar.subject} t={options.bar.t} />
+      <JournalBar
+        keptOnly={options.keptOnly}
+        locale={options.bar.locale}
+        onFilter={options.onFilter}
+        subject={options.bar.subject}
+        t={options.bar.t}
+      />
       {options.children}
     </section>
   );
@@ -82,7 +108,14 @@ function Row(options: RowOptions) {
       onClick={options.onShow}
       type="button"
     >
-      <p className="truncate text-sm">{options.title}</p>
+      <p className="flex items-center gap-1 truncate text-sm">
+        {options.entry.bookmarked && (
+          <span className="shrink-0 text-highlight">
+            <BookmarkSimpleIcon size={ICON_SIZE} weight="fill" />
+          </span>
+        )}
+        <span className="truncate">{options.title}</span>
+      </p>
       <p className="text-xs text-muted">{shortDayIn(options.entry.date, options.locale)}</p>
     </button>
   );

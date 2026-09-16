@@ -16,6 +16,7 @@
 #   vars.dataKey   the key this run seals under, base64, kept nowhere
 #   vars.threadId  the conversation, which is what a running note is keyed on
 #   vars.today     the reader's date, because the server's day is not theirs
+#   vars.entryId   the entry the reader has open, empty when they are on today's
 #
 # All four are lifted into vars by chat.yaml before the agent starts: a tool's
 # body is the model's arguments, so the request that carried them is gone by the
@@ -49,7 +50,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1
               AND ($2 = '' OR entry_date = $2::date)
@@ -86,7 +87,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+                    SELECT id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -119,6 +120,44 @@ flows:
                   args:
                     - vars.subject
                     - vars.id
+
+  # Keeping an entry, and letting it go again.
+  #
+  # PUT and DELETE rather than a body with a flag in it: the method is the verb,
+  # and there is nothing else about a bookmark to say. No key travels here — a
+  # flag is not content, and this route neither reads nor writes any.
+  - name: entry-bookmark
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/{id}/bookmark
+        methods: [PUT, DELETE]
+    process:
+      - type: sql
+        name: set-bookmark
+        settings:
+          connector: db
+          query: |
+            UPDATE journal_entry
+            SET bookmarked = $3, updated_at = now()
+            WHERE oidc_subject = $1 AND id = $2::uuid
+            RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+          args:
+            - vars.subject
+            - vars.id
+            - 'vars.method == "PUT"'
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-variable
+              settings: { name: httpStatus, value: "404" }
+            - type: set-payload
+              settings:
+                value: '{"error": "entry not found"}'
 
   # The days with something on them, for the calendar. Dates and nothing else:
   # they are already in the clear in every other query here, and a count would
@@ -208,7 +247,7 @@ flows:
             SELECT * FROM (
               SELECT DISTINCT ON (e.id)
                      e.id, e.thread_key, e.entry_date, e.title, e.content,
-                     e.created_at, e.updated_at,
+                     e.bookmarked, e.created_at, e.updated_at,
                      (c.embedding <=> $2::vector) AS distance
               FROM journal_entry e
               JOIN journal_entry_chunk c ON c.entry_id = e.id
@@ -321,6 +360,7 @@ flows:
                         "entry_date": f.entry_date,
                         "title": f.title,
                         "content": f.content,
+                        "bookmarked": f.bookmarked,
                         "created_at": f.created_at,
                         "updated_at": f.updated_at
                       }).first()
@@ -402,11 +442,11 @@ flows:
         settings:
           name: sealedContent
           value: '"enc1:" + base64.encode(toAes(body.content, base64.decode(vars.dataKey)))'
-      - type: if
+      - type: switch
         name: new-or-known
-        condition: 'has(body.id) && body.id != ""'
-        then:
-          process:
+        cases:
+          - when: 'has(body.id) && body.id != ""'
+            process:
             # An older entry, named. Scoped by subject as well as id, so holding
             # an id is not enough to write into somebody else's journal.
             - type: sql
@@ -419,15 +459,50 @@ flows:
                       content = $4,
                       updated_at = now()
                   WHERE oidc_subject = $1 AND id = $2::uuid
-                  RETURNING id, thread_key, entry_date, title, content, created_at, updated_at
+                  RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
                 args:
                   - vars.subject
                   - body.id
                   - vars.sealedTitle
                   - vars.sealedContent
                 single: true
-        else:
-          process:
+
+          # The entry the reader has open, which they may have started
+          # themselves a moment ago — the browser mints the id, so an entry that
+          # has never been written is addressed the same way as one that has.
+          - when: 'has(vars.entryId) && vars.entryId != ""'
+            process:
+            - type: sql
+              name: write-open-entry
+              settings:
+                connector: db
+                query: |
+                  INSERT INTO journal_entry
+                    (id, oidc_subject, thread_key, entry_date, title, content)
+                  VALUES
+                    ($2::uuid, $1, '', COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5)
+                  -- The whole argument for letting a browser choose a primary
+                  -- key. An id that collides with somebody else's row fails this
+                  -- condition, so the statement updates nothing and returns
+                  -- nothing, and the tool answers "saved: false" — the same
+                  -- answer an id that names nothing already gets. A colliding id
+                  -- is therefore worth no more than a wrong one.
+                  ON CONFLICT (id) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    content = EXCLUDED.content,
+                    updated_at = now()
+                  WHERE journal_entry.oidc_subject = $1
+                  RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+                args:
+                  - vars.subject
+                  - vars.entryId
+                  - 'has(vars.entryDate) && vars.entryDate != "" ? vars.entryDate : vars.today'
+                  - vars.sealedTitle
+                  - vars.sealedContent
+                single: true
+
+          - when: "true"
+            process:
             # One running note per conversation. The conflict target is the
             # partial unique index, which is what makes "keep writing the same
             # note" a guarantee rather than something the prompt has to get
@@ -451,7 +526,7 @@ flows:
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
                     updated_at = now()
-                  RETURNING id, thread_key, entry_date, title, content, created_at, updated_at
+                  RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
                 args:
                   - vars.subject
                   - vars.threadId
@@ -727,7 +802,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1 AND id = $2::uuid
           args:
