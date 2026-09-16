@@ -28,7 +28,7 @@ export default function TextField(options: TextFieldOptions) {
         aria-describedby={describedBy(id, options)}
         list={options.suggestions ? listId : undefined}
         aria-invalid={options.error ? true : undefined}
-        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 aria-[invalid]:border-accent"
+        className="rounded-lg border border-border bg-surface px-3 py-2 text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 md:text-sm aria-[invalid]:border-accent"
         id={id}
         onChange={(event) =>
           dispatch({
