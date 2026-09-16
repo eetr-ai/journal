@@ -38,6 +38,7 @@ export enum SearchActionType {
   Asked = "asked",
   Answered = "answered",
   Failed = "failed",
+  Cleared = "cleared",
 }
 
 export type SearchAction = ReducerAction<SearchActionType>;
@@ -66,6 +67,10 @@ const handlers: Record<
 
     return ask === state.asks ? { ...state, status: "answered", hits } : state;
   },
+
+  // Back to nothing asked: the answer goes with the question, so a later ask
+  // cannot be shown under a query nobody typed.
+  [SearchActionType.Cleared]: () => initialSearchState(),
 
   [SearchActionType.Failed]: (state, action) => {
     const { ask } = action.data as { ask: number };

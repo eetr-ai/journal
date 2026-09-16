@@ -1,6 +1,9 @@
 import ChatPanel from "@/features/chat/components/chat_panel";
 import LeftDrawer from "./left_drawer";
 import PanelSheet from "./panel_sheet";
+import SearchProvider from "@/features/entries/components/search_provider";
+import SearchDialog from "@/features/entries/components/search_dialog";
+import SearchResults from "@/features/entries/components/search_results";
 import EntryPanel from "@/features/entries/components/entry_panel";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -28,34 +31,40 @@ export interface ShellPanelsOptions {
  */
 export default function ShellPanels(options: ShellPanelsOptions) {
   return (
-    <div className="relative flex min-h-0 flex-1">
-      <PanelSheet label={options.t.shell.dismiss} variant="drawer">
-        <LeftDrawer
-          conversations={options.conversations}
-          current={options.threadId}
+    <SearchProvider>
+      <div className="relative flex min-h-0 flex-1">
+        <PanelSheet label={options.t.shell.dismiss} variant="drawer">
+          <LeftDrawer
+            conversations={options.conversations}
+            current={options.threadId}
+            locale={options.locale}
+            subject={options.subject}
+            t={options.t}
+            timezone={options.timezone}
+          />
+        </PanelSheet>
+
+        <ChatPanel
           locale={options.locale}
           subject={options.subject}
           t={options.t}
+          threadId={options.threadId}
           timezone={options.timezone}
+          turns={options.turns}
+          unavailable={options.unavailable}
         />
-      </PanelSheet>
 
-      <ChatPanel
-        locale={options.locale}
-        subject={options.subject}
-        t={options.t}
-        threadId={options.threadId}
-        timezone={options.timezone}
-        turns={options.turns}
-        unavailable={options.unavailable}
-      />
+        <EntryPanel
+          locale={options.locale}
+          subject={options.subject}
+          t={options.t}
+          width={options.todayWidth}
+        />
 
-      <EntryPanel
-        locale={options.locale}
-        subject={options.subject}
-        t={options.t}
-        width={options.todayWidth}
-      />
-    </div>
+        <SearchResults locale={options.locale} t={options.t} />
+      </div>
+
+      <SearchDialog locale={options.locale} subject={options.subject} t={options.t} />
+    </SearchProvider>
   );
 }

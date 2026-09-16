@@ -18,29 +18,42 @@ import { useContextNullSafe, type ReducerAction } from "@eetr/react-reducer-util
 export interface ShellUiState {
   drawer: boolean;
   entry: boolean;
+  /** The box you type a question into, over whatever you were reading. */
+  searching: boolean;
 }
 
 export enum ShellActionType {
   DrawerToggled = "drawerToggled",
   EntryToggled = "entryToggled",
   EntryRaised = "entryRaised",
+  SearchOpened = "searchOpened",
+  SearchClosed = "searchClosed",
   Dismissed = "dismissed",
 }
 
 export type ShellAction = ReducerAction<ShellActionType>;
 
 export function initialShellState(): ShellUiState {
-  return { drawer: false, entry: false };
+  return { drawer: false, entry: false, searching: false };
 }
 
 const handlers: Record<ShellActionType, (state: ShellUiState) => ShellUiState> = {
-  [ShellActionType.DrawerToggled]: (state) => ({ drawer: !state.drawer, entry: false }),
+  [ShellActionType.DrawerToggled]: (state) => ({
+    ...initialShellState(),
+    drawer: !state.drawer,
+  }),
 
-  [ShellActionType.EntryToggled]: (state) => ({ drawer: false, entry: !state.entry }),
+  [ShellActionType.EntryToggled]: (state) => ({ ...initialShellState(), entry: !state.entry }),
 
   // Opening an entry from the drawer: the panel that shows it has to come up,
   // and the list that was covering it has to go away.
-  [ShellActionType.EntryRaised]: () => ({ drawer: false, entry: true }),
+  [ShellActionType.EntryRaised]: () => ({ ...initialShellState(), entry: true }),
+
+  // Asking clears the covers as well. The answer lands behind this box, and a
+  // drawer still up would be sitting on top of it.
+  [ShellActionType.SearchOpened]: () => ({ ...initialShellState(), searching: true }),
+
+  [ShellActionType.SearchClosed]: (state) => ({ ...state, searching: false }),
 
   [ShellActionType.Dismissed]: () => initialShellState(),
 };
