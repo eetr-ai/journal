@@ -3,7 +3,8 @@
 services:
   postgres:
     # pgvector rather than stock Postgres, because the agent's memory is
-    # searched by meaning. The extension has to exist before 002 can create it.
+    # searched by meaning. The image ships the extension; something still has to
+    # create it, and that is not the schema's job.
     image: pgvector/pgvector:pg17
     container_name: journal-postgres
     environment:
@@ -20,6 +21,10 @@ services:
       # Postgres runs these on first boot only, against an empty data
       # directory. An existing volume ignores any later edit to them.
       - ./sql:/docker-entrypoint-initdb.d:ro
+      # Sorts ahead of 001, and lives outside sql/ because a migration must
+      # never run it: creating an extension needs a superuser, which the local
+      # bootstrap role is and a deployed one is not.
+      - ./deploy/local/postgres-extensions.sql:/docker-entrypoint-initdb.d/000_extensions.sql:ro
     # `--wait` blocks on this, so a caller can assume the first query lands.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U journal -d journal']

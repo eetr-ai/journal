@@ -12,7 +12,10 @@
 -- around it — who talked to the journal and when is not hidden, only what was
 -- said.
 
-CREATE EXTENSION IF NOT EXISTS vector;
+-- pgvector is a prerequisite of the database, not part of the schema:
+-- creating an extension is superuser-only, and the role a migration runs as
+-- is not one. It is installed once, by whoever owns the server, and the
+-- vector columns below fail loudly if it was not.
 
 -- octo's key/value store, and its secrets, which share the namespace.
 --
