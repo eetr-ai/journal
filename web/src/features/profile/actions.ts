@@ -1,14 +1,10 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { THEME_COOKIE } from "@/theme/config";
-import { LOCALE_COOKIE } from "@/i18n/config";
+import { mirrorProfile } from "./mirror";
 import { detectPreferences, saveProfile, updateConfig, type SaveOutcome } from "./service";
 import { clampTodayWidth } from "./types";
 import type { ProfileDraft } from "./rules";
-
-// One year in seconds.
-const COOKIE_MAX_AGE_SECONDS = 31_536_000;
 
 /**
  * Store a submitted profile and mirror the two settings the first paint needs
@@ -21,11 +17,7 @@ export async function saveProfileAction(draft: ProfileDraft): Promise<SaveOutcom
     return outcome;
   }
 
-  const jar = await cookies();
-  const options = { path: "/", maxAge: COOKIE_MAX_AGE_SECONDS, sameSite: "lax" as const };
-
-  jar.set(THEME_COOKIE, outcome.profile.config.theme, options);
-  jar.set(LOCALE_COOKIE, outcome.profile.config.language, options);
+  mirrorProfile(await cookies(), outcome.profile.config);
 
   return outcome;
 }
