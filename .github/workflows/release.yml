@@ -62,9 +62,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./web
-          # arm64 as well as amd64 because the home lab is a pile of Raspberry
-          # Pis, and an amd64-only image there is an ImagePullBackOff.
-          platforms: linux/amd64,linux/arm64
+          # amd64 only: that is what we deploy to.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -104,9 +103,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./agent
-          # The base runtime publishes both, and the home lab is a pile of
-          # Raspberry Pis.
-          platforms: linux/amd64,linux/arm64
+          # amd64 only: that is what we deploy to.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -146,8 +144,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./sql
-          # The home lab is a pile of Raspberry Pis.
-          platforms: linux/amd64,linux/arm64
+          # amd64 only: that is what we deploy to.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -188,8 +186,8 @@ jobs:
           # well as its own binary.
           context: .
           file: platform/Dockerfile
-          # The home lab is a pile of Raspberry Pis.
-          platforms: linux/amd64,linux/arm64
+          # amd64 only: that is what we deploy to.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
