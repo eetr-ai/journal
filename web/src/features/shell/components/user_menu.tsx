@@ -23,11 +23,20 @@ export interface UserMenuOptions {
   signOutAction: () => Promise<void>;
 }
 
-/** Closes the menu on a click anywhere outside it, and on Escape. */
-function useDismiss(onDismiss: () => void) {
+/**
+ * Closes the menu on a click anywhere outside it, and on Escape.
+ *
+ * Only while it is open: a closed menu that listens still answers every
+ * pointerdown on the page with a state update that changes nothing.
+ */
+function useDismiss(open: boolean, onDismiss: () => void) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!open) {
+      return;
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (!ref.current?.contains(event.target as Node)) {
         onDismiss();
@@ -47,7 +56,7 @@ function useDismiss(onDismiss: () => void) {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [onDismiss]);
+  }, [open, onDismiss]);
 
   return ref;
 }
@@ -101,7 +110,7 @@ function MenuBody(options: UserMenuOptions) {
 
 export default function UserMenu(options: UserMenuOptions) {
   const [open, setOpen] = useState(false);
-  const ref = useDismiss(() => setOpen(false));
+  const ref = useDismiss(open, () => setOpen(false));
 
   return (
     <div className="relative" ref={ref}>
