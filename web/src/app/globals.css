@@ -163,17 +163,19 @@ body {
 }
 
 /*
- * A screen that is exactly the part of the window you can see: the dynamic
- * viewport, less whatever the on-screen keyboard is covering. `dvh` alone is
- * the height with no keyboard up, which is the wrong one at the only moment it
- * matters.
+ * A screen laid over exactly the part of the window you can see.
+ *
+ * Fixed rather than tall: the panels do not scroll, so there is nothing for a
+ * browser to scroll to bring a covered composer back, and the screen has to
+ * move itself. The two values come from the visual viewport, and the fallbacks
+ * are what this was before anything measured it.
  */
-@utility h-screen-visible {
-  height: calc(100dvh - var(--keyboard-inset, 0px));
-}
-
-@utility min-h-screen-visible {
-  min-height: calc(100dvh - var(--keyboard-inset, 0px));
+@utility viewport-pinned {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--visible-top, 0px);
+  height: var(--visible-height, 100dvh);
 }
 
 /*

@@ -26,7 +26,7 @@ export default async function AuthError(options: AuthErrorOptions) {
   const code = toAuthErrorCode((await options.searchParams).error);
 
   return (
-    <main className="flex min-h-screen-visible flex-col items-center justify-center gap-5 p-8">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-5 p-8">
       <AuthErrorNotice code={code} t={t} />
 
       {isRetryable(code) ? (

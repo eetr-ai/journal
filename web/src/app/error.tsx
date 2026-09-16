@@ -20,7 +20,7 @@ export default function ErrorPage(options: ErrorPageOptions) {
   const t = dictionary(isLocale(segment) ? segment : defaultLocale);
 
   return (
-    <main className="flex min-h-screen-visible flex-col items-center justify-center gap-4 p-8 text-center">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-8 text-center">
       <span className="text-accent">
         <WarningCircleIcon size={ICON_SIZE} weight="fill" />
       </span>
