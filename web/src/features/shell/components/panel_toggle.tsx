@@ -1,6 +1,6 @@
 "use client";
 
-import { ListIcon, NotebookIcon } from "@phosphor-icons/react";
+import { ChatCircleIcon, ListIcon, NotebookIcon, XIcon } from "@phosphor-icons/react";
 import { ShellActionType, useShell } from "../shell_state";
 import type { SheetVariant } from "./panel_sheet";
 import type { Dictionary } from "@/i18n/en";
@@ -9,15 +9,20 @@ const ICON_SIZE = 20;
 
 // Each toggle hides itself at the size its panel stops being a cover and
 // becomes a column — the same two breakpoints the sheet table docks at.
+//
+// Two icons apiece: what this opens, and what it goes back to. A control whose
+// face never changes is one that says what it is rather than what it does, and
+// on a phone where the panel it opened is covering everything, what it does is
+// the only useful half.
 const PANELS = {
   drawer: {
-    icon: ListIcon,
+    icons: [ListIcon, XIcon],
     action: ShellActionType.DrawerToggled,
     hide: "lg:hidden",
     labels: (t: Dictionary) => [t.shell.openDrawer, t.shell.closeDrawer],
   },
   entry: {
-    icon: NotebookIcon,
+    icons: [NotebookIcon, ChatCircleIcon],
     action: ShellActionType.EntryToggled,
     hide: "md:hidden",
     labels: (t: Dictionary) => [t.shell.openToday, t.shell.closeToday],
@@ -34,7 +39,8 @@ export default function PanelToggle(options: PanelToggleOptions) {
   const panel = PANELS[options.panel];
   const open = state[options.panel];
   const [show, hide] = panel.labels(options.t);
-  const Icon = panel.icon;
+  const [Closed, Open] = panel.icons;
+  const Icon = open ? Open : Closed;
 
   return (
     <button
