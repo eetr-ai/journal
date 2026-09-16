@@ -77,7 +77,7 @@ interface SectionOptions {
 
 function Section(options: SectionOptions) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
       <JournalBar
         keptOnly={options.keptOnly}
         locale={options.bar.locale}

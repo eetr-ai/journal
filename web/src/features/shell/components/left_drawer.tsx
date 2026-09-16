@@ -17,9 +17,12 @@ export interface LeftDrawerOptions {
 }
 
 export default function LeftDrawer(options: LeftDrawerOptions) {
+  // min-w-0 because this is a flex item with no width of its own: the automatic
+  // minimum is the widest thing inside it, and one long title would otherwise
+  // push the panel past the box holding it and paint over the conversation.
   return (
-    <aside className="flex min-h-0 flex-1 flex-col divide-y divide-border border-r border-border bg-surface">
-      <section className="flex min-h-0 flex-1 flex-col">
+    <aside className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-border border-r border-border bg-surface">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-2 px-4 py-3">
           <span className="shrink-0 text-muted">
             <ChatsCircleIcon size={ICON_SIZE} weight="fill" />
