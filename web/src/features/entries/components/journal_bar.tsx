@@ -4,13 +4,10 @@ import { useState } from "react";
 import {
   BookmarkSimpleIcon,
   CalendarBlankIcon,
-  MagnifyingGlassIcon,
   NotePencilIcon,
   NotebookIcon,
 } from "@phosphor-icons/react";
 import { EntriesActionType, useEntries } from "../entries_state";
-import { ShellActionType, useShell } from "@/features/shell/shell_state";
-import { useSearch } from "../search_state";
 import { draftEntry } from "../types";
 import DayPicker from "./day_picker";
 import type { Dictionary } from "@/i18n/en";
@@ -36,8 +33,6 @@ export interface JournalBarOptions {
  */
 export default function JournalBar(options: JournalBarOptions) {
   const { state, dispatch } = useEntries();
-  const shell = useShell();
-  const search = useSearch();
   const [panel, setPanel] = useState<Panel>("none");
 
   function toggle(wanted: Panel) {
@@ -63,13 +58,6 @@ export default function JournalBar(options: JournalBarOptions) {
             it read as two different things. */}
         <Action label={options.t.entries.new} on={false} onPress={start}>
           <NotePencilIcon size={ICON_SIZE} />
-        </Action>
-        <Action
-          label={options.t.entries.search.open}
-          on={search.state.status !== "idle"}
-          onPress={() => shell.dispatch({ type: ShellActionType.SearchOpened })}
-        >
-          <MagnifyingGlassIcon size={ICON_SIZE} />
         </Action>
         <Action
           label={panel === "days" ? options.t.entries.days.close : options.t.entries.days.open}

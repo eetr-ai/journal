@@ -5,6 +5,7 @@ import ShellHeader from "./shell_header";
 import ShellPanels from "./shell_panels";
 import ShellProvider from "./shell_provider";
 import EntriesProvider from "@/features/entries/components/entries_provider";
+import SearchProvider from "@/features/entries/components/search_provider";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 import { needsDetection, type Profile } from "@/features/profile/types";
@@ -40,31 +41,33 @@ export default function AppShell(options: AppShellOptions) {
         <VisibleViewport />
         <DetectPreferences needed={needsDetection(options.profile.config)} />
         <VaultGuard locale={options.locale} subject={options.profile.subject} />
-        <ShellHeader
-          email={options.profile.email}
-          hasImage={options.hasImage}
-          locale={options.locale}
-          name={options.profile.name}
-          t={options.t}
-        />
-        <EntriesProvider
-          days={options.journal.days}
-          entries={options.journal.entries}
-          showing={options.journal.showing}
-          today={options.journal.today}
-        >
-          <ShellPanels
-            conversations={options.conversations}
+        <SearchProvider>
+          <ShellHeader
+            email={options.profile.email}
+            hasImage={options.hasImage}
             locale={options.locale}
-            subject={options.profile.subject}
+            name={options.profile.name}
             t={options.t}
-            threadId={options.threadId}
-            timezone={options.profile.config.timezone}
-            todayWidth={options.profile.config.todayWidth}
-            turns={options.turns}
-            unavailable={options.unavailable}
           />
-        </EntriesProvider>
+          <EntriesProvider
+            days={options.journal.days}
+            entries={options.journal.entries}
+            showing={options.journal.showing}
+            today={options.journal.today}
+          >
+            <ShellPanels
+              conversations={options.conversations}
+              locale={options.locale}
+              subject={options.profile.subject}
+              t={options.t}
+              threadId={options.threadId}
+              timezone={options.profile.config.timezone}
+              todayWidth={options.profile.config.todayWidth}
+              turns={options.turns}
+              unavailable={options.unavailable}
+            />
+          </EntriesProvider>
+        </SearchProvider>
       </div>
     </ShellProvider>
   );

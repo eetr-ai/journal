@@ -1,7 +1,6 @@
 import ChatPanel from "@/features/chat/components/chat_panel";
 import LeftDrawer from "./left_drawer";
 import PanelSheet from "./panel_sheet";
-import SearchProvider from "@/features/entries/components/search_provider";
 import SearchDialog from "@/features/entries/components/search_dialog";
 import SearchResults from "@/features/entries/components/search_results";
 import EntryPanel from "@/features/entries/components/entry_panel";
@@ -31,7 +30,7 @@ export interface ShellPanelsOptions {
  */
 export default function ShellPanels(options: ShellPanelsOptions) {
   return (
-    <SearchProvider>
+    <>
       <div className="relative flex min-h-0 flex-1">
         <PanelSheet label={options.t.shell.dismiss} variant="drawer">
           <LeftDrawer
@@ -65,6 +64,6 @@ export default function ShellPanels(options: ShellPanelsOptions) {
       </div>
 
       <SearchDialog locale={options.locale} subject={options.subject} t={options.t} />
-    </SearchProvider>
+    </>
   );
 }
