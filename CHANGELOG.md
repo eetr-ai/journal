@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7](https://github.com/eetr-ai/journal/compare/v0.0.6...v0.0.7) (2026-09-16)
+
+
+### Bug Fixes
+
+* the release builds only the architecture we deploy to ([#25](https://github.com/eetr-ai/journal/issues/25)) ([0ea3877](https://github.com/eetr-ai/journal/commit/0ea38776831f72985771e0caeb8b4dce45975c80))
+
 ## [0.0.6](https://github.com/eetr-ai/journal/compare/v0.0.5...v0.0.6) (2026-09-16)
 
 
