@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.5](https://github.com/eetr-ai/journal/compare/v0.0.4...v0.0.5) (2026-09-16)
+
+
+### Features
+
+* tell the CI to roll out the chart we just published ([#13](https://github.com/eetr-ai/journal/issues/13)) ([c285059](https://github.com/eetr-ai/journal/commit/c2850590080f8fff3d778b530d62fd4f83515dbb))
+* the agent remembers, and the chat panel is real ([#15](https://github.com/eetr-ai/journal/issues/15)) ([0132709](https://github.com/eetr-ai/journal/commit/0132709458dbf5b9d4c982676afd462f61ed5d52))
+* the journal gets entries the agent writes, finds and reaches back into ([#16](https://github.com/eetr-ai/journal/issues/16)) ([754c5ce](https://github.com/eetr-ai/journal/commit/754c5ce7cd4af6cc7e01a1cf199418840a0e5690))
+
 ## [0.0.4](https://github.com/eetr-ai/journal/compare/v0.0.3...v0.0.4) (2026-09-14)
 
 
