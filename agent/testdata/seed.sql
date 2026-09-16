@@ -117,6 +117,73 @@ VALUES
   (UUID 'cccccccc-0000-4000-8000-000000000001', 'dolphin-entries-write', 'dolphin-write-once', DATE '2026-09-15',
    'enc1:AHFQqW1YtRXJVZr6z6Hv7WbxBcPPuje57RGd/82w1yYzcXPslF5FSFEE',
    'enc1:FG6N152Xxxow4lIe7AWooA0Akbvwr1zt79QH93E/8pBby7u+NsYrcNro/4rUpVflTg=='),
+  -- Three chunks already, so the suite's one embedded write has a tail to trim.
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 'dolphin-entries-write', 'dolphin-write-embedded', DATE '2026-09-15',
+   'enc1:O5/5ZaL3W736KRS0ZHGo9eHxjJtagXqu7V5wreWVfCYK+0oDN2I/z7uWNrFpB+5pycQ=',
+   'enc1:xrX0xYIu8pYasJIIX9Lu2+jMljbC4QxUe6h7aN7xPdwd+ey7gS7cMVC/8AXQJA=='),
   (UUID 'bbbbbbbb-0000-4000-8000-000000000001', 'dolphin-entries-other', 'dolphin-entry-x', DATE '2026-09-15',
    'enc1:t34nYLl8H7w3WVHbHcZcfldVPDUP8zVlXbEQC1CsNEWBFd3qVdzHdxkfI1jN',
    'enc1:3MNTiWhviwM9r193UiUAtDZ5eGVALs+hIasNC9leDv9lkYmd6diSCk4Fznvh5NJMxcwV');
+
+-- Chunks, for the suites that rank by meaning.
+--
+-- `dolphin-entries-chunks` owns this fixture and nothing else writes there, so
+-- the ranking below is the same on every run.
+--
+-- The vectors are built rather than written out. A 1024-dimension literal is a
+-- wall nobody reads, and what these cases turn on is the angle between two of
+-- them: everything here is either exactly on an axis or at a stated angle to
+-- one, so the distances are arithmetic instead of accident.
+CREATE OR REPLACE FUNCTION dolphin_vector(weights jsonb) RETURNS vector
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT ('[' || string_agg(COALESCE(weights ->> i::text, '0'), ',' ORDER BY i) || ']')::vector
+  FROM generate_series(0, 1023) AS i;
+$$;
+
+INSERT INTO user_profile (oidc_subject, email, name, config)
+VALUES ('dolphin-entries-chunks', 'entries-c@example.com', 'Entries Chunks', '{}'::jsonb)
+ON CONFLICT (oidc_subject) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name;
+
+-- Chunks cascade, so the entries going takes them with it.
+DELETE FROM journal_entry WHERE oidc_subject = 'dolphin-entries-chunks';
+
+INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, content)
+VALUES
+  -- A day with three parts to it. Only the middle one is what the question is
+  -- about, which is the whole point: averaged with the other two it would lose
+  -- to the quiet day below.
+  (UUID 'aaaaaaaa-0000-4000-8000-000000000011', 'dolphin-entries-chunks', '', DATE '2026-01-07',
+   'enc1:Zk6HUOZzSqfGKgPBuDA/ROURG34P7O7/y1Go7OvEp7uha094EXPTcCbykFvtu3M=',
+   'enc1:rIaXip7T+0Q3t5lwCPDjbJP5IU9ZYtKa0gD8/dPWvylw+ZL7pG2Q+0U3cDX56IPLowWvQOEZ9lSsf4aAjkRABwJmuiq9Y31ihrNcJREh2bGdR+gc25Prh/15NMZh2kSb0RUYBiOT4wwIuXxDEeupRBZfXpwSvUXL8wNdJ9Yjbary78PMsCGAFI/QpVrjS1xiPv5wQ+8='),
+  -- One part, middling-close to the question. It beats the day above on any
+  -- rule that reads all of an entry's chunks at once, and loses on the one that
+  -- takes its best.
+  (UUID 'aaaaaaaa-0000-4000-8000-000000000012', 'dolphin-entries-chunks', '', DATE '2026-01-06',
+   'enc1:VsTmMrgQ/hm2XBEFXBwy3MEQGR58jEz42WJBtw63SiYTg5BBnLGjag==',
+   'enc1:kIBo07ZT5GB+L+rrMYSk3VeKTYGpqe2FjV5/fYQOinExXvtAJR5aYtUs');
+
+-- The question these are ranked against is the first axis. So: chunk 1 of the
+-- three-part day sits exactly on it (distance 0), its neighbours sit at right
+-- angles to it (distance 1), and the quiet day sits at sixty degrees — √3 is
+-- what puts it there — for a distance of one half.
+INSERT INTO journal_entry_chunk (entry_id, ordinal, content, embedding, embedded_at)
+VALUES
+  (UUID 'aaaaaaaa-0000-4000-8000-000000000011', 0,
+   'enc1:yHKlCUhLkE1skb7nchmTlsZglE5E6DXgGod5rCo6DhpYHaSfvt7/XsBqARu2lP0WJveIFE8PVT5kprA=',
+   dolphin_vector('{"5": 1}'), now()),
+  (UUID 'aaaaaaaa-0000-4000-8000-000000000011', 1,
+   'enc1:syMlA/iicjzTGFroKuBwDkLqtCxXgf678r3mjAvI2NR+rv1E3buAFi5Ygsto2dLEawUhpj4J6ebHrmVCsGMXhTmw00srsN4W',
+   dolphin_vector('{"0": 1}'), now()),
+  (UUID 'aaaaaaaa-0000-4000-8000-000000000011', 2,
+   'enc1:UGtsLxa3JSY8CD//tFagDqmEy6xNgmzjT+BYKi2Mj3780w5ATCPPS9Spta07ev1ynHv2iAXMPWdWrPTroICpF2f0DYEIAQ==',
+   dolphin_vector('{"6": 1}'), now()),
+  (UUID 'aaaaaaaa-0000-4000-8000-000000000012', 0,
+   'enc1:TWypegYrKhJglW3vNeC9VbhVrFaYsioHyCefkEe132mAeftBOjneTyi+',
+   dolphin_vector('{"0": 1, "1": 1.7320508}'), now()),
+  -- The tail the write suite trims back to one.
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 0,
+   'enc1:tqg4ceI2l2tAsEzOJwcyWx7Br6+CpEa3ZduhaYZ1plo=', dolphin_vector('{"2": 1}'), now()),
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 1,
+   'enc1:cfNwgcp0ly8m3SFy8UDbQnw+yXoVr3G1bSAw2z+393A=', dolphin_vector('{"3": 1}'), now()),
+  (UUID 'cccccccc-0000-4000-8000-000000000003', 2,
+   'enc1:Rke+goCimSRn+f0YcCuSJ+Xphkmk7UyxX7QXChlnYKyYZw==', dolphin_vector('{"4": 1}'), now());
