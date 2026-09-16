@@ -44,8 +44,11 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
     options.onWidth(clamp(start.current.width + (start.current.x - event.clientX)), false);
   }
 
-  function onPointerUp(event: React.PointerEvent<HTMLButtonElement>) {
-    event.currentTarget.releasePointerCapture(event.pointerId);
+  // The one end a drag has. A pointer released normally and a pointer taken
+  // away — by a cancel, by the window losing it — both arrive here, and the
+  // second used to leave the width on screen and unsaved until something else
+  // wrote it.
+  function onLostPointerCapture() {
     options.onWidth(options.width, true);
   }
 
@@ -70,7 +73,7 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      onLostPointerCapture={onLostPointerCapture}
       type="button"
     />
   );
