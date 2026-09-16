@@ -10,7 +10,13 @@
  * key beside it is readable on purpose — it is derived for sending, and it
  * opens conversations and nothing else.
  *
- * It is cleared on lock and on sign-out.
+ * It is cleared on lock, on sign-out, and once it has gone unused for long
+ * enough: a key that outlives the sitting it was wanted for is a journal left
+ * open on a table. The deadline is stored beside the key and checked where it
+ * is read, so there is one place that decides whether a key is still good.
+ *
+ * The stamp is only as honest as the browser holding it. What that buys is a
+ * device walked away from, not one in someone else's hands.
  *
  * A cookie alongside it says only *that* the vault is open, never anything that
  * could open it. The server reads that to decide whether to show the journal or
@@ -22,6 +28,18 @@ import type { VaultKeys } from "./crypto";
 const DB_NAME = "eetr-journal";
 const DB_VERSION = 1;
 const STORE = "vault-keys";
+
+/** How long a vault stays open with nothing happening in it. */
+export const IDLE_LOCK_MS = 900_000;
+
+/** The key as it is stored: the domain value plus when it stops being usable. */
+interface VaultKeysEntity extends VaultKeys {
+  expiresAt: number;
+}
+
+function entityFor(keys: VaultKeys): VaultKeysEntity {
+  return { dataKey: keys.dataKey, agentKey: keys.agentKey, expiresAt: Date.now() + IDLE_LOCK_MS };
+}
 
 function settled<T>(request: IDBRequest<T>): Promise<T | null> {
   return new Promise((resolve) => {
@@ -36,22 +54,6 @@ function open(): Promise<IDBDatabase | null> {
   request.addEventListener("upgradeneeded", () => request.result.createObjectStore(STORE));
 
   return settled(request);
-}
-
-async function read<T>(work: (store: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
-  try {
-    const database = await open();
-
-    if (!database) {
-      return null;
-    }
-
-    return await settled(work(database.transaction(STORE, "readonly").objectStore(STORE)));
-  } catch {
-    // Private windows and storage-blocking settings both land here. Losing the
-    // cached key means unlocking again, not losing anything.
-    return null;
-  }
 }
 
 /** Resolves on the transaction, not on the request: a request can succeed and
@@ -85,30 +87,117 @@ async function write(work: (store: IDBObjectStore) => IDBRequest): Promise<boole
 /** Set and cleared only alongside the key, so the two cannot disagree. */
 export const UNLOCKED_COOKIE = "vault-unlocked";
 
-// The session outlives a tab; the marker should not outlive the session.
+const MS_PER_SECOND = 1000;
+
+// Given the same life as the key it stands for, so the server stops rendering a
+// journal at about the moment the browser stops being able to open one. A tab
+// that closes first takes it with it either way.
 function setMarker(present: boolean) {
+  const seconds = Math.floor(IDLE_LOCK_MS / MS_PER_SECOND);
+
   document.cookie = present
-    ? `${UNLOCKED_COOKIE}=1; path=/; samesite=lax`
+    ? `${UNLOCKED_COOKIE}=1; path=/; max-age=${seconds}; samesite=lax`
     : `${UNLOCKED_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
 /** False when this browser will not keep the keys — the marker is left unset so
  *  the server does not render a journal the next page load cannot open. */
 export async function rememberKey(subject: string, keys: VaultKeys): Promise<boolean> {
-  const stored = await write((store) => store.put(keys, subject));
+  const stored = await write((store) => store.put(entityFor(keys), subject));
 
   setMarker(stored);
 
   return stored;
 }
 
-export async function recallKey(subject: string): Promise<VaultKeys | null> {
-  const value = await read<VaultKeys>((store) => store.get(subject));
+/**
+ * A record this version can still open with. A record written by an older
+ * version holds a bare CryptoKey, or no deadline: unusable rather than
+ * half-usable, because locking again is one password and a conversation sealed
+ * under nothing is forever.
+ */
+function live(value: VaultKeysEntity | null | undefined): value is VaultKeysEntity {
+  return (
+    value?.dataKey instanceof CryptoKey &&
+    typeof value.agentKey === "string" &&
+    typeof value.expiresAt === "number" &&
+    Date.now() < value.expiresAt
+  );
+}
 
-  // A record written by an older version of this file holds a bare CryptoKey
-  // and has no agent key. Unusable rather than half-usable: locking again is
-  // one password, and a conversation sealed under nothing is forever.
-  return value?.dataKey instanceof CryptoKey && typeof value.agentKey === "string" ? value : null;
+/**
+ * Reads the record and settles it in the same transaction: a live one is kept,
+ * and its deadline pushed out if asked, while anything else is thrown away.
+ *
+ * One transaction rather than a read and then a write, because either gap is a
+ * place another tab can act. A lock landing in it would be undone by the
+ * renewal that followed; a key stored in it would be deleted by a verdict
+ * reached before it existed. IndexedDB serialises this instead.
+ */
+async function settle(subject: string, renewing: boolean): Promise<VaultKeysEntity | null> {
+  try {
+    const database = await open();
+
+    if (!database) {
+      return null;
+    }
+
+    const transaction = database.transaction(STORE, "readwrite");
+    const store = transaction.objectStore(STORE);
+    const request = store.get(subject);
+    const held: { value: VaultKeysEntity | null } = { value: null };
+
+    request.addEventListener("success", () => {
+      const value = request.result as VaultKeysEntity | undefined;
+
+      if (!live(value)) {
+        store.delete(subject);
+
+        return;
+      }
+
+      held.value = value;
+
+      if (renewing) {
+        store.put(entityFor(value), subject);
+      }
+    });
+
+    return (await committed(transaction)) ? held.value : null;
+  } catch {
+    return null;
+  }
+}
+
+// The one place a key is handed out, which is why it is the one place the
+// deadline is checked. Reading it is not activity: only what the person does
+// pushes the deadline, so a tab left open does not keep the vault awake.
+export async function recallKey(subject: string): Promise<VaultKeys | null> {
+  const value = await settle(subject, false);
+
+  if (!value) {
+    setMarker(false);
+  }
+
+  return value;
+}
+
+async function renew(subject: string): Promise<boolean> {
+  return Boolean(await settle(subject, true));
+}
+
+/**
+ * Pushes the deadline out, for something the person did. Returns false when
+ * there was no key to push, which is the caller's cue that the vault is shut.
+ */
+export async function touchKey(subject: string): Promise<boolean> {
+  const renewed = await renew(subject);
+
+  if (renewed) {
+    setMarker(true);
+  }
+
+  return renewed;
 }
 
 // Locking clears the marker whether or not the delete went through: a browser
