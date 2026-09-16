@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/eetr-ai/journal/compare/v0.0.5...v0.0.6) (2026-09-16)
+
+
+### Bug Fixes
+
+* the schema stops trying to create the vector extension ([#19](https://github.com/eetr-ai/journal/issues/19)) ([44142b6](https://github.com/eetr-ai/journal/commit/44142b6eddf08b996817d690bddac5b603b692e2))
+
 ## [0.0.5](https://github.com/eetr-ai/journal/compare/v0.0.4...v0.0.5) (2026-09-16)
 
 
