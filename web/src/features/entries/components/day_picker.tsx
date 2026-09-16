@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
-import { EntriesActionType, useEntries } from "../entries_state";
+import { useEntries } from "../entries_state";
+import { useShowEntry } from "../use_show_entry";
 import { entriesOnDayAction } from "../actions";
 import { gridFor, monthLabel, monthOf, shiftMonth, weekdayInitials } from "../calendar";
 import type { Dictionary } from "@/i18n/en";
@@ -25,7 +26,8 @@ export interface DayPickerOptions {
  * from the reducer.
  */
 export default function DayPicker(options: DayPickerOptions) {
-  const { state, dispatch } = useEntries();
+  const { state } = useEntries();
+  const show = useShowEntry();
   const [month, setMonth] = useState(() => monthOf(state.today));
   // The day last asked for. Two days picked quickly can come back in the other
   // order, and the one the reader chose second is the one they want.
@@ -42,7 +44,7 @@ export default function DayPicker(options: DayPickerOptions) {
     const entry = held ?? (await entriesOnDayAction(date)).at(0);
 
     if (entry && wanted.current === date) {
-      dispatch({ type: EntriesActionType.Shown, data: entry });
+      show(entry);
     }
   }
 

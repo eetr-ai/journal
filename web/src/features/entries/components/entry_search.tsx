@@ -3,6 +3,7 @@
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useAgentKey } from "@/features/chat/use_agent_key";
 import { EntriesActionType, useEntries } from "../entries_state";
+import { useShowEntry } from "../use_show_entry";
 import { SearchActionType, useSearch } from "../search_state";
 import { searchEntriesAction } from "../actions";
 import { queryProblem, MAX_QUERY_CHARS } from "../rules";
@@ -137,7 +138,8 @@ function Answer(options: AnswerOptions) {
 }
 
 function Hit(options: { hit: SearchHit; locale: Locale; t: Dictionary }) {
-  const { state, dispatch } = useEntries();
+  const { state } = useEntries();
+  const show = useShowEntry();
   const title = state.opened[options.hit.entry.id]?.title ?? options.t.entries.opening;
 
   return (
@@ -145,7 +147,7 @@ function Hit(options: { hit: SearchHit; locale: Locale; t: Dictionary }) {
       <button
         aria-label={options.t.entries.open}
         className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-surface-muted"
-        onClick={() => dispatch({ type: EntriesActionType.Shown, data: options.hit.entry })}
+        onClick={() => show(options.hit.entry)}
         type="button"
       >
         <p className="truncate text-xs font-medium">{title}</p>

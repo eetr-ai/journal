@@ -18,7 +18,7 @@ export interface LeftDrawerOptions {
 
 export default function LeftDrawer(options: LeftDrawerOptions) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col divide-y divide-border border-r border-border bg-surface">
+    <aside className="flex min-h-0 flex-1 flex-col divide-y divide-border border-r border-border bg-surface">
       <section className="flex min-h-0 flex-1 flex-col">
         <header className="flex items-center gap-2 px-4 py-3">
           <span className="shrink-0 text-muted">

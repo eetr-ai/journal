@@ -75,6 +75,11 @@ const en = {
     entries: "Journal",
     todayTitle: "Today",
     resizeToday: "Resize today's entry",
+    openDrawer: "Show chats and journal",
+    closeDrawer: "Hide chats and journal",
+    openToday: "Show the entry",
+    closeToday: "Hide the entry",
+    dismiss: "Close this panel",
   },
 
   entries: {

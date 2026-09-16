@@ -77,6 +77,11 @@ const es: Dictionary = {
     entries: "Diario",
     todayTitle: "Hoy",
     resizeToday: "Redimensionar la entrada de hoy",
+    openDrawer: "Ver charlas y diario",
+    closeDrawer: "Ocultar charlas y diario",
+    openToday: "Ver la entrada",
+    closeToday: "Ocultar la entrada",
+    dismiss: "Cerrar este panel",
   },
 
   entries: {
