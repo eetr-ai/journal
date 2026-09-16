@@ -27,7 +27,11 @@ export interface ResizeHandleOptions {
  * element, because the rule is one pixel and a fingertip is not.
  */
 export default function ResizeHandle(options: ResizeHandleOptions) {
-  const start = useRef({ x: 0, width: 0 });
+  // `live` rather than the width from the last render, because the end of a
+  // drag can arrive in the same turn as the move before it: a cancel does not
+  // wait for React, and committing a render-time width would save the position
+  // the pointer was in one move ago.
+  const start = useRef({ x: 0, width: 0, live: 0 });
 
   function clamp(value: number) {
     return Math.min(Math.max(Math.round(value), options.min), options.max);
@@ -35,7 +39,7 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
 
   function onPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
-    start.current = { x: event.clientX, width: options.width };
+    start.current = { x: event.clientX, width: options.width, live: options.width };
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLButtonElement>) {
@@ -45,7 +49,8 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
 
     // The handle is on the left edge of a right-hand panel, so moving left
     // makes it wider.
-    options.onWidth(clamp(start.current.width + (start.current.x - event.clientX)), false);
+    start.current.live = clamp(start.current.width + (start.current.x - event.clientX));
+    options.onWidth(start.current.live, false);
   }
 
   // The one end a drag has. A pointer released normally and a pointer taken
@@ -53,7 +58,7 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
   // second used to leave the width on screen and unsaved until something else
   // wrote it.
   function onLostPointerCapture() {
-    options.onWidth(options.width, true);
+    options.onWidth(start.current.live, true);
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
