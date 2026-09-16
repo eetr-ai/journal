@@ -85,6 +85,16 @@ const en = {
     none: "Nothing written yet.",
     open: "Open this entry",
     backToToday: "Back to today",
+    new: "Start a new entry",
+    // A draft the reader started, before the agent has put a title on it.
+    untitled: "A new entry",
+    started: "Nothing in this one yet. Tell it what happened, and it fills in.",
+    bookmark: "Keep this entry",
+    unbookmark: "Stop keeping this entry",
+    onlyKept: "Show only the ones you kept",
+    allEntries: "Show every entry",
+    keptNone: "You have not kept any entries yet.",
+    bookmarkFailed: "This entry could not be kept. Nothing changed \u2014 try again in a moment.",
     delete: "Throw this entry away",
     deleteConfirm: {
       title: "Throw this entry away?",

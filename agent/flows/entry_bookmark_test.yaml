@@ -1,0 +1,60 @@
+# See entries_test.yaml. This suite owns keeping an entry and letting it go.
+#
+# `dolphin-entries-write` owns the row it flips, because the fixture puts every
+# bookmark back to false and a suite that shared a row with another would race
+# it.
+flow: entry-bookmark
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: an entry is kept, and comes back saying so
+    input:
+      data: {}
+      vars:
+        method: PUT
+        subject: dolphin-entries-write
+        id: cccccccc-0000-4000-8000-000000000002
+    expect:
+      that:
+        - body.bookmarked == true
+        - body.id == "cccccccc-0000-4000-8000-000000000002"
+        # Kept, not read: the row leaves here exactly as sealed as it arrived.
+        - body.title.startsWith("enc1:")
+
+  - name: letting one go is the same route with the other verb
+    input:
+      data: {}
+      vars:
+        method: DELETE
+        subject: dolphin-entries-write
+        id: cccccccc-0000-4000-8000-000000000001
+    expect:
+      that:
+        - body.bookmarked == false
+
+  # An id is not a capability here either.
+  - name: another person's entry cannot be kept with its id alone
+    input:
+      data: {}
+      vars:
+        method: PUT
+        subject: dolphin-entries-write
+        id: bbbbbbbb-0000-4000-8000-000000000001
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: entry not found
+
+  - name: an entry that does not exist is a 404 rather than an empty success
+    input:
+      data: {}
+      vars:
+        method: PUT
+        subject: dolphin-entries-write
+        id: dddddddd-0000-4000-8000-00000000dead
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: entry not found

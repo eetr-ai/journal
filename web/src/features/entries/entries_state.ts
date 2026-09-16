@@ -44,6 +44,8 @@ export enum EntriesActionType {
   Removed = "removed",
   Restored = "restored",
   DaysArrived = "daysArrived",
+  Drafted = "drafted",
+  Kept = "kept",
 }
 
 export type EntriesAction = ReducerAction<EntriesActionType>;
@@ -152,6 +154,28 @@ const handlers: Record<
     ...state,
     days: action.data as string[],
   }),
+
+  // An entry the reader started. An ordinary arrival plus being shown, except
+  // for the calendar: nothing is stored until the agent writes, so marking the
+  // day now would mark it for a draft that may be abandoned and leave a day
+  // nobody can open. It is marked when the written entry arrives.
+  [EntriesActionType.Drafted]: (state, action) => {
+    const draft = action.data as Entry;
+
+    return { ...arrived(state, draft), days: state.days, showing: draft.id };
+  },
+
+  // Flipped where it stands, keeping whatever the key has already made of it —
+  // an `Arrived` would drop the opened copy and blank the row while it was
+  // decrypted again, for a change that touched no words at all.
+  [EntriesActionType.Kept]: (state, action) => {
+    const { id, bookmarked } = action.data as { id: string; bookmarked: boolean };
+
+    return {
+      ...state,
+      entries: state.entries.map((held) => (held.id === id ? { ...held, bookmarked } : held)),
+    };
+  },
 
   [EntriesActionType.Opened]: (state, action) => ({
     ...state,

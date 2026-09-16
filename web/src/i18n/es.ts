@@ -86,6 +86,16 @@ const es: Dictionary = {
     none: "Todavía no hay nada escrito.",
     open: "Abrir esta entrada",
     backToToday: "Volver a hoy",
+    new: "Empezar una entrada",
+    untitled: "Una entrada nueva",
+    started: "Todav\u00eda no hay nada ac\u00e1. Cont\u00e1 qu\u00e9 pas\u00f3 y se va llenando.",
+    bookmark: "Guardar esta entrada",
+    unbookmark: "Dejar de guardar esta entrada",
+    onlyKept: "Mostrar solo las guardadas",
+    allEntries: "Mostrar todas las entradas",
+    keptNone: "Todav\u00eda no guardaste ninguna entrada.",
+    bookmarkFailed:
+      "No se pudo guardar esta entrada. No cambi\u00f3 nada: prob\u00e1 de nuevo en un momento.",
     delete: "Tirar esta entrada",
     deleteConfirm: {
       title: "\u00bfTirar esta entrada?",

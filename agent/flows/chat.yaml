@@ -56,6 +56,19 @@ flows:
       - type: set-variable
         name: hold-thread
         settings: { name: threadId, value: body.threadId }
+      # The entry the reader has open, when they opened one. Empty means they
+      # are on today's, which is the conversation's own note — so an empty value
+      # is not a missing one, it is the ordinary case.
+      - type: set-variable
+        name: hold-open-entry
+        settings:
+          name: entryId
+          value: 'has(body.working) ? body.working.id : ""'
+      - type: set-variable
+        name: hold-open-entry-date
+        settings:
+          name: entryDate
+          value: 'has(body.working) ? body.working.date : ""'
       # The reader's clock, not the server's. Every field of it is already in
       # their zone; nothing here re-interprets it.
       - type: set-variable
@@ -144,6 +157,14 @@ flows:
           that the evening is getting on is the kind of small wrongness that
           makes the rest of it hard to believe. It is also what an entry is
           filed under, and what "last week" and "a year ago" are counted from.
+
+
+          When the reader has an entry open, that is the one you are writing
+          in: call write_entry with no id and it goes there. It may be a day
+          they have just started and nothing is in it yet, or an old day they
+          went back to. If what they are telling you plainly belongs to a
+          different day than the one they are looking at, say so and ask before
+          you put it there.
 
 
           Keep this conversation's note as you go. What surfaced — what

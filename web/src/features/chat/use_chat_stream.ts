@@ -8,6 +8,7 @@ import { messageProblem } from "./rules";
 import { useAgentKey } from "./use_agent_key";
 import { ChatActionType, useChat, type ChatError } from "./chat_state";
 import { EntriesActionType, useEntries } from "@/features/entries/entries_state";
+import { useOpenEntry } from "@/features/entries/use_open_entry";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -149,6 +150,26 @@ async function runToEnd(
   }
 }
 
+/**
+ * How a message is addressed: which conversation, in what language, under what
+ * key, and which entry the reader has open while they say it.
+ */
+function useAsk(threadId: string, locale: Locale, agentKey: string | null) {
+  const open = useOpenEntry();
+
+  return useCallback(
+    (message: string, intent: ChatAsk["intent"]): ChatAsk => ({
+      threadId,
+      message,
+      locale,
+      key: agentKey ?? "",
+      intent,
+      ...(open ? { working: { id: open.id, date: open.date } } : {}),
+    }),
+    [agentKey, locale, open, threadId],
+  );
+}
+
 export function useChatStream(options: ChatStreamOptions) {
   const { state, dispatch } = useChat();
   // The journal beside the conversation. The agent writes into it mid-run, so
@@ -158,16 +179,7 @@ export function useChatStream(options: ChatStreamOptions) {
   const running = useRef<AbortController | null>(null);
   const agentKey = useAgentKey(options.subject);
 
-  const ask = useCallback(
-    (message: string, intent: ChatAsk["intent"]): ChatAsk => ({
-      threadId: state.threadId,
-      message,
-      locale: options.locale,
-      key: agentKey ?? "",
-      intent,
-    }),
-    [agentKey, options.locale, state.threadId],
-  );
+  const ask = useAsk(state.threadId, options.locale, agentKey);
 
   const send = useCallback(
     async (message: string): Promise<void> => {

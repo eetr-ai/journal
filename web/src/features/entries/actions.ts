@@ -4,6 +4,7 @@ import {
   deleteEntry,
   entriesOnDay,
   searchEntries,
+  setBookmark,
   writtenDays,
   type RemoveOutcome,
   type SearchOutcome,
@@ -31,6 +32,11 @@ export async function searchEntriesAction(
   locale: string,
 ): Promise<SearchOutcome> {
   return await searchEntries(query, key, locale);
+}
+
+/** Keep an entry, or let it go. Null when it is not this person's to keep. */
+export async function setBookmarkAction(id: string, keep: boolean): Promise<Entry | null> {
+  return await setBookmark(id, keep);
 }
 
 /** Throw an entry away. The confirmation happened in the browser. */

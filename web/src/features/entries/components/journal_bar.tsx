@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarBlankIcon, MagnifyingGlassIcon, NotebookIcon } from "@phosphor-icons/react";
+import {
+  BookmarkSimpleIcon,
+  CalendarBlankIcon,
+  MagnifyingGlassIcon,
+  NotebookIcon,
+  PlusIcon,
+} from "@phosphor-icons/react";
+import { EntriesActionType, useEntries } from "../entries_state";
+import { draftEntry } from "../types";
 import SearchProvider from "./search_provider";
 import EntrySearch from "./entry_search";
 import DayPicker from "./day_picker";
@@ -16,6 +24,8 @@ export interface JournalBarOptions {
   t: Dictionary;
   locale: Locale;
   subject: string;
+  keptOnly: boolean;
+  onFilter: (only: boolean) => void;
 }
 
 /**
@@ -25,10 +35,18 @@ export interface JournalBarOptions {
  * search under a list is three things competing for the same column.
  */
 export default function JournalBar(options: JournalBarOptions) {
+  const { state, dispatch } = useEntries();
   const [panel, setPanel] = useState<Panel>("none");
 
   function toggle(wanted: Panel) {
     setPanel((showing) => (showing === wanted ? "none" : wanted));
+  }
+
+  // Nothing is stored here. The entry exists in the browser, the address bar
+  // points at it, and the first thing the agent is told to write lands in it.
+  function start() {
+    setPanel("none");
+    dispatch({ type: EntriesActionType.Drafted, data: draftEntry(state.today) });
   }
 
   return (
@@ -38,6 +56,9 @@ export default function JournalBar(options: JournalBarOptions) {
           <NotebookIcon size={ICON_SIZE} weight="fill" />
         </span>
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{options.t.shell.entries}</h2>
+        <Action label={options.t.entries.new} on={false} onPress={start}>
+          <PlusIcon size={ICON_SIZE} />
+        </Action>
         <Action
           label={
             panel === "search" ? options.t.entries.search.close : options.t.entries.search.open
@@ -53,6 +74,13 @@ export default function JournalBar(options: JournalBarOptions) {
           onPress={() => toggle("days")}
         >
           <CalendarBlankIcon size={ICON_SIZE} />
+        </Action>
+        <Action
+          label={options.keptOnly ? options.t.entries.allEntries : options.t.entries.onlyKept}
+          on={options.keptOnly}
+          onPress={() => options.onFilter(!options.keptOnly)}
+        >
+          <BookmarkSimpleIcon size={ICON_SIZE} weight={options.keptOnly ? "fill" : "regular"} />
         </Action>
       </header>
       {panel === "search" && (
