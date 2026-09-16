@@ -9,7 +9,7 @@ import OfferPasskey from "./offer_passkey";
 import VaultError from "./vault_error";
 import VaultField from "./vault_field";
 import { passkeysAreAvailable } from "../passkey";
-import { declinePasskeyOffer, passkeyOfferDeclined } from "../offered";
+import { answerPasskeyOffer, passkeyOfferAnswered } from "../offered";
 import { useVaultUnlock, type VaultIdentity } from "../use_vault_operations";
 import {
   VaultDispatchContext,
@@ -35,11 +35,16 @@ export interface UnlockScreenOptions {
   signOut: React.ReactNode;
 }
 
+type Method = "password" | "passkey";
+
 interface UnlockFormOptions {
   t: Dictionary;
   identity: VaultIdentity;
   password: string;
   onPassword: (password: string) => void;
+  /** Which way this attempt is going in — a typed password is not proof one
+   *  was used, and an offer built on that assumption hands over a stale one. */
+  onAttempt: (method: Method) => void;
   signOut: React.ReactNode;
 }
 
@@ -64,7 +69,10 @@ function UnlockForm(options: UnlockFormOptions) {
         <button
           className="flex-1 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
           disabled={state.busy}
-          onClick={() => void byPassword(options.password)}
+          onClick={() => {
+            options.onAttempt("password");
+            void byPassword(options.password);
+          }}
           type="button"
         >
           {state.busy ? t.unlocking : t.unlock}
@@ -76,7 +84,10 @@ function UnlockForm(options: UnlockFormOptions) {
         <button
           className="flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition hover:border-muted disabled:opacity-50"
           disabled={state.busy}
-          onClick={() => void byPasskey()}
+          onClick={() => {
+            options.onAttempt("passkey");
+            void byPasskey();
+          }}
           type="button"
         >
           <FingerprintIcon size={ICON_SIZE} weight="fill" />
@@ -90,22 +101,25 @@ function UnlockForm(options: UnlockFormOptions) {
 function Body(options: UnlockScreenOptions) {
   const { state } = useVault();
   const [password, setPassword] = useState("");
+  const [method, setMethod] = useState<Method | null>(null);
   const router = useRouter();
   const t = options.t.vault;
   const subject = options.identity.subject;
 
   // A password unlock is a device that did not reach for a passkey, and the
   // password is still in hand — the one moment worth asking that does not cost
-  // a second re-authentication.
+  // a second re-authentication. Which button was pressed, not whether anything
+  // was typed: a password left in the box before unlocking another way is not
+  // a password anyone used.
   //
   // Derived rather than stored: nothing here is true until the vault is open,
   // and it cannot be open on the server, so the two browser questions are never
   // asked during a render that has to match one.
   const offering =
     state.status === "unlocked" &&
-    password !== "" &&
+    method === "password" &&
     passkeysAreAvailable() &&
-    !passkeyOfferDeclined(subject);
+    !passkeyOfferAnswered(subject);
 
   // The key and the marker the server reads are written together, so by the
   // time this fires the journal will render rather than bounce back here.
@@ -119,6 +133,13 @@ function Body(options: UnlockScreenOptions) {
     router.replace(`/${options.locale}`);
   }
 
+  // Either answer settles it. Taking one changes nothing this browser can be
+  // asked about later, so without this the next password unlock asks again.
+  function answered() {
+    answerPasskeyOffer(subject);
+    go();
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-8 pb-16">
@@ -127,11 +148,8 @@ function Body(options: UnlockScreenOptions) {
         {offering ? (
           <OfferPasskey
             identity={options.identity}
-            onEnrolled={go}
-            onSkipped={() => {
-              declinePasskeyOffer(subject);
-              go();
-            }}
+            onEnrolled={answered}
+            onSkipped={answered}
             password={password}
             t={options.t}
           />
@@ -144,6 +162,7 @@ function Body(options: UnlockScreenOptions) {
 
             <UnlockForm
               identity={options.identity}
+              onAttempt={setMethod}
               onPassword={setPassword}
               password={password}
               signOut={options.signOut}
