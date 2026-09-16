@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.6](https://github.com/eetr-ai/journal/compare/v0.0.5...v0.0.6) (2026-09-16)
+
+
+### Features
+
+* search the journal, navigate it by day, and throw entries away ([#22](https://github.com/eetr-ai/journal/issues/22)) ([8b06fd6](https://github.com/eetr-ai/journal/commit/8b06fd6648a965910c66be6db719adf8b3cfc900))
+* start an entry yourself, and keep the ones worth keeping ([#23](https://github.com/eetr-ai/journal/issues/23)) ([bb644c3](https://github.com/eetr-ai/journal/commit/bb644c3ee0dbba66695baa50e39cbb3e6f3c7173))
+* the journal finds the paragraph, not the whole day ([#21](https://github.com/eetr-ai/journal/issues/21)) ([08f2116](https://github.com/eetr-ai/journal/commit/08f211622f2c63b2d933151a852b3828601deaa2))
+
+
+### Bug Fixes
+
+* the schema stops trying to create the vector extension ([#19](https://github.com/eetr-ai/journal/issues/19)) ([44142b6](https://github.com/eetr-ai/journal/commit/44142b6eddf08b996817d690bddac5b603b692e2))
+
 ## [0.0.5](https://github.com/eetr-ai/journal/compare/v0.0.4...v0.0.5) (2026-09-16)
 
 
