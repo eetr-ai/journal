@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.0.8](https://github.com/eetr-ai/journal/compare/v0.0.7...v0.0.8) (2026-09-16)
+
+
+### Features
+
+* a device you just unlocked can be given a passkey there and then ([#32](https://github.com/eetr-ai/journal/issues/32)) ([c8b9b1e](https://github.com/eetr-ai/journal/commit/c8b9b1e389994b3fb70d7e006a7a75bec43fb09c))
+* a vault left alone shuts itself ([#30](https://github.com/eetr-ai/journal/issues/30)) ([e2308ee](https://github.com/eetr-ai/journal/commit/e2308ee690fc520e7d52f02cbb77bbccbd2ae44b))
+* one shell, three layouts ([#28](https://github.com/eetr-ai/journal/issues/28)) ([1bb1ed8](https://github.com/eetr-ai/journal/commit/1bb1ed8e5595ac52dbcfe4822b856dc3c77109ec))
+* one way to throw a thing away ([#33](https://github.com/eetr-ai/journal/issues/33)) ([fa99a4b](https://github.com/eetr-ai/journal/commit/fa99a4b4f103acc0480ee1821ad722f12b921eab))
+* search answers with your own words, on a page of its own ([#34](https://github.com/eetr-ai/journal/issues/34)) ([ddb8cfc](https://github.com/eetr-ai/journal/commit/ddb8cfcc99ae780582a405de9c0058ce4a07e931))
+* the journal installs to a home screen ([#27](https://github.com/eetr-ai/journal/issues/27)) ([deb4b33](https://github.com/eetr-ai/journal/commit/deb4b334a4d8e46cc67bb8499e310ccc567d96df))
+
+
+### Bug Fixes
+
+* controls a thumb can hit, and a keyboard that does not fight back ([#29](https://github.com/eetr-ai/journal/issues/29)) ([713da84](https://github.com/eetr-ai/journal/commit/713da84d385a63d077d922c5e7f4d516dec68088))
+* signing in adopts the language you chose, not the one this browser guessed ([#31](https://github.com/eetr-ai/journal/issues/31)) ([a332f11](https://github.com/eetr-ai/journal/commit/a332f11e61f5545eef9ad0caf349409dc9d1910c))
+
 ## [0.0.7](https://github.com/eetr-ai/journal/compare/v0.0.6...v0.0.7) (2026-09-16)
 
 
