@@ -37,7 +37,7 @@ export default function ChatBody(options: ChatBodyOptions) {
       </header>
 
       <div
-        className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-6"
+        className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 py-6"
         onScroll={onScroll}
         ref={region}
       >
@@ -57,7 +57,9 @@ export default function ChatBody(options: ChatBodyOptions) {
 
       <ChatNotice t={options.t} />
 
-      <div className="border-t border-border p-4">
+      {/* The bottom edge is where the home indicator sits, so the padding is
+          whichever is larger: the layout's own, or enough to clear it. */}
+      <div className="border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Composer locale={options.locale} subject={options.subject} t={options.t} />
       </div>
     </section>

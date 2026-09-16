@@ -1,5 +1,6 @@
 import ChatPanel from "@/features/chat/components/chat_panel";
 import DetectPreferences from "@/features/profile/components/detect_preferences";
+import VisibleViewport from "./visible_viewport";
 import VaultGuard from "@/features/vault/components/vault_guard";
 import LeftDrawer from "./left_drawer";
 import ShellHeader from "./shell_header";
@@ -34,7 +35,8 @@ export interface AppShellOptions {
 // them too.
 export default function AppShell(options: AppShellOptions) {
   return (
-    <div className="flex h-screen flex-col">
+    <div className="viewport-pinned flex flex-col">
+      <VisibleViewport />
       <DetectPreferences needed={needsDetection(options.profile.config)} />
       <VaultGuard locale={options.locale} subject={options.profile.subject} />
       <ShellHeader

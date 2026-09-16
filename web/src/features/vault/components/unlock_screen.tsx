@@ -48,7 +48,7 @@ function Body(options: UnlockScreenOptions) {
   }, [state.status, router, options.locale]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-8 pb-16">
         <Image alt="" height={MASCOT_SIZE} priority src="/mascot.png" width={MASCOT_SIZE} />
 
