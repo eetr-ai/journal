@@ -105,6 +105,18 @@ export function hitFromEntity(entity: SearchHitEntity): SearchHit {
  * `title` and `content` are empty rather than sealed, which is what the opening
  * side reads as "nothing here yet".
  */
+/**
+ * Whether this entry exists only in the browser.
+ *
+ * Both fields empty is the tell, and it is a safe one: a stored entry always
+ * carries sealed text, because nothing can be written without a title and a
+ * body. It matters for anything that addresses the row rather than the reader's
+ * copy of it — there is nothing on the other side to address yet.
+ */
+export function isDraft(entry: Entry): boolean {
+  return entry.title === "" && entry.content === "";
+}
+
 export function draftEntry(date: string): Entry {
   const at = new Date().toISOString();
 

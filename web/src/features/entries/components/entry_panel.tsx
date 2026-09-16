@@ -12,7 +12,7 @@ import { useEntryUrl } from "../use_entry_url";
 import { useThrowAway } from "../use_throw_away";
 import { useKeeping } from "../use_keeping";
 import { dayIn } from "../days";
-import type { Entry } from "../types";
+import { isDraft, type Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -163,18 +163,23 @@ function HeaderActions(options: HeaderActionsOptions) {
 
   return (
     <>
-      <button
-        aria-label={keepLabel}
-        aria-pressed={kept}
-        className={`shrink-0 rounded p-1 hover:bg-surface-muted ${
-          kept ? "text-highlight" : "text-muted hover:text-foreground"
-        }`}
-        onClick={() => options.onKeep(options.entry)}
-        title={keepLabel}
-        type="button"
-      >
-        <BookmarkSimpleIcon size={ICON_SIZE} weight={kept ? "fill" : "regular"} />
-      </button>
+      {/* Nothing to keep until something has been written into it: the row does
+          not exist yet, and asking the agent to flag it would only 404. Throwing
+          it away still works, and is how a draft is abandoned. */}
+      {!isDraft(options.entry) && (
+        <button
+          aria-label={keepLabel}
+          aria-pressed={kept}
+          className={`shrink-0 rounded p-1 hover:bg-surface-muted ${
+            kept ? "text-highlight" : "text-muted hover:text-foreground"
+          }`}
+          onClick={() => options.onKeep(options.entry)}
+          title={keepLabel}
+          type="button"
+        >
+          <BookmarkSimpleIcon size={ICON_SIZE} weight={kept ? "fill" : "regular"} />
+        </button>
+      )}
       <button
         aria-label={options.t.entries.delete}
         className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-accent"

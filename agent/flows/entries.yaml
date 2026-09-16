@@ -360,6 +360,7 @@ flows:
                         "entry_date": f.entry_date,
                         "title": f.title,
                         "content": f.content,
+                        "bookmarked": f.bookmarked,
                         "created_at": f.created_at,
                         "updated_at": f.updated_at
                       }).first()

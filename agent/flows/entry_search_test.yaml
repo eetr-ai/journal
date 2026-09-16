@@ -47,6 +47,10 @@ cases:
         - body.results[0].entry.title.startsWith("enc1:")
         - body.results[0].entry.content.startsWith("enc1:")
         - body.results[0].entry.id == "aaaaaaaa-0000-4000-8000-000000000011"
+        # Every field the browser builds an entry from, or a kept day comes back
+        # looking unkept.
+        - has(body.results[0].entry.bookmarked)
+        - body.results[0].entry.bookmarked == false
     spies:
       entry-search.anything-to-rank[else].rank-hits:
         records:
