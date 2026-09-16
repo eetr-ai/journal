@@ -97,10 +97,11 @@ flows:
       # blank lines already in it, and a rule cleverer than that is worth having
       # only once there is an entry it gets wrong.
       #
-      # Line endings are normalised first, so a note that arrived with CRLF is
-      # not one enormous chunk. A blank line carrying spaces still is: CEL has
-      # no regex split, and every note here is written by the agent, which does
-      # not produce them.
+      # Line endings are normalised first — CRLF and the lone CR both — so a
+      # note that arrived with either is not one enormous chunk. A blank line
+      # carrying spaces still is: splitting on that needs a regex and CEL has
+      # none, and every note here is written by the agent, which does not
+      # produce them. Said out loud rather than worked around.
       #
       # Each one is embedded with the title in front of it, so a paragraph that
       # says "it went again on the stairs" still carries what the day was about.
@@ -108,7 +109,7 @@ flows:
         name: split-into-chunks
         settings:
           name: chunks
-          value: 'body.content.replace("\r\n", "\n").split("\n\n").map(p, p.trim()).filter(p, p != "")'
+          value: 'body.content.replace("\r\n", "\n").replace("\r", "\n").split("\n\n").map(p, p.trim()).filter(p, p != "")'
       # Set before the embedding is attempted, so the path where there are no
       # vectors needs no branch of its own.
       - type: set-variable
@@ -253,13 +254,26 @@ flows:
                       # The tail is what an entry that got shorter leaves
                       # behind: ordinals are dense from zero, so anything at or
                       # past the new count is a paragraph that is gone.
+                      #
+                      # `current` is the race guard. Two runs can write the same
+                      # entry — two conversations can be pointed at one — and a
+                      # block is its own transaction, so the older one can reach
+                      # here last and leave the newer entry paired with older
+                      # chunks. The stamp this run's own write returned is what
+                      # says whether it is still the newest; if it is not, the
+                      # insert matches nothing and the delete is held back by
+                      # the same test, so a run that lost writes nothing at all.
                       query: |
-                        WITH written AS (
+                        WITH current AS (
+                          SELECT updated_at FROM journal_entry WHERE id = $1::uuid
+                        ),
+                        written AS (
                           INSERT INTO journal_entry_chunk
                             (entry_id, ordinal, content, embedding, embedded_at)
                           SELECT $1::uuid, (c->>'ordinal')::int, c->>'content',
                                  (c->>'embedding')::vector, now()
-                          FROM jsonb_array_elements($2::jsonb) AS c
+                          FROM jsonb_array_elements($2::jsonb) AS c, current
+                          WHERE current.updated_at = $3::timestamptz
                           ON CONFLICT (entry_id, ordinal) DO UPDATE SET
                             content = EXCLUDED.content,
                             embedding = EXCLUDED.embedding,
@@ -269,9 +283,13 @@ flows:
                         DELETE FROM journal_entry_chunk
                         WHERE entry_id = $1::uuid
                           AND ordinal >= (SELECT count(*) FROM written)
+                          AND EXISTS (
+                            SELECT 1 FROM current WHERE updated_at = $3::timestamptz
+                          )
                       args:
                         - vars.written.id
                         - vars.chunkJson
+                        - vars.written.updated_at
                       exec: true
             # The panel beside the conversation, repainted mid-run. Sealed,
             # because the reader opens an entry exactly one way whether it
