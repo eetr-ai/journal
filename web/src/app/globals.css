@@ -145,10 +145,65 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+
+  /* No double-tap-to-zoom, which is also what removes the 300ms delay before a
+     tap becomes a click. Pinch-zoom is untouched. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  /* A panel that has run out of scroll must not rubber-band the page behind it,
+     which on a phone is how an overlay reveals what it is covering. */
+  overscroll-behavior: none;
 }
 
 /* The panels scroll, not the page. */
 html,
 body {
   height: 100%;
+}
+
+/*
+ * A screen laid over exactly the part of the window you can see.
+ *
+ * Fixed rather than tall: the panels do not scroll, so there is nothing for a
+ * browser to scroll to bring a covered composer back, and the screen has to
+ * move itself. The two values come from the visual viewport, and the fallbacks
+ * are what this was before anything measured it.
+ */
+@utility viewport-pinned {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--visible-top, 0px);
+  height: var(--visible-height, 100dvh);
+}
+
+/*
+ * Where a screen is pinned to the viewport there is nothing behind it to
+ * scroll, so the document does not: on a phone that stray scroll is what
+ * rubber-bands the whole app and arms pull-to-refresh under a thumb that was
+ * only ever trying to move the conversation.
+ *
+ * Scoped by `:has` rather than set on the document outright, because the
+ * standalone screens are ordinary pages and some of them are taller than the
+ * phone they are read on.
+ */
+html:has(.viewport-pinned),
+body:has(.viewport-pinned) {
+  overflow: hidden;
+}
+
+/*
+ * A control big enough to hit with a thumb. Only where the pointer is coarse:
+ * on a mouse these are icon buttons sized to their icon, and growing them there
+ * would space the toolbars out for no one.
+ */
+@utility tap-target {
+  @media (pointer: coarse) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }

@@ -75,11 +75,15 @@ export function entryFromEntity(entity: EntryEntity): Entry {
 export interface SearchHit {
   entry: Entry;
   why: string;
+  /** The reader's own words, copied out of the day. Empty when the model kept
+   *  the day but named no sentence for it. */
+  quote: string;
 }
 
 export interface SearchHitEntity {
   entry: EntryEntity;
   why: string;
+  quote: string;
 }
 
 export interface SearchEntity {
@@ -91,7 +95,11 @@ export interface DaysEntity {
 }
 
 export function hitFromEntity(entity: SearchHitEntity): SearchHit {
-  return { entry: entryFromEntity(entity.entry), why: entity.why };
+  return {
+    entry: entryFromEntity(entity.entry),
+    why: entity.why,
+    quote: entity.quote ?? "",
+  };
 }
 
 /**

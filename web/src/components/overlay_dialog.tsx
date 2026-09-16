@@ -95,7 +95,7 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
           </div>
           <button
             aria-label={options.closeLabel}
-            className="rounded-md p-1.5 text-muted hover:bg-surface-muted hover:text-foreground"
+            className="tap-target rounded-md p-1.5 text-muted hover:bg-surface-muted hover:text-foreground"
             onClick={close}
             ref={closeRef}
             type="button"
