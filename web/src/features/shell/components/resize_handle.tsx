@@ -18,9 +18,13 @@ export interface ResizeHandleOptions {
  * of its own: the panel it resizes is the one that has to be that wide, so the
  * number lives there and this reports movement against it.
  *
- * Hidden below the size at which that panel is a column, because a rule you
- * drag sideways is not something a thumb can do, and `display: none` is what
- * makes it unreachable by tab and by pointer rather than merely invisible.
+ * Hidden below the size at which that panel is a column: there it is a cover,
+ * and there is nothing beside it to take width from.
+ *
+ * `touch-action: none` is what makes it work under a finger at all. Without it
+ * the browser reads the first millimetre as the start of a scroll and takes the
+ * pointer away mid-drag. The grab area is widened either side by a pseudo
+ * element, because the rule is one pixel and a fingertip is not.
  */
 export default function ResizeHandle(options: ResizeHandleOptions) {
   const start = useRef({ x: 0, width: 0 });
@@ -69,7 +73,7 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
     // keyboard-operable without asking anyone to trust a role.
     <button
       aria-label={options.label}
-      className="hidden w-1 shrink-0 cursor-col-resize border-0 bg-border p-0 transition-colors hover:bg-brand focus:bg-brand focus:outline-none lg:block"
+      className="relative hidden w-1 shrink-0 cursor-col-resize touch-none border-0 bg-border p-0 transition-colors before:absolute before:-inset-x-2 before:inset-y-0 before:content-[''] hover:bg-brand focus:bg-brand focus:outline-none md:block"
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
