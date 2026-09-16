@@ -59,7 +59,8 @@ function Body(options: ProtectScreenOptions) {
         {offering ? (
           <OfferPasskey
             identity={options.identity}
-            onDone={toJournal}
+            onEnrolled={toJournal}
+            onSkipped={toJournal}
             password={password}
             t={options.t}
           />
