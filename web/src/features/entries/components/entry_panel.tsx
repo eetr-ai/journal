@@ -3,10 +3,11 @@
 import { BookmarkSimpleIcon, SunHorizonIcon, TrashIcon } from "@phosphor-icons/react";
 import Markdown from "@/components/markdown";
 import ConfirmDialog from "@/components/confirm_dialog";
-import ResizablePanel from "@/features/shell/components/resizable_panel";
-import { saveTodayWidthAction } from "@/features/profile/actions";
+import PanelSheet from "@/features/shell/components/panel_sheet";
+import ResizeHandle from "@/features/shell/components/resize_handle";
 import { MAX_TODAY_WIDTH, MIN_TODAY_WIDTH } from "@/features/profile/types";
 import { EntriesActionType, entryShowing, useEntries } from "../entries_state";
+import { useTodayWidth } from "../use_today_width";
 import { useOpenedEntries } from "../use_opened_entries";
 import { useEntryUrl } from "../use_entry_url";
 import { useThrowAway } from "../use_throw_away";
@@ -37,6 +38,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
   const { state } = useEntries();
   const going = useThrowAway();
   const keeping = useKeeping();
+  const today = useTodayWidth(options.width);
 
   useOpenedEntries(options.subject, options.t.entries.unreadable);
   useEntryUrl();
@@ -45,14 +47,26 @@ export default function EntryPanel(options: EntryPanelOptions) {
   const opened = entry ? state.opened[entry.id] : undefined;
 
   return (
-    <ResizablePanel
-      initialWidth={options.width}
-      label={options.t.shell.resizeToday}
-      max={MAX_TODAY_WIDTH}
-      min={MIN_TODAY_WIDTH}
-      onCommit={saveTodayWidthAction}
+    // The width is published as a custom property rather than an inline width,
+    // so only the size that docks this as a column reads it; below that the
+    // panel is a cover and the stored number is simply never consulted.
+    <PanelSheet
+      label={options.t.shell.dismiss}
+      style={{ "--today-width": `${today.width}px` } as React.CSSProperties}
+      variant="entry"
     >
-      <aside className="flex min-h-0 flex-1 flex-col bg-surface">
+      <ResizeHandle
+        label={options.t.shell.resizeToday}
+        max={MAX_TODAY_WIDTH}
+        min={MIN_TODAY_WIDTH}
+        onWidth={today.onWidth}
+        width={today.width}
+      />
+      {/* min-w-0 because this is a flex item with no width of its own: the
+          automatic minimum is the widest thing inside it, and a header that
+          cannot shrink would otherwise carry the whole panel past the box
+          holding it and off the side of a phone. */}
+      <aside className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-surface">
         <PanelHeader
           entry={entry}
           locale={options.locale}
@@ -62,16 +76,8 @@ export default function EntryPanel(options: EntryPanelOptions) {
           title={opened?.title}
           today={state.today}
         />
-        {going.failed && (
-          <p className="border-b border-border px-4 py-2 text-xs text-accent">
-            {options.t.entries.deleteFailed}
-          </p>
-        )}
-        {keeping.failed && (
-          <p className="border-b border-border px-4 py-2 text-xs text-accent">
-            {options.t.entries.bookmarkFailed}
-          </p>
-        )}
+        {going.failed && <Failure text={options.t.entries.deleteFailed} />}
+        {keeping.failed && <Failure text={options.t.entries.bookmarkFailed} />}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm">
           <EntryBody
             body={opened?.content}
@@ -92,8 +98,12 @@ export default function EntryPanel(options: EntryPanelOptions) {
           title={options.t.entries.deleteConfirm.title}
         />
       )}
-    </ResizablePanel>
+    </PanelSheet>
   );
+}
+
+function Failure(options: { text: string }) {
+  return <p className="border-b border-border px-4 py-2 text-xs text-accent">{options.text}</p>;
 }
 
 interface PanelHeaderOptions {

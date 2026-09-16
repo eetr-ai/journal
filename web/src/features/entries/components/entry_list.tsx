@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { BookmarkSimpleIcon } from "@phosphor-icons/react";
 import JournalBar from "./journal_bar";
-import { EntriesActionType, useEntries } from "../entries_state";
+import { useEntries } from "../entries_state";
+import { useShowEntry } from "../use_show_entry";
 import { shortDayIn } from "../days";
 import type { Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
@@ -27,7 +28,8 @@ export interface EntryListOptions {
  * still changes — see use_entry_url — so one of these can be shared or reloaded.
  */
 export default function EntryList(options: EntryListOptions) {
-  const { state, dispatch } = useEntries();
+  const { state } = useEntries();
+  const show = useShowEntry();
   const [keptOnly, setKeptOnly] = useState(false);
   const showing = state.showing ?? state.entries.find((e) => e.date === state.today)?.id;
   const shown = keptOnly ? state.entries.filter((entry) => entry.bookmarked) : state.entries;
@@ -52,7 +54,7 @@ export default function EntryList(options: EntryListOptions) {
               entry={entry}
               label={options.t.entries.open}
               locale={options.locale}
-              onShow={() => dispatch({ type: EntriesActionType.Shown, data: entry })}
+              onShow={() => show(entry)}
               title={
                 // `||` not `??`: a draft opens to an empty title, which is a
                 // title nobody can read rather than one that has not arrived.
@@ -75,7 +77,7 @@ interface SectionOptions {
 
 function Section(options: SectionOptions) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
       <JournalBar
         keptOnly={options.keptOnly}
         locale={options.bar.locale}
