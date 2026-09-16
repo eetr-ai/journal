@@ -150,6 +150,13 @@ const es: Dictionary = {
     journal: "El diario dijo",
     noConversations: "Todavía no hay charlas.",
     delete: "Olvidar esta charla",
+    deleteConfirm: {
+      title: "¿Olvidar esta charla?",
+      body: "La charla se va para siempre. Lo que haya escrito en el diario se queda: esas son entradas por derecho propio. Esto no se puede deshacer.",
+      confirm: "Olvidarla",
+      cancel: "Conservarla",
+    },
+    deleteFailed: "No se pudo olvidar esta charla. Sigue aquí — probá de nuevo en un momento.",
     newChat: "Charla nueva",
     aborted: "Lo paraste. Lo de arriba es todo.",
     retry: "Probá de nuevo",
