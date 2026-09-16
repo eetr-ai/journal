@@ -12,7 +12,14 @@ import type { Turn } from "./types";
 
 export type ChatStatus = "idle" | "waiting" | "streaming" | "failed" | "aborted";
 
-export type ChatError = "empty" | "tooLong" | "locked" | "unauthorized" | "unreachable" | "failed";
+export type ChatError =
+  | "empty"
+  | "tooLong"
+  | "locked"
+  | "notReady"
+  | "unauthorized"
+  | "unreachable"
+  | "failed";
 
 export interface ChatTurn extends Omit<Turn, "seq"> {
   /** Stable for the life of the panel, which a sequence number is not while streaming. */
@@ -62,7 +69,13 @@ export type ChatAction = ReducerAction<ChatActionType>;
 const NO_TOOLS = { started: 0, finished: 0 };
 
 export function initialChatState(threadId: string, turns: Turn[] = []): ChatUiState {
-  return { threadId, status: "idle", turns: turns.map(chatTurnFrom), error: null, issued: 0 };
+  return {
+    threadId,
+    status: "idle",
+    turns: turns.map(chatTurnFrom),
+    error: null,
+    issued: 0,
+  };
 }
 
 export function chatTurnFrom(turn: Turn): ChatTurn {
@@ -77,7 +90,14 @@ export function chatTurnFrom(turn: Turn): ChatTurn {
 }
 
 function said(from: Turn["from"], id: string, text: string): ChatTurn {
-  return { id, from, text, at: new Date().toISOString(), reasoning: "", tools: NO_TOOLS };
+  return {
+    id,
+    from,
+    text,
+    at: new Date().toISOString(),
+    reasoning: "",
+    tools: NO_TOOLS,
+  };
 }
 
 /** The journal's turn is always the last one while a run is in flight. */
@@ -155,7 +175,10 @@ const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) 
 
     return {
       ...state,
-      turns: state.turns.map((turn, at) => ({ ...turn, text: opened[at] ?? turn.text })),
+      turns: state.turns.map((turn, at) => ({
+        ...turn,
+        text: opened[at] ?? turn.text,
+      })),
     };
   },
 

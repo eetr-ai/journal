@@ -114,6 +114,7 @@ const es: Dictionary = {
       tooLong: "Eso es más largo de lo que puede ser un mensaje. Mandalo en dos.",
       locked: "Tu diario se bloqueó mientras escribías. Desbloqueálo y mandálo de nuevo.",
       unauthorized: "Cerraste sesión. Iniciá sesión y mandálo otra vez.",
+      notReady: "Todavía estamos viendo qué día es donde estás. Probá en un momento.",
       unreachable: "No se pudo llegar al diario, así que no se mandó nada.",
       failed: "Esa respuesta se cortó a la mitad. Lo de arriba es todo.",
     },

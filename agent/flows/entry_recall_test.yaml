@@ -54,3 +54,14 @@ cases:
     expect:
       body:
         found: false
+
+  # The BFF always sends a date. The flow is reachable without one, and `''::date`
+  # is an error rather than a miss — which would fail a tool call the person is
+  # sitting through, for the one thing that was never going to find anything.
+  - name: a run that carried no date recalls nothing rather than failing
+    input:
+      data: { months: 12 }
+      vars: { subject: dolphin-entries, today: "", dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false

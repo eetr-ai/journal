@@ -173,6 +173,11 @@ flows:
                     ($1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5,
                      NULLIF($6, '')::vector,
                      CASE WHEN $6 = '' THEN NULL ELSE now() END)
+                  -- entry_date is deliberately NOT updated. A note belongs to
+                  -- the day it is about, and advancing it would move the note
+                  -- off that day and leave it empty — a conversation picked up
+                  -- a week later would silently take last Tuesday's evening
+                  -- with it. updated_at is what says it was touched since.
                   ON CONFLICT (oidc_subject, thread_key) WHERE thread_key <> ''
                   DO UPDATE SET
                     title = EXCLUDED.title,
@@ -344,18 +349,26 @@ flows:
           # A fortnight either side: far enough that a person who does not write
           # daily still has something to find, near enough that "a year ago"
           # stays true.
+          #
+          # NULLIF because a run that carried no date leaves this empty, and
+          # `''::date` is an error rather than a miss. NULL makes the BETWEEN
+          # match nothing, so the tool answers "found nothing" — which is true,
+          # and better than failing the call. There is deliberately no
+          # CURRENT_DATE fallback: that is today in the database's zone, not in
+          # the reader's, and recalling the wrong fortnight is worse than
+          # recalling nothing.
           query: |
             SELECT id, entry_date, title, content, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1
               AND entry_date BETWEEN
-                    ($2::date - make_interval(months => $3::int) - interval '15 days')
-                AND ($2::date - make_interval(months => $3::int) + interval '15 days')
+                    (NULLIF($2, '')::date - make_interval(months => $3::int) - interval '15 days')
+                AND (NULLIF($2, '')::date - make_interval(months => $3::int) + interval '15 days')
             ORDER BY random()
             LIMIT 1
           args:
             - vars.subject
-            - vars.today
+            - 'has(vars.today) ? vars.today : ""'
             - 'has(body.months) && body.months > 0 ? body.months : 12'
           single: true
       - type: if

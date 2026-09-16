@@ -49,16 +49,33 @@ function reasoningFrom(event: AgentEvent): AgentFrame | null {
   return typeof text === "string" && text !== "" ? { kind: "reasoning", text } : null;
 }
 
-// A row, as the entry flows send it. Anything without an id is not one, and is
-// dropped rather than rendered as an entry with no identity.
-function entryFrame(kind: "entry" | "open", body: unknown): AgentFrame | null {
-  const row = body as EntryEntity;
+// Every field the mapper reads, because it reads them as strings — and one that
+// is not is not a broken entry, it is an exception thrown out of the parser and
+// caught as a failed run. Dropping the frame is the contract this file keeps.
+const ENTRY_FIELDS = [
+  "id",
+  "thread_key",
+  "entry_date",
+  "title",
+  "content",
+  "created_at",
+  "updated_at",
+] as const;
 
-  if (typeof body !== "object" || body === null || typeof row.id !== "string") {
+// A row, as the entry flows send it. Anything that is not a whole one is
+// dropped rather than rendered as half an entry.
+function entryFrame(kind: "entry" | "open", body: unknown): AgentFrame | null {
+  if (typeof body !== "object" || body === null) {
     return null;
   }
 
-  return { kind, entry: entryFromEntity(row) };
+  const row = body as Record<string, unknown>;
+
+  if (ENTRY_FIELDS.some((field) => typeof row[field] !== "string")) {
+    return null;
+  }
+
+  return { kind, entry: entryFromEntity(body as EntryEntity) };
 }
 
 export function frameFrom(event: SseEvent): AgentFrame | null {

@@ -39,7 +39,10 @@ export function initialEntriesState(
   today: string,
   showing: string | null,
 ): EntriesUiState {
-  return { entries, opened: {}, showing, today };
+  // Sorted here too, not only as entries arrive. The list a page opens with can
+  // carry an entry fetched by id, which has any date at all — and it is put in
+  // front of the rest by the fetch, not by being the newest.
+  return { entries: byNewest(entries), opened: {}, showing, today };
 }
 
 // Newest first, the order the list is kept in and the order the drawer reads.

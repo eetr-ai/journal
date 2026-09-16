@@ -4,6 +4,7 @@ import { chatClient } from "@/features/chat/client";
 import { askFrom } from "@/features/chat/rules";
 import { momentFor } from "@/features/chat/now";
 import { currentProfile } from "@/features/profile/service";
+import { needsDetection } from "@/features/profile/types";
 
 /**
  * The chat stream, proxied from the agent to the browser.
@@ -25,6 +26,8 @@ const LOCKED = 423;
 const BAD_REQUEST = 400;
 const UNSUPPORTED_MEDIA = 415;
 const BAD_GATEWAY = 502;
+// Early, not wrong: the reader's zone has not reached the server yet.
+const TOO_EARLY = 409;
 
 // no-transform stops a proxy from buffering the stream into one blob, and
 // x-accel-buffering says the same thing to anything nginx-shaped in front.
@@ -92,9 +95,18 @@ export async function POST(request: Request): Promise<Response> {
   // to be the reader's day. The zone is theirs; the instant is ours.
   const profile = await currentProfile();
 
+  // Without the zone there is no such thing as the reader's day, and falling
+  // back to this process's one would file an entry under a day nobody was
+  // living in — permanently, since the note is what stays. The shell fills this
+  // in on its first render, so a request that arrives before it has is early
+  // rather than wrong, and says so.
+  if (!profile || needsDetection(profile.config)) {
+    return new Response(null, { status: TOO_EARLY });
+  }
+
   const stream = await chatClient.stream({
     subject: admitted.subject,
-    ask: { ...ask, now: momentFor(profile?.config.timezone ?? "") },
+    ask: { ...ask, now: momentFor(profile.config.timezone) },
     signal: request.signal,
   });
 

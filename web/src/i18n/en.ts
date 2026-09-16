@@ -115,6 +115,9 @@ const en = {
       tooLong: "That is longer than one message can be. Send it in two.",
       locked: "Your journal locked while you were typing. Unlock it and send again.",
       unauthorized: "You are signed out. Sign in and send it again.",
+      // Not a fault: the browser has not yet told us which day it is where the
+      // reader is, and nothing gets filed under a guess.
+      notReady: "Still working out what day it is where you are. Try again in a moment.",
       unreachable: "The journal could not be reached, so nothing was sent.",
       failed: "That answer stopped part-way. What is above is all of it.",
     },

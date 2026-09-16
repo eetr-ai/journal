@@ -68,6 +68,16 @@ function refuse(message: string, agentKey: string | null): ChatError | null {
   return messageProblem(message) ?? (agentKey ? null : "locked");
 }
 
+// The one refusal worth its own words. Everything the journal writes down is
+// filed under the reader's day, and until the browser has said which zone that
+// is there is no such day — so this is "not yet", and saying "could not be
+// reached" would send someone looking for a fault that is not there.
+const TOO_EARLY = 409;
+
+function refusal(status: number): ChatError {
+  return status === TOO_EARLY ? "notReady" : "unreachable";
+}
+
 type Dispatcher = (action: { type: ChatActionType; data?: unknown }) => void;
 type PanelDispatcher = (action: { type: EntriesActionType; data?: unknown }) => void;
 
@@ -101,13 +111,10 @@ async function run(
   dispatch: Dispatcher,
   panel: PanelDispatcher,
 ): Promise<boolean> {
-  const body = await openChat({ ask, signal });
+  const { status, body } = await openChat({ ask, signal });
 
   if (!body) {
-    dispatch({
-      type: ChatActionType.Failed,
-      data: "unreachable" satisfies ChatError,
-    });
+    dispatch({ type: ChatActionType.Failed, data: refusal(status) });
 
     return false;
   }
