@@ -72,7 +72,7 @@ export default function EntrySearch(options: EntrySearchOptions) {
       <form className="flex items-center gap-2" onSubmit={ask}>
         <input
           aria-label={t.open}
-          className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs"
+          className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-base md:text-xs"
           maxLength={MAX_QUERY_CHARS}
           onChange={(event) => dispatch({ type: SearchActionType.Typed, data: event.target.value })}
           placeholder={t.placeholder}
@@ -81,7 +81,7 @@ export default function EntrySearch(options: EntrySearchOptions) {
         />
         <button
           aria-label={t.submit}
-          className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground disabled:opacity-40"
+          className="tap-target shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground disabled:opacity-40"
           disabled={!agentKey || queryProblem(state.query) !== null}
           type="submit"
         >

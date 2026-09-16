@@ -180,7 +180,7 @@ function HeaderActions(options: HeaderActionsOptions) {
         <button
           aria-label={keepLabel}
           aria-pressed={kept}
-          className={`shrink-0 rounded p-1 hover:bg-surface-muted ${
+          className={`tap-target shrink-0 rounded p-1 hover:bg-surface-muted ${
             kept ? "text-highlight" : "text-muted hover:text-foreground"
           }`}
           onClick={() => options.onKeep(options.entry)}
@@ -192,7 +192,7 @@ function HeaderActions(options: HeaderActionsOptions) {
       )}
       <button
         aria-label={options.t.entries.delete}
-        className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-accent"
+        className="tap-target shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-accent"
         onClick={options.onThrowAway}
         title={options.t.entries.delete}
         type="button"

@@ -38,7 +38,7 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
               name is still there for anyone not reading pixels. */}
           <a
             aria-label={options.t.chat.newChat}
-            className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
+            className="tap-target shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
             href={`/${options.locale}`}
             title={options.t.chat.newChat}
           >

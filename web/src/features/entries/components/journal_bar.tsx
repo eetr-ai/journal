@@ -103,7 +103,7 @@ function Action(options: ActionOptions) {
     <button
       aria-expanded={options.on}
       aria-label={options.label}
-      className={`shrink-0 rounded p-1 hover:bg-surface-muted hover:text-foreground ${
+      className={`tap-target shrink-0 rounded p-1 hover:bg-surface-muted hover:text-foreground ${
         options.on ? "bg-surface-muted text-foreground" : "text-muted"
       }`}
       onClick={options.onPress}

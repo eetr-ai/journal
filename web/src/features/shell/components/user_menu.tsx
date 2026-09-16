@@ -28,7 +28,7 @@ function useDismiss(onDismiss: () => void) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function onPointerDown(event: MouseEvent) {
+    function onPointerDown(event: PointerEvent) {
       if (!ref.current?.contains(event.target as Node)) {
         onDismiss();
       }
@@ -40,11 +40,11 @@ function useDismiss(onDismiss: () => void) {
       }
     }
 
-    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [onDismiss]);

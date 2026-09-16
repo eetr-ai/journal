@@ -53,7 +53,7 @@ export default function DayPicker(options: DayPickerOptions) {
       <header className="flex items-center gap-1 pb-2">
         <button
           aria-label={t.previous}
-          className="rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
+          className="tap-target rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
           onClick={() => setMonth(shiftMonth(month, -A_MONTH))}
           type="button"
         >
@@ -64,19 +64,19 @@ export default function DayPicker(options: DayPickerOptions) {
         </span>
         <button
           aria-label={t.next}
-          className="rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
+          className="tap-target rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
           onClick={() => setMonth(shiftMonth(month, A_MONTH))}
           type="button"
         >
           <CaretRightIcon size={ICON_SIZE} weight="bold" />
         </button>
       </header>
-      <div aria-hidden className="grid grid-cols-7 gap-0.5 pb-1 text-center text-xs text-muted">
+      <div aria-hidden className="grid grid-cols-7 gap-1 pb-1 text-center text-xs text-muted">
         {weekdayInitials(options.locale).map((initial, at) => (
           <span key={`${initial}-${at}`}>{initial}</span>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-0.5">
+      <div className="grid grid-cols-7 gap-1">
         {gridFor(month, options.locale).map((day) => (
           <Cell
             day={day}
@@ -113,7 +113,7 @@ function Cell(options: CellOptions) {
   return (
     <button
       aria-label={label}
-      className={`rounded py-1 text-center text-xs ${tone} ${faded} ${ring} ${
+      className={`grid aspect-square place-items-center rounded text-center text-xs pointer-coarse:min-h-9 ${tone} ${faded} ${ring} ${
         options.written ? "hover:bg-surface-muted" : "cursor-default"
       }`}
       disabled={!options.written}

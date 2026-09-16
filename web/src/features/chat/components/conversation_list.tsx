@@ -56,7 +56,7 @@ export default function ConversationList(options: ConversationListOptions) {
           </a>
           <button
             aria-label={t.delete}
-            className="shrink-0 px-2 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            className="tap-target shrink-0 px-2 text-muted pointer-fine:opacity-0 group-hover:pointer-fine:opacity-100 focus-visible:opacity-100"
             onClick={async () => {
               if (!(await forgetConversationAction(conversation.id))) {
                 return;
