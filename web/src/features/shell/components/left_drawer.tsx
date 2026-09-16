@@ -51,7 +51,7 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
           timezone={options.timezone}
         />
       </section>
-      <EntryList locale={options.locale} t={options.t} />
+      <EntryList locale={options.locale} subject={options.subject} t={options.t} />
     </aside>
   );
 }

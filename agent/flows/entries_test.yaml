@@ -43,3 +43,41 @@ cases:
         entries: []
       that:
         - '!has(vars.httpStatus)'
+
+  # A route always carries a query map, so these are what the drawer's calendar
+  # sends when a day is picked.
+  - name: one day can be asked for on its own
+    input:
+      data: {}
+      vars:
+        method: GET
+        subject: dolphin-entries
+        query: { date: "2026-09-14" }
+    expect:
+      that:
+        - body.entries.size() == 1
+        - body.entries[0].id == "aaaaaaaa-0000-4000-8000-000000000002"
+
+  - name: a range selects the days inside it and nothing either side
+    input:
+      data: {}
+      vars:
+        method: GET
+        subject: dolphin-entries
+        query: { from: "2026-09-10", to: "2026-09-14" }
+    expect:
+      that:
+        - body.entries.size() == 2
+        - body.entries[0].id == "aaaaaaaa-0000-4000-8000-000000000002"
+        - body.entries[1].id == "aaaaaaaa-0000-4000-8000-000000000003"
+
+  - name: a day with nothing on it is an empty list, not everything
+    input:
+      data: {}
+      vars:
+        method: GET
+        subject: dolphin-entries
+        query: { date: "2026-09-13" }
+    expect:
+      body:
+        entries: []

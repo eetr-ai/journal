@@ -1,7 +1,10 @@
 # The journal entries: what the agent writes down while a person talks.
 #
-#   GET /entries/{subject}       the most recent, newest first
-#   GET /entries/{subject}/{id}  one entry
+#   GET    /entries/{subject}       the most recent, newest first
+#   GET    /entries/{subject}/days  the days with something on them
+#   GET    /entries/{subject}/{id}  one entry
+#   DELETE /entries/{subject}/{id}  throw one away
+#   POST   /entries/{subject}/search  find one by what it was about
 #
 # and, below the routes, the sourceless flows behind the agent's tools. They are
 # flows rather than inline tool chains so that each one is a unit dolphin can
@@ -21,11 +24,10 @@
 # Rows leave the routes sealed. The browser holds the key and opens them; the
 # tools open them here, because the model has to read what it is adding to.
 flows:
-  # The most recent, newest first. Deliberately unnarrowed: an octo route lifts
-  # path parameters and headers onto the message and nothing else, so there is
-  # no query string to filter by — and this is the drawer's query, which wants
-  # the recent ones anyway. Narrowing by date is a thing the agent does, through
-  # the tools below, where the filter arrives in the body.
+  # The most recent, newest first, or one day of them.
+  #
+  # The cap stays whatever the filter is: this is the drawer's query, and a
+  # drawer shows the recent ones. A reader who wants further back names a day.
   - name: entries
     source:
       connector: api
@@ -34,6 +36,14 @@ flows:
         path: /entries/{subject}
         methods: [GET]
     process:
+      # A route always carries a query map; a flow invoked by name in a test
+      # does not. Defaulted here so the arguments below read as filters rather
+      # than as three copies of the same guard.
+      - type: set-variable
+        name: hold-filters
+        settings:
+          name: filters
+          value: 'has(vars.query) ? vars.query : {}'
       - type: sql
         name: select-entries
         settings:
@@ -42,10 +52,16 @@ flows:
             SELECT id, thread_key, entry_date, title, content, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1
+              AND ($2 = '' OR entry_date = $2::date)
+              AND ($3 = '' OR entry_date >= $3::date)
+              AND ($4 = '' OR entry_date <= $4::date)
             ORDER BY entry_date DESC, created_at DESC
             LIMIT 200
           args:
             - vars.subject
+            - 'has(vars.filters.date) ? vars.filters.date : ""'
+            - 'has(vars.filters.from) ? vars.filters.from : ""'
+            - 'has(vars.filters.to) ? vars.filters.to : ""'
       # A person with nothing written is an ordinary answer, not a 404.
       - type: set-payload
         name: wrap
@@ -58,30 +74,257 @@ flows:
       type: http
       settings:
         path: /entries/{subject}/{id}
+        methods: [GET, DELETE]
+    process:
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "GET"'
+            process:
+              - type: sql
+                name: select-entry
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+                    FROM journal_entry
+                    WHERE oidc_subject = $1 AND id = $2::uuid
+                  args:
+                    - vars.subject
+                    - vars.id
+                  single: true
+              - type: if
+                name: check-found
+                condition: 'body == null'
+                then:
+                  process:
+                    - type: set-variable
+                      settings: { name: httpStatus, value: "404" }
+                    - type: set-payload
+                      settings:
+                        value: '{"error": "entry not found"}'
+
+          - when: 'vars.method == "DELETE"'
+            process:
+              # Scoped by subject as well as id, so holding an id is not enough
+              # to throw away somebody else's day. The chunks go with it through
+              # the foreign key, so erasure cannot half-happen and leave the
+              # person's words behind in a table nobody is looking at.
+              - type: sql
+                name: delete-entry
+                settings:
+                  connector: db
+                  exec: true
+                  query: DELETE FROM journal_entry WHERE oidc_subject = $1 AND id = $2::uuid
+                  args:
+                    - vars.subject
+                    - vars.id
+
+  # The days with something on them, for the calendar. Dates and nothing else:
+  # they are already in the clear in every other query here, and a count would
+  # say how much was written on a day nobody asked to open.
+  - name: entry-days
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/days
         methods: [GET]
     process:
       - type: sql
-        name: select-entry
+        name: select-days
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, created_at, updated_at
+            SELECT DISTINCT entry_date
             FROM journal_entry
-            WHERE oidc_subject = $1 AND id = $2::uuid
+            WHERE oidc_subject = $1
+            ORDER BY entry_date DESC
           args:
             - vars.subject
-            - vars.id
-          single: true
+      - type: set-payload
+        name: wrap
+        settings:
+          value: '{"days": body.map(r, r.entry_date.substring(0, 10))}'
+
+  # Search the journal, for the reader rather than for the model.
+  #
+  # Meaning gets the candidates and a model picks among them: closest-by-vector
+  # alone answers "which of these is nearest", which is not the question a
+  # person typed. So the shortlist is opened, read, and cut down to the ones
+  # that actually bear on what was asked.
+  #
+  # The key is on the body because this is a request that needs it: nothing can
+  # rank what it cannot read. It is lifted into a variable, used for the length
+  # of the request the reader started, and kept nowhere. What leaves is the
+  # entries still sealed — the browser opens those the way it opens any other —
+  # and one line of plaintext per hit saying why it is here.
+  - name: entry-search
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/search
+        methods: [POST]
+        timeout: 60s
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: hold-question
+        settings: { name: question, value: body.query }
+      # Clamped rather than trusted: every row past this one is decrypted, put
+      # in a prompt and paid for, and the BFF is not the only thing that can
+      # reach this port.
+      - type: set-variable
+        name: hold-limit
+        settings:
+          name: shortlist
+          value: 'has(body.limit) && body.limit > 0 ? math.least(body.limit, 20) : 8'
+      # Lifted with the rest: by the time the shortlist is built the body is
+      # what the last statement returned, and the request that carried this is
+      # gone.
+      - type: set-variable
+        name: hold-locale
+        settings:
+          name: answerIn
+          value: 'has(body.locale) && body.locale != "" ? body.locale : "en"'
+      - type: ai-embed
+        name: embed-question
+        settings:
+          connector: router
+          model: ${EMBEDDING_MODEL}
+          dimensions: 1024
+          text: 'vars.question'
+          resultVar: vector
+      # One row per entry, ranked by the chunk that got it here. DISTINCT ON is
+      # what keeps a long day from filling the shortlist with itself.
+      - type: sql
+        name: search-chunks
+        settings:
+          connector: db
+          query: |
+            SELECT * FROM (
+              SELECT DISTINCT ON (e.id)
+                     e.id, e.thread_key, e.entry_date, e.title, e.content,
+                     e.created_at, e.updated_at,
+                     (c.embedding <=> $2::vector) AS distance
+              FROM journal_entry e
+              JOIN journal_entry_chunk c ON c.entry_id = e.id
+              WHERE e.oidc_subject = $1 AND c.embedding IS NOT NULL
+              ORDER BY e.id, distance
+            ) best
+            ORDER BY best.distance
+            LIMIT $3
+          args:
+            - vars.subject
+            - 'toJson(vars.vector)'
+            - vars.shortlist
+      - type: set-variable
+        name: hold-found
+        settings: { name: found, value: body }
       - type: if
-        name: check-found
-        condition: 'body == null'
+        name: anything-to-rank
+        condition: 'size(vars.found) == 0'
         then:
           process:
-            - type: set-variable
-              settings: { name: httpStatus, value: "404" }
+            # Nothing written, or nothing embedded yet. An empty answer, not an
+            # error, and no model call to pay for.
             - type: set-payload
+              settings: { value: '{"results": []}' }
+        else:
+          process:
+            # The whole day, not the paragraph that matched it.
+            #
+            # Chunks are how an entry is found; they are not how it is judged. A
+            # model shown one paragraph of a day answers about that paragraph —
+            # asked what happened to somebody's knee, and handed the morning run
+            # from the same entry, it will correctly say it does not know.
+            #
+            # Opened here and nowhere else. This body is what the model is
+            # handed; it is never stored and never logged.
+            - type: set-payload
+              name: open-the-shortlist
               settings:
-                value: '{"error": "entry not found"}'
+                value: >
+                  {"question": vars.question,
+                   "answerIn": vars.answerIn,
+                   "entries": vars.found.map(r, {
+                    "id": r.id,
+                    "date": r.entry_date.substring(0, 10),
+                    "title": r.title.startsWith("enc1:") ? string(fromAes(base64.decode(r.title.substring(5)), base64.decode(vars.dataKey))) : r.title,
+                    "text": r.content.startsWith("enc1:") ? string(fromAes(base64.decode(r.content.substring(5)), base64.decode(vars.dataKey))) : r.content
+                  })}
+            - type: ai-mapping
+              name: rank-hits
+              settings:
+                connector: router
+                prompt: >
+                  These are entries from one person's journal, already narrowed
+                  by meaning, and the question that person asked of their own
+                  writing.
+
+
+                  Keep only the entries that actually bear on the question, most
+                  useful first, and drop the rest — an empty list is the right
+                  answer when none of them do. Do not rank by how close the
+                  words are; rank by whether reading that day would answer what
+                  was asked.
+
+
+                  For each one you keep, `why` is a single short sentence
+                  saying what in that day answers the question. Write it to
+                  them, about their own day, and write it in the language named
+                  by `answerIn` — that is the language they are reading in, and
+                  it is given to you rather than guessed at. Never invent an id,
+                  and never return one that was not given to you.
+                outputSchema: |
+                  {
+                    "type": "object",
+                    "required": ["results"],
+                    "properties": {
+                      "results": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "why"],
+                          "properties": {
+                            "id": { "type": "string" },
+                            "why": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+            - type: set-variable
+              name: hold-ranked
+              settings: { name: ranked, value: body.results }
+            # Rejoined to the rows as they are stored. An id the model invented
+            # matches nothing and is dropped rather than answered with a hole,
+            # which is also what makes the index below safe. An id it named
+            # twice is kept once, at the place it first put it: the schema does
+            # not require them to be distinct, and a day cannot be two results.
+            - type: set-payload
+              name: rejoin
+              settings:
+                value: >
+                  {"results": lists.range(size(vars.ranked))
+                    .filter(i, vars.found.exists(f, f.id == vars.ranked[i].id)
+                               && !lists.range(i).exists(j, vars.ranked[j].id == vars.ranked[i].id))
+                    .map(i, vars.ranked[i])
+                    .map(r, {
+                      "why": r.why,
+                      "entry": vars.found.filter(f, f.id == r.id).map(f, {
+                        "id": f.id,
+                        "thread_key": f.thread_key,
+                        "entry_date": f.entry_date,
+                        "title": f.title,
+                        "content": f.content,
+                        "created_at": f.created_at,
+                        "updated_at": f.updated_at
+                      }).first()
+                    })}
 
   # --- the agent's tools -----------------------------------------------------
 

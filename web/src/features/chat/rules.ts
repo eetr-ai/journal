@@ -1,4 +1,5 @@
 import { isLocale, type Locale } from "@/i18n/config";
+import { isAgentKey } from "@/features/vault/rules";
 import type { ChatAsk } from "./types";
 
 /**
@@ -12,11 +13,6 @@ export const MAX_MESSAGE_CHARS = 4_000;
 // A thread id is minted in the browser with crypto.randomUUID(), so the shape
 // is fixed and worth checking: it becomes a key in someone's memory.
 const THREAD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-
-// AES-256 as base64: 32 bytes is 44 characters with one pad. Checked because
-// an unusable key here would be discovered by the agent mid-run, having already
-// written half a conversation.
-const AGENT_KEY = /^[A-Za-z0-9+/]{43}=$/u;
 
 export type MessageProblem = "empty" | "tooLong";
 
@@ -56,7 +52,7 @@ export function askFrom(value: unknown): ChatAsk | null {
     return null;
   }
 
-  if (!THREAD_ID.test(value.threadId) || !isLocale(value.locale) || !AGENT_KEY.test(value.key)) {
+  if (!THREAD_ID.test(value.threadId) || !isLocale(value.locale) || !isAgentKey(value.key)) {
     return null;
   }
 

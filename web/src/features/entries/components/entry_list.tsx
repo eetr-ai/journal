@@ -1,17 +1,17 @@
 "use client";
 
-import { NotebookIcon } from "@phosphor-icons/react/dist/ssr";
+import JournalBar from "./journal_bar";
 import { EntriesActionType, useEntries } from "../entries_state";
 import { shortDayIn } from "../days";
 import type { Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
-const ICON_SIZE = 16;
-
 export interface EntryListOptions {
   t: Dictionary;
   locale: Locale;
+  /** Whose vault holds the key — the search sends it with the question. */
+  subject: string;
 }
 
 /**
@@ -27,14 +27,14 @@ export default function EntryList(options: EntryListOptions) {
 
   if (state.entries.length === 0) {
     return (
-      <Section title={options.t.shell.entries}>
+      <Section bar={options}>
         <p className="px-2 py-2 text-xs text-muted">{options.t.entries.none}</p>
       </Section>
     );
   }
 
   return (
-    <Section title={options.t.shell.entries}>
+    <Section bar={options}>
       <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {state.entries.map((entry) => (
           <li key={entry.id}>
@@ -53,15 +53,10 @@ export default function EntryList(options: EntryListOptions) {
   );
 }
 
-function Section(options: { title: string; children: React.ReactNode }) {
+function Section(options: { bar: EntryListOptions; children: React.ReactNode }) {
   return (
     <section className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-center gap-2 px-4 py-3">
-        <span className="text-muted">
-          <NotebookIcon size={ICON_SIZE} weight="fill" />
-        </span>
-        <h2 className="flex-1 text-sm font-semibold">{options.title}</h2>
-      </header>
+      <JournalBar locale={options.bar.locale} subject={options.bar.subject} t={options.bar.t} />
       {options.children}
     </section>
   );

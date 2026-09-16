@@ -90,7 +90,8 @@ INSERT INTO user_profile (oidc_subject, email, name, config)
 VALUES
   ('dolphin-entries',       'entries@example.com',   'Entries Read',  '{}'::jsonb),
   ('dolphin-entries-write', 'entries-w@example.com', 'Entries Write', '{}'::jsonb),
-  ('dolphin-entries-other', 'entries-o@example.com', 'Entries Other', '{}'::jsonb)
+  ('dolphin-entries-other', 'entries-o@example.com', 'Entries Other', '{}'::jsonb),
+  ('dolphin-entries-delete', 'entries-d@example.com', 'Entries Delete', '{}'::jsonb)
 ON CONFLICT (oidc_subject) DO UPDATE SET
   email = EXCLUDED.email,
   name = EXCLUDED.name;
@@ -123,7 +124,13 @@ VALUES
    'enc1:xrX0xYIu8pYasJIIX9Lu2+jMljbC4QxUe6h7aN7xPdwd+ey7gS7cMVC/8AXQJA=='),
   (UUID 'bbbbbbbb-0000-4000-8000-000000000001', 'dolphin-entries-other', 'dolphin-entry-x', DATE '2026-09-15',
    'enc1:t34nYLl8H7w3WVHbHcZcfldVPDUP8zVlXbEQC1CsNEWBFd3qVdzHdxkfI1jN',
-   'enc1:3MNTiWhviwM9r193UiUAtDZ5eGVALs+hIasNC9leDv9lkYmd6diSCk4Fznvh5NJMxcwV');
+   'enc1:3MNTiWhviwM9r193UiUAtDZ5eGVALs+hIasNC9leDv9lkYmd6diSCk4Fznvh5NJMxcwV'),
+  -- Thrown away by its suite, and put back by the next run of this file. It
+  -- carries a chunk so the delete has something to cascade to: a foreign key
+  -- that stopped cascading would fail the statement rather than pass quietly.
+  (UUID 'dddddddd-0000-4000-8000-000000000001', 'dolphin-entries-delete', '', DATE '2026-09-15',
+   'enc1:pE/ePAhzHA/rFRGCykddcSgtm8kktxiqqSMme+l6vLFM9gSIoKEwFuDjkmKY',
+   'enc1:ewCmPL+uIM1trx6uI80JuPcmosUMVBACFTl97PSLNNUld3cHAOh4g85e0egXXwA=');
 
 -- Chunks, for the suites that rank by meaning.
 --
@@ -186,4 +193,13 @@ VALUES
   (UUID 'cccccccc-0000-4000-8000-000000000003', 1,
    'enc1:cfNwgcp0ly8m3SFy8UDbQnw+yXoVr3G1bSAw2z+393A=', dolphin_vector('{"3": 1}'), now()),
   (UUID 'cccccccc-0000-4000-8000-000000000003', 2,
-   'enc1:Rke+goCimSRn+f0YcCuSJ+Xphkmk7UyxX7QXChlnYKyYZw==', dolphin_vector('{"4": 1}'), now());
+   'enc1:Rke+goCimSRn+f0YcCuSJ+Xphkmk7UyxX7QXChlnYKyYZw==', dolphin_vector('{"4": 1}'), now()),
+  (UUID 'dddddddd-0000-4000-8000-000000000001', 0,
+   'enc1:bp041nJFeKIBMdm8Sw+u7SYBDdeiTp4m2nFq2L3BU4BbxL+s82O1LD+Gs6GW4ho=',
+   dolphin_vector('{"9": 1}'), now()),
+  -- Somebody else's, sitting exactly on the question the search suite asks, so
+  -- a search that stopped scoping by subject would put it first rather than
+  -- miss it quietly.
+  (UUID 'bbbbbbbb-0000-4000-8000-000000000001', 0,
+   'enc1:Qidwd777Viml7Hl+A5dhb6rODBpQpqWtcaURfXMp6nwhQbWCGH4C/hk5rGRiTOws7CEg',
+   dolphin_vector('{"0": 1}'), now());

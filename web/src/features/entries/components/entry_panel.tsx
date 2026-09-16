@@ -1,14 +1,17 @@
 "use client";
 
-import { SunHorizonIcon } from "@phosphor-icons/react/dist/ssr";
+import { SunHorizonIcon, TrashIcon } from "@phosphor-icons/react";
 import Markdown from "@/components/markdown";
+import ConfirmDialog from "@/components/confirm_dialog";
 import ResizablePanel from "@/features/shell/components/resizable_panel";
 import { saveTodayWidthAction } from "@/features/profile/actions";
 import { MAX_TODAY_WIDTH, MIN_TODAY_WIDTH } from "@/features/profile/types";
 import { EntriesActionType, entryShowing, useEntries } from "../entries_state";
 import { useOpenedEntries } from "../use_opened_entries";
 import { useEntryUrl } from "../use_entry_url";
+import { useThrowAway } from "../use_throw_away";
 import { dayIn } from "../days";
+import type { Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -30,14 +33,14 @@ export interface EntryPanelOptions {
  * what the page was rendered with.
  */
 export default function EntryPanel(options: EntryPanelOptions) {
-  const { state, dispatch } = useEntries();
+  const { state } = useEntries();
+  const going = useThrowAway();
 
   useOpenedEntries(options.subject, options.t.entries.unreadable);
   useEntryUrl();
 
   const entry = entryShowing(state);
   const opened = entry ? state.opened[entry.id] : undefined;
-  const showingToday = !entry || entry.date === state.today;
 
   return (
     <ResizablePanel
@@ -48,43 +51,93 @@ export default function EntryPanel(options: EntryPanelOptions) {
       onCommit={saveTodayWidthAction}
     >
       <aside className="flex min-h-0 flex-1 flex-col bg-surface">
-        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-highlight">
-            <SunHorizonIcon size={ICON_SIZE} weight="fill" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold">
-              {showingToday
-                ? options.t.shell.todayTitle
-                : (opened?.title ?? options.t.entries.opening)}
-            </h2>
-            <p className="text-xs text-muted">
-              {dayIn(entry?.date ?? state.today, options.locale)}
-            </p>
-          </div>
-          {/* Only when the panel has been moved off today. Getting back is the
-              one thing a reader cannot do from the drawer, because today may
-              have nothing in it to click. */}
-          {showingToday ? null : (
-            <button
-              className="shrink-0 rounded px-2 py-1 text-xs text-muted hover:bg-surface-muted hover:text-foreground"
-              onClick={() => dispatch({ type: EntriesActionType.Closed })}
-              type="button"
-            >
-              {options.t.entries.backToToday}
-            </button>
-          )}
-        </header>
+        <PanelHeader
+          entry={entry}
+          locale={options.locale}
+          onThrowAway={going.ask}
+          t={options.t}
+          title={opened?.title}
+          today={state.today}
+        />
+        {going.failed && (
+          <p className="border-b border-border px-4 py-2 text-xs text-accent">
+            {options.t.entries.deleteFailed}
+          </p>
+        )}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm">
           <EntryBody
             body={opened?.content}
             empty={options.t.entries.empty}
-            waiting={options.t.entries.opening}
             sealed={Boolean(entry)}
+            waiting={options.t.entries.opening}
           />
         </div>
       </aside>
+      {going.asking && entry && (
+        <ConfirmDialog
+          body={options.t.entries.deleteConfirm.body}
+          cancelLabel={options.t.entries.deleteConfirm.cancel}
+          confirmLabel={options.t.entries.deleteConfirm.confirm}
+          onCancel={going.cancel}
+          onConfirm={() => going.confirm(entry)}
+          title={options.t.entries.deleteConfirm.title}
+        />
+      )}
     </ResizablePanel>
+  );
+}
+
+interface PanelHeaderOptions {
+  t: Dictionary;
+  locale: Locale;
+  entry: Entry | null;
+  /** The opened title, absent until the key has been through it. */
+  title?: string;
+  today: string;
+  onThrowAway: () => void;
+}
+
+function PanelHeader(options: PanelHeaderOptions) {
+  const { dispatch } = useEntries();
+  const showingToday = !options.entry || options.entry.date === options.today;
+
+  return (
+    <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+      <span className="text-highlight">
+        <SunHorizonIcon size={ICON_SIZE} weight="fill" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate text-sm font-semibold">
+          {showingToday ? options.t.shell.todayTitle : (options.title ?? options.t.entries.opening)}
+        </h2>
+        <p className="text-xs text-muted">
+          {dayIn(options.entry?.date ?? options.today, options.locale)}
+        </p>
+      </div>
+      {/* Only when the panel has been moved off today. Getting back is the one
+          thing a reader cannot do from the drawer, because today may have
+          nothing in it to click. */}
+      {showingToday ? null : (
+        <button
+          className="shrink-0 rounded px-2 py-1 text-xs text-muted hover:bg-surface-muted hover:text-foreground"
+          onClick={() => dispatch({ type: EntriesActionType.Closed })}
+          type="button"
+        >
+          {options.t.entries.backToToday}
+        </button>
+      )}
+      {options.entry && (
+        <button
+          aria-label={options.t.entries.delete}
+          className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-accent"
+          onClick={options.onThrowAway}
+          title={options.t.entries.delete}
+          type="button"
+        >
+          <TrashIcon size={ICON_SIZE} />
+        </button>
+      )}
+    </header>
   );
 }
 
