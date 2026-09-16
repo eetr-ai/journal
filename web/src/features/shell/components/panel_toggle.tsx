@@ -7,8 +7,8 @@ import type { Dictionary } from "@/i18n/en";
 
 const ICON_SIZE = 20;
 
-// Each toggle hides itself at the size its panel stops being a cover and
-// becomes a column — the same two breakpoints the sheet table docks at.
+// Both hide themselves at the width their panels stop being covers and become
+// columns, which is the one breakpoint the sheet table docks at.
 //
 // Two icons apiece: what this opens, and what it goes back to. A control whose
 // face never changes is one that says what it is rather than what it does, and
@@ -18,7 +18,7 @@ const PANELS = {
   drawer: {
     icons: [ListIcon, XIcon],
     action: ShellActionType.DrawerToggled,
-    hide: "lg:hidden",
+    hide: "md:hidden",
     labels: (t: Dictionary) => [t.shell.openDrawer, t.shell.closeDrawer],
   },
   entry: {

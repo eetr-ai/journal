@@ -9,6 +9,10 @@ export type SheetVariant = "drawer" | "entry";
  * Where each panel sits at each size, and how it gets there. This table is the
  * whole responsive story: everywhere else a panel is just a panel.
  *
+ * Two sizes, not three: the conversation alone with both panels as covers, or
+ * all three as columns. There is no width at which one of them is a column and
+ * the other is lying over it.
+ *
  * A cover is positioned against the row of panels rather than the window, so it
  * stops below the header: the control that raised it is up there, and a panel
  * that buries its own way out is one you can only leave by guessing.
@@ -32,13 +36,13 @@ export type SheetVariant = "drawer" | "entry";
 const SHEET: Record<SheetVariant, { docked: string; open: string; shut: string }> = {
   drawer: {
     docked:
-      "absolute inset-y-0 left-0 z-20 w-[85vw] max-w-xs shadow-xl starting:-translate-x-full lg:static lg:z-auto lg:flex lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-none",
+      "absolute inset-y-0 left-0 z-20 w-[85vw] max-w-xs shadow-xl starting:-translate-x-full md:static md:z-auto md:flex md:w-64 md:max-w-none md:shrink-0 md:translate-x-0 md:shadow-none md:transition-none",
     open: "flex translate-x-0",
     shut: "hidden -translate-x-full",
   },
   entry: {
     docked:
-      "absolute inset-0 z-20 starting:translate-y-full md:static md:inset-auto md:z-auto md:flex md:min-w-0 md:flex-1 md:translate-y-0 md:transition-none lg:basis-(--today-width) lg:grow-0 lg:shrink",
+      "absolute inset-0 z-20 starting:translate-y-full md:static md:inset-auto md:z-auto md:flex md:min-w-64 md:basis-(--today-width) md:grow-0 md:shrink md:translate-y-0 md:transition-none",
     open: "flex translate-y-0",
     shut: "hidden translate-y-full",
   },
@@ -49,7 +53,7 @@ const MOTION =
 
 /** Above this the panel is docked, so the backdrop must not be in the way. */
 const SCRIM: Record<SheetVariant, string> = {
-  drawer: "lg:hidden",
+  drawer: "md:hidden",
   entry: "md:hidden",
 };
 
