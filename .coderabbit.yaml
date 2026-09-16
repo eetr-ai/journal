@@ -13,6 +13,15 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+    # Without this, only PRs targeting the default branch are reviewed. Anything
+    # large here gets split into a stack, and a branch based on another one would
+    # land unreviewed while still looking reviewed — the check reports a pass
+    # from whatever it last looked at.
+    base_branches:
+      - main
+      - 'feat/.*'
+      - 'fix/.*'
+      - 'chore/.*'
     # release-please owns these branches and the diffs are generated. There is
     # nothing on them a review can improve.
     ignore_title_keywords:
