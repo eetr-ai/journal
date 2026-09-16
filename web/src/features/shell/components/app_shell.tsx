@@ -34,7 +34,7 @@ export interface AppShellOptions {
 // them too.
 export default function AppShell(options: AppShellOptions) {
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <DetectPreferences needed={needsDetection(options.profile.config)} />
       <VaultGuard locale={options.locale} subject={options.profile.subject} />
       <ShellHeader

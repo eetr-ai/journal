@@ -145,10 +145,34 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+
+  /* No double-tap-to-zoom, which is also what removes the 300ms delay before a
+     tap becomes a click. Pinch-zoom is untouched. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  /* A panel that has run out of scroll must not rubber-band the page behind it,
+     which on a phone is how an overlay reveals what it is covering. */
+  overscroll-behavior: none;
 }
 
 /* The panels scroll, not the page. */
 html,
 body {
   height: 100%;
+}
+
+/*
+ * A control big enough to hit with a thumb. Only where the pointer is coarse:
+ * on a mouse these are icon buttons sized to their icon, and growing them there
+ * would space the toolbars out for no one.
+ */
+@utility tap-target {
+  @media (pointer: coarse) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }

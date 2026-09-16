@@ -6,6 +6,16 @@ export type Theme = (typeof themes)[number];
 
 export const defaultTheme: Theme = "system";
 
+/**
+ * The two palettes' backgrounds, by value, because a meta tag and a web app
+ * manifest are read before any stylesheet and cannot name a custom property.
+ *
+ * Mirrors `--background` on `:root` and `.dark` in globals.css, which stays the
+ * only place a scheme is described. Change one and change the other.
+ */
+export const BACKGROUND_LIGHT = "#fdfbf2";
+export const BACKGROUND_DARK = "#12170f";
+
 export function isTheme(value: string): value is Theme {
   return (themes as readonly string[]).includes(value);
 }
