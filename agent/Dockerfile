@@ -1,10 +1,12 @@
-# The stock octo runtime with our flows baked in, so what a release publishes is
-# the integration and not just the engine that would run it.
+# The agent image: octo with our flows in it.
 #
-# The base is distroless, already runs as nonroot, and already starts
-# `octo run --config /etc/octo/integrations` — so this only fills that directory.
-# Pinned: the runtime is somebody else's release train, and a chart that moves
-# under us is not a deployment we can reason about.
-FROM juancavallotti/octo-runtime:0.11.4
+# The `octo-api` flavour, not `octo-runtime`: the runtime's services provider is
+# a build tag, and this one delegates storage, leases and agent memory to the
+# platform API the sidecar beside it answers. Same entrypoint, same distroless
+# nonroot base, same `octo run --config /etc/octo/integrations`.
+#
+# The runtime version is pinned here, which makes it the one place that says
+# which octo a release of this app is a release of.
+FROM juancavallotti/octo-api:0.11.6
 
 COPY flows/ /etc/octo/integrations/

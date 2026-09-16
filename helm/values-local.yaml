@@ -5,7 +5,7 @@
 # The database is genuinely outside the cluster — it is the compose Postgres on
 # your host, which k3d reaches at host.k3d.internal.
 #
-# Both images are built and imported rather than pulled: a local build is what we
+# Every image is built and imported rather than pulled: a local build is what we
 # are testing, and the cluster has no credentials for ghcr.
 web:
   image:
@@ -26,10 +26,22 @@ migration:
     repository: journal-migrate
     tag: local
 
+platform:
+  image:
+    repository: journal-platform
+    tag: local
+
 postgres:
   # The compose Postgres on your host, which k3d reaches at this name.
   host: host.k3d.internal
   sslmode: disable
+
+redis:
+  # The compose Redis on your host, reached the same way. It has no password, so
+  # the Secret `task cluster:secrets` writes holds an empty one — which is fine
+  # locally and would not be anywhere else.
+  host: host.k3d.internal
+  database: 0
 
 image:
   # The images only exist in the cluster's own store.

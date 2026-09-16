@@ -63,6 +63,84 @@
   --highlight: #fcb00a;
 }
 
+/*
+ * Typography's palette, pointed at ours.
+ *
+ * `prose` ships a grey scale of its own and sets the body colour from it, so
+ * markdown rendered inside it ignores the tokens above: on the dark scheme that
+ * is 1.76:1, which is text you cannot read. Mapped here rather than overridden
+ * per element, so the two palettes stay the only place a scheme is described.
+ */
+.prose {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--muted);
+  --tw-prose-links: var(--brand);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted);
+  --tw-prose-bullets: var(--muted);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--muted);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--surface-muted);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+}
+
+/*
+ * Callouts. A glyph and a rule down the side carry the meaning — no word label,
+ * on purpose: the markers are English words in the syntax, and a Spanish
+ * conversation should not sprout "WARNING" in the middle of it. The glyph is
+ * what says which kind this is where colour cannot be seen or told apart.
+ */
+.prose .callout {
+  position: relative;
+  border-left-width: 3px;
+  border-left-color: var(--brand);
+  background: var(--surface-muted);
+  border-radius: 0 0.375rem 0.375rem 0;
+  padding: 0.5rem 0.875rem 0.5rem 2.5rem;
+  font-style: normal;
+  quotes: none;
+}
+
+.prose .callout::before {
+  content: "\2139\FE0F";
+  position: absolute;
+  left: 0.875rem;
+  top: 0.5rem;
+  font-style: normal;
+  line-height: 1.6;
+}
+
+.prose .callout-tip::before {
+  content: "\1F4A1";
+}
+
+.prose .callout-important::before {
+  content: "\2757";
+}
+
+.prose .callout-warning::before {
+  content: "\26A0\FE0F";
+}
+
+.prose .callout-caution::before {
+  content: "\1F6D1";
+}
+
+.prose .callout-warning,
+.prose .callout-caution {
+  border-left-color: var(--accent);
+}
+
+.prose .callout-important {
+  border-left-color: var(--highlight);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

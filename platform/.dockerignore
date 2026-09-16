@@ -1,0 +1,5 @@
+# Kept for `docker build platform`, which is not how the image is built — the
+# context is the repo root, so .dockerignore there is the one that applies.
+*_test.go
+Dockerfile
+Taskfile.yml

@@ -1,6 +1,6 @@
 "use client";
 
-import { asDataKey, unwrap, wrap, wrappingKeyFrom } from "./crypto";
+import { keysFrom, unwrap, wrap, wrappingKeyFrom, type VaultKeys } from "./crypto";
 import {
   fromBase64,
   fromBase64Url,
@@ -136,7 +136,7 @@ async function evaluate(
 }
 
 /** The data key, or null when no enrolled passkey could produce it. */
-export async function unlockWithPasskey(passkeys: VaultPasskey[]): Promise<CryptoKey | null> {
+export async function unlockWithPasskey(passkeys: VaultPasskey[]): Promise<VaultKeys | null> {
   if (!passkeysAreAvailable() || passkeys.length === 0) {
     return null;
   }
@@ -160,5 +160,5 @@ export async function unlockWithPasskey(passkeys: VaultPasskey[]): Promise<Crypt
 
   const raw = await unwrap(used.wrappedKey, await wrappingKeyFrom(result.output));
 
-  return raw ? asDataKey(raw) : null;
+  return raw ? keysFrom(raw) : null;
 }

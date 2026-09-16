@@ -14,6 +14,9 @@ includes:
   agent:
     taskfile: ./agent/Taskfile.yml
     dir: ./agent
+  platform:
+    taskfile: ./platform/Taskfile.yml
+    dir: ./platform
 
 vars:
   # Spelled out rather than interpolated: compose owns these credentials, and
@@ -24,6 +27,7 @@ vars:
   NAMESPACE: journal
   WEB_IMAGE: journal-web:local
   AGENT_IMAGE: journal-agent:local
+  PLATFORM_IMAGE: journal-platform:local
   MIGRATE_IMAGE: journal-migrate:local
 
 tasks:
@@ -40,26 +44,31 @@ tasks:
       - task: agent:install
 
   dev:
-    desc: Bring up Postgres, then run the web app and the agent together
+    desc: Bring up the dependencies, then run the web app, the agent and its sidecar
     deps:
       - db:up
     cmds:
-      # concurrently over backgrounding: one Ctrl-C takes both down, and every
-      # output line says which side produced it.
+      # concurrently over backgrounding: one Ctrl-C takes all three down, and
+      # every output line says which side produced it. The sidecar is first
+      # because the runtime discovers it at startup — it retries for thirty
+      # seconds, so losing the race is survivable rather than fatal.
       - >-
         npx concurrently
         --kill-others
         --prefix "[{name}]"
-        --names "web,agent"
-        --prefix-colors "cyan,magenta"
+        --names "platform,web,agent"
+        --prefix-colors "yellow,cyan,magenta"
+        "task platform:run"
         "task web:dev"
         "task agent:dev"
 
   db:up:
-    desc: Start Postgres and wait for it to accept connections
+    desc: Start Postgres and Redis and wait for them to accept connections
     cmds:
-      # --wait blocks on the healthcheck, so the first query after this lands.
-      - docker compose up -d --wait postgres
+      # --wait blocks on the healthchecks, so the first query after this lands.
+      # Redis is here rather than in a task of its own because nothing in this
+      # repo wants one without the other.
+      - docker compose up -d --wait postgres redis
 
   db:down:
     desc: Stop Postgres, keeping the data volume
@@ -123,6 +132,7 @@ tasks:
       - task: db:migrate
       - task: db:seed
       - task: agent:test
+      - task: platform:test
 
   build:
     desc: Build every module
@@ -163,16 +173,24 @@ tasks:
     cmds:
       - docker build -t {{.MIGRATE_IMAGE}} sql
 
+  image:platform:
+    desc: Build the platform sidecar image — octo's platform API, on our own infrastructure
+    cmds:
+      # Built from the repo root: the sidecar carries the integration's
+      # resources as well as its own binary.
+      - docker build -f platform/Dockerfile -t {{.PLATFORM_IMAGE}} .
+
   cluster:import:
     desc: Push the locally built images into the k3d cluster
     deps:
       - image:web
       - image:agent
       - image:migrate
+      - image:platform
     cmds:
       # A local build is what we are testing, and the cluster has no credentials
       # for ghcr.
-      - k3d image import {{.WEB_IMAGE}} {{.AGENT_IMAGE}} {{.MIGRATE_IMAGE}} -c {{.K3D_CLUSTER}}
+      - k3d image import {{.WEB_IMAGE}} {{.AGENT_IMAGE}} {{.MIGRATE_IMAGE}} {{.PLATFORM_IMAGE}} -c {{.K3D_CLUSTER}}
 
   cluster:namespace:
     desc: Create the namespace the release lives in
@@ -197,6 +215,23 @@ tasks:
         --from-literal=AUTH_SECRET="$AUTH_SECRET"
         --from-literal=AUTH_OIDC_ID="$AUTH_OIDC_ID"
         --from-literal=AUTH_OIDC_SECRET="$AUTH_OIDC_SECRET"
+        --dry-run=client -o yaml | kubectl apply -f -
+      # A missing SECRETS_KEY is not fatal — the sidecar says so on startup and
+      # stores octo's own secrets in the clear.
+      - >-
+        kubectl create secret generic journal-platform -n {{.NAMESPACE}}
+        --from-literal=SECRETS_KEY="$SECRETS_KEY"
+        --dry-run=client -o yaml | kubectl apply -f -
+      # The compose Redis has no password. The Secret exists anyway, because the
+      # chart names it either way and an empty value is the honest local answer.
+      - >-
+        kubectl create secret generic journal-redis -n {{.NAMESPACE}}
+        --from-literal=password=""
+        --dry-run=client -o yaml | kubectl apply -f -
+      - >-
+        kubectl create secret generic journal-models -n {{.NAMESPACE}}
+        --from-literal=OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
+        --from-literal=PARALLEL_API_KEY="$PARALLEL_API_KEY"
         --dry-run=client -o yaml | kubectl apply -f -
 
   deploy:

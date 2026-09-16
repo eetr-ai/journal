@@ -1,0 +1,55 @@
+# See chats_test.yaml. This suite owns the transcript routes.
+flow: chat-transcript
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a conversation comes back with its turns in order
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-chats, thread: dolphin-chat-read }
+    expect:
+      that:
+        - body.chat.thread_key == "dolphin-chat-read"
+        - body.turns.size() == 2
+        - body.turns[0].seq == 1
+        - body.turns[0].role == "user"
+        - body.turns[1].role == "assistant"
+        - body.turns[1].content == "That is the second time this month."
+
+  # The subject in the path is the whole access check, so this is the case that
+  # matters most: holding somebody else's thread id must not be enough.
+  - name: another person's conversation is not readable with its id alone
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-chats, thread: dolphin-chat-other }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: conversation not found
+
+  - name: a conversation that does not exist is a 404 rather than an empty success
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-chats, thread: dolphin-chat-nothing }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: conversation not found
+
+  - name: deleting a conversation removes exactly one
+    input:
+      data: {}
+      vars: { method: DELETE, subject: dolphin-chats-delete, thread: dolphin-chat-delete }
+    expect:
+      that:
+        - body.rowsAffected == 1
+
+  - name: deleting another person's conversation removes nothing
+    input:
+      data: {}
+      vars: { method: DELETE, subject: dolphin-chats, thread: dolphin-chat-other }
+    expect:
+      that:
+        - body.rowsAffected == 0

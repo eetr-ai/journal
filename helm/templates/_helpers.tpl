@@ -34,6 +34,54 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- required "postgres.existingSecret must name a Secret holding the database username and password" .Values.postgres.existingSecret -}}
 {{- end -}}
 
+{{- define "journal.platformSecretName" -}}
+{{- required "platform.existingSecret must name a Secret holding SECRETS_KEY" .Values.platform.existingSecret -}}
+{{- end -}}
+
+{{- define "journal.redisSecretName" -}}
+{{- required "redis.existingSecret must name a Secret holding the Redis password" .Values.redis.existingSecret -}}
+{{- end -}}
+
+{{/* Redis: the address is values, the password is one key of a Secret, and the
+     two are kept apart rather than joined into a URL. A Redis password is
+     commonly base64 and a base64 password commonly contains a slash, which ends
+     the authority of a URI — so a correct password embedded in one is a
+     connection to the wrong place. Unlike the database's DSN, this is our own
+     program reading it, so it can take the two halves. */}}
+{{- define "journal.redisEnv" -}}
+- name: REDIS_URL
+  value: redis://{{ required "redis.host must name the Redis server" .Values.redis.host }}:{{ .Values.redis.port }}/{{ .Values.redis.database }}
+- name: REDIS_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.redisSecretName" . }}
+      key: {{ .Values.redis.passwordKey }}
+{{- end -}}
+
+{{- define "journal.modelSecretName" -}}
+{{- required "models.existingSecret must name a Secret holding OPENROUTER_API_KEY and PARALLEL_API_KEY" .Values.models.existingSecret -}}
+{{- end -}}
+
+{{/* OpenRouter, which two containers need for different reasons: the agent to
+     answer, the sidecar to embed what it remembers. Shared so they cannot come
+     from two different Secrets by accident. */}}
+{{- define "journal.openrouterEnv" -}}
+- name: OPENROUTER_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.modelSecretName" . }}
+      key: OPENROUTER_API_KEY
+{{- end -}}
+
+{{/* Web search, which only the agent does. */}}
+{{- define "journal.parallelEnv" -}}
+- name: PARALLEL_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "journal.modelSecretName" . }}
+      key: PARALLEL_API_KEY
+{{- end -}}
+
 {{- define "journal.authSecretName" -}}
 {{- required "auth.existingSecret must name a Secret holding AUTH_SECRET and the AUTH_OIDC_* pair" .Values.auth.existingSecret -}}
 {{- end -}}

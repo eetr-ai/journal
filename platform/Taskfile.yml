@@ -1,0 +1,39 @@
+version: '3'
+
+# Tasks for the platform sidecar. Every value it needs is already in the repo's
+# .env, which the root taskfile exports into every command — so nothing here
+# re-declares a connection string, and the fallbacks below only cover a clone
+# with no .env yet.
+
+tasks:
+  build:
+    desc: Compile the sidecar
+    cmds:
+      - go build ./...
+
+  test:
+    desc: Run the tests against the local Postgres and Redis
+    cmds:
+      - go vet ./...
+      # The infrastructure tests skip without these rather than failing, so this
+      # is honest on a machine with nothing running.
+      - >-
+        TEST_POSTGRES_DSN="${POSTGRES_DSN:-postgres://journal:journal@localhost:5432/journal?sslmode=disable}"
+        TEST_REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
+        go test ./... -count=1
+
+  run:
+    desc: Run the sidecar, where the agent expects to find it
+    env:
+      # The flows directory itself when running from source: the resources a
+      # skill names sit under it, exactly as they do in the image.
+      RESOURCES_DIR: ../agent/flows
+    cmds:
+      - go run .
+
+  verify:
+    desc: Check a running sidecar against octo's own contract checker
+    cmds:
+      # host.docker.internal rather than --network host: on macOS the latter
+      # does not reach the host's loopback.
+      - docker run --rm juancavallotti/octo-api:0.11.6 verify-platform-api http://host.docker.internal:8099

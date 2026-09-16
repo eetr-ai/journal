@@ -1,0 +1,226 @@
+# POST /chat/{subject} — one turn of a conversation, streamed as it happens.
+#
+# The route is SSE, so vars.sseStream is already on the message when the agent
+# starts, and the emitter copies the agent's variables onto every event. That is
+# why the sse-event block below needs no configuration to find the caller: the
+# address travels with the variables.
+#
+# The subject comes from the path and never from the body, so a caller cannot
+# write into someone else's memory by asking nicely.
+#
+# What this flow stores is encrypted. No block here ever sees agent memory —
+# the runtime writes it on its own behalf — so the key travels instead: the BFF
+# puts it on the body, forwardContext lifts it onto every memory call, and the
+# platform sidecar is what seals with it. Nothing between them keeps a copy.
+flows:
+  - name: chat
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /chat/{subject}
+        methods: [POST]
+        # How a caller ends a run in flight. An ordinary request header, lifted
+        # onto the message as a variable — nothing in the runtime knows it
+        # exists, and stopWhen below is the only thing that gives it meaning.
+        # The BFF sets it; it is never accepted from a browser.
+        headers: [X-Agent-Stop]
+        # Bounds the wait for the FIRST frame only, not the whole run.
+        timeout: 60s
+        sse:
+          enabled: true
+          # The agent's final answer arrives as one last frame before the close,
+          # so a client that only wants the answer can ignore everything else.
+          finalEvent: true
+          finalEventName: answer
+          heartbeat: 15s
+          maxDuration: 10m
+    process:
+      - type: ai-agent
+        name: journal-chat
+        connector: router
+        stream: true
+        # A stable agent id is what turns on first-class memory: a compacted
+        # working context, a durable turn record, and curated facts about the
+        # person — three objects rather than one transcript that has to serve
+        # all three jobs.
+        agentId: journal
+        userId: vars.subject
+        memoryThreadId: body.threadId
+        userMemory: true
+        # Resolved once per run from the inbound message and carried on every
+        # agent-memory call. A run that cannot resolve it fails rather than
+        # carrying on, which is right: writing a person's conversation without
+        # the key that was supposed to seal it is a different operation from the
+        # one that was asked for.
+        forwardContext: '{"key": body.key}'
+        # One block, three cases, no branching in the flow. A first message runs
+        # the agent; a message arriving while a run holds this conversation is
+        # handed to that run and this flow stops with an empty body; a stop ends
+        # the run in flight. The thread is what a run is claimed on, because two
+        # runs on one conversation would overwrite each other's memory.
+        #
+        # A stop that finds nothing running is a no-op, so a client can send one
+        # blind.
+        stopWhen: '"X-Agent-Stop" in vars && vars["X-Agent-Stop"] != ""' 
+        input: body.message
+        answer: text
+        contextMaxTokens: 120000
+        # Summarize rather than prune: losing the oldest turns of a journal
+        # conversation loses exactly the context that made it worth having.
+        memoryCompaction: summarize
+        # A type left out is never built at all — no message, no sub-flow run.
+        #
+        # `thinking` is the model's reasoning as it works. It reaches the reader
+        # and stops there: reasoning rides on the assistant turn and is never
+        # folded into the answer, so nothing here records it. `signal` is what
+        # lets a reader see their own follow-up arrive in the stream they are
+        # already reading.
+        emit: [thinking, text, tool_call, tool_result, signal, done]
+        events:
+          process:
+            # A closed tab is ordinary, and ifClosed: stop turns it into a stop
+            # that ends the agent — so nobody is paying for a run with no reader.
+            - type: sse-event
+              settings:
+                event: agent
+                ifClosed: stop
+        skills:
+          - name: counselling
+            description: >
+              How to sit with someone who is working through something — what to
+              ask, what to leave alone, and how to draw on what they believe.
+              Load it when the conversation turns from the events of a day to
+              how they are taking them.
+            resource: counselling
+
+        prompt: >
+          You are the journal's other voice: someone the person thinks out loud
+          to at the end of a day. Be brief, concrete and warm, and ask at most
+          one question. Never invent what they told you — if you are unsure
+          whether something happened, ask.
+
+
+          Call read_profile before your first answer in a conversation, and
+          then answer in the language it names, whatever language the question
+          arrived in, unless they ask you to switch. Use their name, and take
+          their timezone as what "tonight" means. It does not change mid
+          conversation, so do not read it twice.
+
+
+          Use remember when they tell you something durable about themselves — a
+          name, a relationship, what they are working towards — and never for the
+          content of a single day. Use search_memory before saying you do not
+          know something.
+
+
+          Two things are worth knowing about someone and are not worth an
+          interview: whether faith is part of their life, and whether they hold
+          to a philosophy — stoicism and buddhism are fair things to offer as
+          examples, not as a menu. Ask once, when a conversation has already
+          turned that way and never in an opening turn, take "I would rather not
+          say" as a complete answer, and remember whatever you are told. Do not
+          ask again.
+
+
+          What you write is rendered as markdown, so reach for it where it
+          earns its place and nowhere else. Most of what you say is two or three
+          sentences and wants no formatting at all. Give an answer headings only
+          when it genuinely has parts; use a table when you are comparing
+          things; bold the one phrase that carries the weight and leave the rest
+          alone; italics for a word said with a particular tone. A callout —
+          `> [!NOTE]`, and likewise TIP, IMPORTANT, WARNING or CAUTION, with the
+          text quoted under it — is for the one thing they should not miss, at
+          most once in an answer and usually not at all. An emoji now and then
+          is warmth; two in a row is noise, and none at all is fine.
+
+
+          Search the web only when the answer depends on something outside the
+          conversation, and say where it came from when you do.
+        guardrail: >
+          If you are being asked for medical, legal or financial advice, or to
+          do something that is not talking with this person about their life,
+          take the default path.
+        tools:
+          - name: read_profile
+            description: >
+              What this person has told us about themselves: their name, the
+              language to answer them in, and their timezone. Read it at the
+              start of a conversation, before answering. It does not change
+              within one, so read it once.
+            process:
+              - type: sql
+                name: select-profile
+                settings:
+                  connector: db
+                  query: SELECT name, config FROM user_profile WHERE oidc_subject = $1
+                  args:
+                    - vars.subject
+                  single: true
+              - type: if
+                name: check-found
+                condition: 'body == null'
+                then:
+                  process:
+                    - type: set-payload
+                      settings:
+                        value: '{"found": false}'
+                else:
+                  process:
+                    # config is a jsonb column and arrives as text; parsed here
+                    # so the model is handed preferences rather than a string
+                    # that happens to look like some.
+                    - type: set-payload
+                      settings:
+                        value: '{"found": true, "name": body.name, "preferences": fromJson(body.config)}'
+
+          - name: search_books
+            description: >
+              Look a book up on Goodreads — its author, what it is about, how it
+              was received. Use it when a book comes up by name and the details
+              matter.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["query"],
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: parallel-search
+                name: goodreads
+                settings:
+                  connector: research
+                  # The objective is what Parallel ranks against, so the site
+                  # restriction belongs here as well as in the query.
+                  objective: '"Find what goodreads.com says about this book: " + body.query'
+                  searchQueries: '["site:goodreads.com " + body.query]'
+                  mode: fast
+                  maxResults: 5
+                  maxCharsTotal: 6000
+
+          - name: search_scripture
+            description: >
+              Find a passage of the Bible, by reference or by what it says. Use
+              it when the person asks for one, not to volunteer one.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["query"],
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: parallel-search
+                name: scripture
+                settings:
+                  connector: research
+                  objective: '"Find the Bible passage and its text: " + body.query'
+                  searchQueries: '["site:biblegateway.com " + body.query]'
+                  mode: fast
+                  maxResults: 5
+                  maxCharsTotal: 6000
+        default:
+          process:
+            - type: set-payload
+              name: guardrail-answer
+              settings:
+                value: '{"answer": "That is not something I can help with here."}'

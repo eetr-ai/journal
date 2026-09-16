@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Where an unlocked data key lives between page loads.
+ * Where an unlocked vault's keys live between page loads.
  *
  * IndexedDB rather than a cookie: a cookie is sent to the server on every
- * request, which is the one place this key must never go. What is stored is a
- * non-extractable CryptoKey, so script on the page can use it to decrypt and
- * still cannot read its bytes back out to send anywhere.
+ * request, which is the one place the data key must never go. What is stored
+ * for it is a non-extractable CryptoKey, so script on the page can use it to
+ * decrypt and still cannot read its bytes back out to send anywhere. The agent
+ * key beside it is readable on purpose — it is derived for sending, and it
+ * opens conversations and nothing else.
  *
  * It is cleared on lock and on sign-out.
  *
@@ -14,6 +16,8 @@
  * could open it. The server reads that to decide whether to show the journal or
  * the unlock screen, so the page does not render and then hide itself.
  */
+
+import type { VaultKeys } from "./crypto";
 
 const DB_NAME = "eetr-journal";
 const DB_VERSION = 1;
@@ -88,20 +92,23 @@ function setMarker(present: boolean) {
     : `${UNLOCKED_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
-/** False when this browser will not keep the key — the marker is left unset so
+/** False when this browser will not keep the keys — the marker is left unset so
  *  the server does not render a journal the next page load cannot open. */
-export async function rememberKey(subject: string, key: CryptoKey): Promise<boolean> {
-  const stored = await write((store) => store.put(key, subject));
+export async function rememberKey(subject: string, keys: VaultKeys): Promise<boolean> {
+  const stored = await write((store) => store.put(keys, subject));
 
   setMarker(stored);
 
   return stored;
 }
 
-export async function recallKey(subject: string): Promise<CryptoKey | null> {
-  const value = await read<CryptoKey>((store) => store.get(subject));
+export async function recallKey(subject: string): Promise<VaultKeys | null> {
+  const value = await read<VaultKeys>((store) => store.get(subject));
 
-  return value instanceof CryptoKey ? value : null;
+  // A record written by an older version of this file holds a bare CryptoKey
+  // and has no agent key. Unusable rather than half-usable: locking again is
+  // one password, and a conversation sealed under nothing is forever.
+  return value?.dataKey instanceof CryptoKey && typeof value.agentKey === "string" ? value : null;
 }
 
 // Locking clears the marker whether or not the delete went through: a browser

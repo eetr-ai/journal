@@ -1,6 +1,17 @@
-# Everything else is the chart's default: the Secrets are journal-db
-# (username, password) and journal-auth, on port 5432, database journal.
-# Neither Secret is created by the chart.
+# Everything else is the chart's default, which is already pointed at this
+# cluster's Redis — `redis.platform-system.svc.cluster.local`, database 1.
+#
+# Five Secrets, none of them created by the chart: journal-db (username,
+# password), journal-auth (AUTH_SECRET, AUTH_OIDC_ID, AUTH_OIDC_SECRET),
+# journal-platform (SECRETS_KEY), journal-models (OPENROUTER_API_KEY,
+# PARALLEL_API_KEY), and journal-redis (password, copied from
+# platform-system/redis-password — a Secret cannot be read across a namespace).
+#
+# The namespace also has to carry `home-lab.example/redis-access: "true"`, which
+# is what that Redis's NetworkPolicy admits. It already does.
+#
+# The database needs the pgvector extension available — the agent's memory is
+# searched by meaning — and the migration creates it.
 
 postgres:
   host: eetr01
@@ -16,9 +27,10 @@ gateway:
   parentRef:
     # The Gateway to attach to. It belongs to whoever runs the cluster, so the
     # chart references one and never creates it — and refuses to render until
-    # this names it. Leave `namespace` out entirely when the Gateway is in this
-    # namespace; an empty one is omitted, not sent as empty.
-    name: "" # FILL IN
-    # namespace: gateway-system
+    # this names it.
+    name: home-lab
+    # Named because that Gateway is not in this namespace. Leave it out entirely
+    # when it is; an empty one is omitted, not sent as empty.
+    namespace: platform-system
   hostnames:
     - journal.inflightproject.com

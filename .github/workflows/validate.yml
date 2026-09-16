@@ -48,7 +48,9 @@ jobs:
     # mocked sql block would only assert the mock.
     services:
       postgres:
-        image: postgres:17-alpine
+        # pgvector rather than stock Postgres: the schema the suites run against
+        # declares a vector column, so the extension has to exist.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: journal
           POSTGRES_PASSWORD: journal
@@ -81,10 +83,73 @@ jobs:
 
       # Runs each *_test.yaml against the whole flows directory, so a flow that
       # no longer parses or no longer returns what it promised fails the job.
+      #
+      # The model keys are declared required, so the runtime will not start
+      # without them — which is what we want in a cluster and what needs a
+      # placeholder here. No case calls a model; one that did would fail loudly
+      # rather than quietly billing us.
       - run: dolphin test ./agent/flows --junit dolphin-report.xml
+        env:
+          OPENROUTER_API_KEY: ci-not-a-real-key
+          PARALLEL_API_KEY: ci-not-a-real-key
 
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dolphin-report
           path: dolphin-report.xml
+
+  platform:
+    name: platform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform
+    # The sidecar's tests exercise the real statements and the real Redis
+    # primitives. The interesting properties here — a long poll that waits, a
+    # pending list that redelivers — are the backing store's behaviour, and a
+    # fake would only assert the fake.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: journal
+          POSTGRES_PASSWORD: journal
+          POSTGRES_DB: journal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U journal -d journal"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27'
+          cache-dependency-path: platform/go.sum
+
+      - name: Apply the schema
+        working-directory: .
+        run: for f in sql/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+        env:
+          PGHOST: localhost
+          PGUSER: journal
+          PGPASSWORD: journal
+          PGDATABASE: journal
+
+      - run: go vet ./...
+      - run: go test ./... -count=1
+        env:
+          TEST_POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+          TEST_REDIS_URL: redis://localhost:6379/0

@@ -1,0 +1,42 @@
+# Run against a real Postgres holding sql/ plus agent/testdata/seed.sql. The
+# flow is the persistence layer, so a suite that mocked the sql blocks would be
+# asserting the mocks; what is worth proving is that the statements scope by
+# subject and order the way the drawer needs.
+#
+# Cases run concurrently and share one database, so each owns subjects nothing
+# else touches. Only the delete case writes.
+flow: chats
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: the conversations come back most recently active first
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-chats }
+    expect:
+      that:
+        - body.chats.size() == 2
+        - body.chats[0].thread_key == "dolphin-chat-read"
+        - body.chats[0].title == "The release slipped again"
+        - body.chats[1].thread_key == "dolphin-chat-older"
+
+  - name: a person with no conversations gets an empty list rather than a 404
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-chats-nobody }
+    expect:
+      body:
+        chats: []
+      that:
+        - '!has(vars.httpStatus)'
+
+  - name: one person's conversations never include another's
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-chats-other }
+    expect:
+      that:
+        - body.chats.size() == 1
+        - body.chats[0].thread_key == "dolphin-chat-other"

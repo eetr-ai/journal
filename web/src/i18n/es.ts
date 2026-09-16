@@ -75,12 +75,40 @@ const es: Dictionary = {
   shell: {
     transcripts: "Charlas recientes",
     entries: "Diario",
-    chatTitle: "Chat",
-    chatPlaceholder: "Preguntá sobre el día de hoy, o simplemente empezá a escribir...",
-    chatSend: "Enviar",
     todayTitle: "Hoy",
     mocked: "Contenido de ejemplo",
     resizeToday: "Redimensionar la entrada de hoy",
+  },
+
+  chat: {
+    title: "Chat",
+    placeholder: "Preguntá sobre el día de hoy, o simplemente empezá a escribir...",
+    send: "Enviar",
+    stop: "Parar",
+    thinking: "Pensando...",
+    reasoning: "Pensándolo",
+    working: "Buscando algo...",
+    emptyTitle: "Todavía no hay nada",
+    unavailableTitle: "Esta no cargó",
+    unavailablePrompt:
+      "Lo que se dijo antes no se está mostrando. Lo que mandes igual va a esta charla.",
+    emptyPrompt: "Contá qué tipo de día fue, y seguimos desde ahí.",
+    unreadable: "Esto no se pudo abrir con tu clave.",
+    you: "Vos dijiste",
+    journal: "El diario dijo",
+    noConversations: "Todavía no hay charlas.",
+    delete: "Olvidar esta charla",
+    newChat: "Charla nueva",
+    aborted: "Lo paraste. Lo de arriba es todo.",
+    retry: "Probá de nuevo",
+    errors: {
+      empty: "No hay nada para enviar.",
+      tooLong: "Eso es más largo de lo que puede ser un mensaje. Mandalo en dos.",
+      locked: "Tu diario se bloqueó mientras escribías. Desbloqueálo y mandálo de nuevo.",
+      unauthorized: "Cerraste sesión. Iniciá sesión y mandálo otra vez.",
+      unreachable: "No se pudo llegar al diario, así que no se mandó nada.",
+      failed: "Esa respuesta se cortó a la mitad. Lo de arriba es todo.",
+    },
   },
 
   profile: {

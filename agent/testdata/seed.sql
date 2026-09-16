@@ -49,3 +49,25 @@ ON CONFLICT (oidc_subject, credential_id) DO UPDATE SET
   prf_salt = EXCLUDED.prf_salt,
   wrapped_key = EXCLUDED.wrapped_key,
   label = EXCLUDED.label;
+
+-- Conversations, for the read-side suites. The agent writes these through the
+-- platform sidecar; the flows only read them back, so a fixture is enough.
+--
+-- Like the passkeys above, the fixture is the whole truth about these subjects:
+-- a case that deletes a conversation would otherwise leave the next run with
+-- nothing to delete.
+DELETE FROM agent_thread WHERE oidc_subject LIKE 'dolphin-%';
+
+INSERT INTO agent_thread (agent_id, thread_key, oidc_subject, title, turn_count, last_activity_at)
+VALUES
+  ('journal', 'dolphin-chat-read',   'dolphin-chats', 'The release slipped again', 2, now()),
+  ('journal', 'dolphin-chat-older',  'dolphin-chats', 'Reading list for the winter', 0, now() - interval '1 day'),
+  ('journal', 'dolphin-chat-delete', 'dolphin-chats-delete', 'One to forget', 1, now()),
+  ('journal', 'dolphin-chat-other',  'dolphin-chats-other', 'Somebody else entirely', 1, now());
+
+INSERT INTO agent_turn (agent_id, thread_key, seq, role, content)
+VALUES
+  ('journal', 'dolphin-chat-read',   1, 'user',      'It slipped again.'),
+  ('journal', 'dolphin-chat-read',   2, 'assistant', 'That is the second time this month.'),
+  ('journal', 'dolphin-chat-delete', 1, 'user',      'Forget this one.'),
+  ('journal', 'dolphin-chat-other',  1, 'user',      'Not yours to read.');

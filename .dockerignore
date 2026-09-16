@@ -1,0 +1,19 @@
+# The platform image builds from here, and wants only its own module plus the
+# integration's resources.
+#
+# The whole context is uploaded to the builder and cached before a single COPY
+# is evaluated, so a file being unreferenced by the Dockerfile is not the same
+# as it being out of reach.
+.env
+.env.*
+!.env.example
+node_modules/
+data/
+.next/
+dist/
+.git/
+web/
+helm/
+deploy/
+.github/
+platform/**/*_test.go

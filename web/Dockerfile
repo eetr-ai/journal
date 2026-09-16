@@ -31,6 +31,11 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
+# Next writes its optimized-image cache here at runtime. COPY lands as root, so
+# without this the unprivileged user cannot create it — and the failure is an
+# unhandled rejection on the request that tried, not a warning.
+RUN mkdir -p .next/cache && chown -R node:node /app/.next
+
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

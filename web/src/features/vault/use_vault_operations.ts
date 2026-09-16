@@ -1,6 +1,6 @@
 "use client";
 
-import { createVault, unlockWithPassword, unwrapWithPassword } from "./crypto";
+import { createVault, unlockWithPassword, unwrapWithPassword, type VaultKeys } from "./crypto";
 import { enrollPasskey, passkeysAreAvailable, unlockWithPasskey } from "./passkey";
 import { addPasskeyAction, removePasskeyAction, saveVaultAction } from "./actions";
 import { forgetKey, rememberKey } from "./session";
@@ -37,18 +37,21 @@ function passwordProblem(password: string, confirm: string): VaultError | null {
 export function useVaultUnlock(identity: VaultIdentity) {
   const { state, dispatch } = useVault();
 
-  async function accept(dataKey: CryptoKey | null, failure: "wrongPassword" | "passkeyFailed") {
-    if (!dataKey || !state.vault) {
+  async function accept(keys: VaultKeys | null, failure: "wrongPassword" | "passkeyFailed") {
+    if (!keys || !state.vault) {
       dispatch({ type: VaultActionType.Failed, data: failure });
       return;
     }
 
-    if (!(await rememberKey(identity.subject, dataKey))) {
+    if (!(await rememberKey(identity.subject, keys))) {
       dispatch({ type: VaultActionType.Failed, data: "noStorage" });
       return;
     }
 
-    dispatch({ type: VaultActionType.Unlocked, data: { vault: state.vault, dataKey } });
+    dispatch({
+      type: VaultActionType.Unlocked,
+      data: { vault: state.vault, dataKey: keys.dataKey },
+    });
   }
 
   /** True only when the vault is stored and open; the caller moves the person
@@ -63,7 +66,7 @@ export function useVaultUnlock(identity: VaultIdentity) {
 
     dispatch({ type: VaultActionType.Busy });
 
-    const { vault, dataKey } = await createVault(password);
+    const { vault, keys } = await createVault(password);
     const outcome = await saveVaultAction(vault);
 
     if (outcome !== "saved") {
@@ -74,12 +77,12 @@ export function useVaultUnlock(identity: VaultIdentity) {
       return false;
     }
 
-    if (!(await rememberKey(identity.subject, dataKey))) {
+    if (!(await rememberKey(identity.subject, keys))) {
       dispatch({ type: VaultActionType.Failed, data: "noStorage" });
       return false;
     }
 
-    dispatch({ type: VaultActionType.Unlocked, data: { vault, dataKey } });
+    dispatch({ type: VaultActionType.Unlocked, data: { vault, dataKey: keys.dataKey } });
 
     return true;
   }

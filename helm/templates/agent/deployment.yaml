@@ -33,6 +33,21 @@ spec:
               value: {{ .Values.agent.port | quote }}
             - name: OCTO_OBSERVABILITY_ADDR
               value: ":{{ .Values.agent.adminPort }}"
+            # The runtime is built with the platform-API services provider, and
+            # this is where it finds one. Loopback, because the sidecar below
+            # shares this pod's network namespace and nothing else may reach it.
+            - name: RUNTIME_SERVICES_MODULE
+              value: api
+            - name: OCTO_PLATFORM_API_URL
+              value: "http://127.0.0.1:{{ .Values.platform.port }}"
+            # Scopes queue consumer groups, so two deployments of this chart
+            # compete rather than each seeing every message.
+            - name: OCTO_DEPLOYMENT_ID
+              value: {{ include "journal.fullname" . | quote }}
+            - name: CHAT_MODEL
+              value: {{ .Values.agent.chatModel | quote }}
+            {{- include "journal.openrouterEnv" . | nindent 12 }}
+            {{- include "journal.parallelEnv" . | nindent 12 }}
             {{- include "journal.postgresEnv" . | nindent 12 }}
           # The image runs as nonroot on a distroless base and writes nothing,
           # so it needs no volume and no write access. The flows are in it.
@@ -55,3 +70,35 @@ spec:
             initialDelaySeconds: 2
           resources:
             {{- toYaml .Values.agent.resources | nindent 12 }}
+
+        # octo's platform API, answered by us: agent memory in Postgres, leases
+        # and queues in Redis. A sidecar rather than a Service because it is
+        # this runtime's storage and nothing else's — binding loopback is the
+        # access control, so there is no token to manage and no policy to write.
+        - name: platform
+          image: "{{ .Values.platform.image.repository }}:{{ .Values.platform.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: HOST
+              value: "127.0.0.1"
+            - name: PORT
+              value: {{ .Values.platform.port | quote }}
+            - name: QUEUE_MAX_LEN
+              value: {{ .Values.platform.queueMaxLen | quote }}
+            {{- include "journal.redisEnv" . | nindent 12 }}
+            - name: SECRETS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "journal.platformSecretName" . }}
+                  key: SECRETS_KEY
+            - name: EMBEDDING_MODEL
+              value: {{ .Values.platform.embeddingModel | quote }}
+            {{- include "journal.openrouterEnv" . | nindent 12 }}
+            {{- include "journal.postgresEnv" . | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.platform.resources | nindent 12 }}

@@ -35,12 +35,81 @@ agent:
   adminPort: 39999
   service:
     port: 8080
+  # Which model answers, vendor-prefixed the way OpenRouter publishes ids.
+  chatModel: deepseek/deepseek-v4.1-flash
   # The agent trusts its caller, so the only thing keeping it to the BFF is this.
   # Turn it off only for a cluster whose CNI does not enforce policy, where it
   # would be a promise nothing keeps.
   networkPolicy:
     enabled: true
   resources: {}
+
+# octo's platform API, answered by a sidecar in the agent's pod: agent memory in
+# Postgres, leases and queues in Redis. It binds loopback, so it is reachable
+# from the runtime beside it and from nothing else in the cluster.
+platform:
+  image:
+    # Built from platform/Dockerfile.
+    repository: ghcr.io/eetr-ai/journal-platform
+    # Empty falls back to the chart's appVersion. Set it to pin a build.
+    tag: ""
+  port: 8099
+  # What the sidecar embeds memory with, through OpenRouter. It must produce
+  # 1024 dimensions to match the column, which is a deliberate truncation of a
+  # wider model: pgvector indexes nothing past 2000.
+  embeddingModel: qwen/qwen3-embedding-8b
+  # How many entries one queue or topic subject keeps. Small on purpose: the
+  # home lab's Redis is capped and set to `noeviction`, so a stream allowed to
+  # grow would not evict — it would start refusing writes, for everything else
+  # sharing that instance as well as for us.
+  queueMaxLen: 1000
+  # Holds SECRETS_KEY, which encrypts what octo writes to its own *_secrets
+  # namespaces. Created before the release, never by it.
+  #
+  #   kubectl create secret generic journal-platform \
+  #     --from-literal=SECRETS_KEY="$(openssl rand -base64 32)"
+  #
+  # It is not what protects a person's writing, and rotating it makes anything
+  # already sealed unreadable.
+  existingSecret: journal-platform
+  resources: {}
+
+# Leases, leader election, and the queues and topics the sidecar serves. Like
+# the database, it lives outside this chart — and like the database, only the
+# credential is secret, so where the server is stays a value you can read in a
+# code review.
+redis:
+  # The home lab's shared Redis. Reaching it across namespaces needs the
+  # namespace labelled `home-lab.example/redis-access: "true"`, which the
+  # cluster owner does once and this chart deliberately does not.
+  host: redis.platform-system.svc.cluster.local
+  port: 6379
+  # Not 0. The instance is shared, and a database of our own means somebody
+  # else's FLUSHDB does not take our leases with it.
+  database: 1
+  # Holds the one key, verbatim — it is passed to the client as a password and
+  # never spliced into a URL, so nothing about it needs escaping. The password
+  # lives in another namespace, so it is copied into this one rather than read
+  # across the boundary, which is what every other tenant of that Redis does:
+  #
+  #   kubectl create secret generic journal-redis -n journal \
+  #     --from-literal=password="$(kubectl -n platform-system get secret \
+  #       redis-password -o jsonpath='{.data.password}' | base64 -d)"
+  existingSecret: journal-redis
+  passwordKey: password
+  # Nothing here is durable: that Redis saves nothing and keeps its data in an
+  # emptyDir. Leases simply re-form, and a restart is a lease everyone can claim
+  # again — but a queued message is gone, so at-least-once holds within the life
+  # of the server and not across it.
+
+# The model providers. Two containers read these: the agent to answer, the
+# sidecar to embed what it remembers.
+#
+#   kubectl create secret generic journal-models \
+#     --from-literal=OPENROUTER_API_KEY=... \
+#     --from-literal=PARALLEL_API_KEY=...
+models:
+  existingSecret: journal-models
 
 # The schema, applied as a hook before the pods on every install and upgrade.
 # Every statement in it is idempotent, so this is a no-op against a database

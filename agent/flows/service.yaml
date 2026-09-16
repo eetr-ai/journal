@@ -8,6 +8,22 @@ env:
     default: "8080"
   - name: POSTGRES_DSN
     default: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  - name: OPENROUTER_API_KEY
+    required: true
+  - name: PARALLEL_API_KEY
+    required: true
+  # Vendor-prefixed, the way OpenRouter publishes model ids. A value rather than
+  # a literal in the connector: changing which model answers is a deploy-time
+  # decision, not a code change.
+  - name: CHAT_MODEL
+    default: deepseek/deepseek-v4.1-flash
+
+# Skill bodies, resolved relative to this directory and pulled into a
+# conversation only when the agent asks for one by its alias.
+resources:
+  templates:
+    - resource: skills/counselling.md
+      as: counselling
 
 connectors:
   - name: api
@@ -20,3 +36,24 @@ connectors:
     settings:
       driver: postgres
       dsn: ${POSTGRES_DSN}
+
+  # The model behind the chat. Reasoning rides on the assistant turn and is
+  # never folded into the answer, so turning it up cannot leak a chain of
+  # thought into what a person reads — and `thinking` is deliberately left out
+  # of the agent's emit list, so it does not reach the browser either.
+  - name: router
+    type: llm-openrouter
+    settings:
+      apiKey: ${OPENROUTER_API_KEY}
+      model: ${CHAT_MODEL}
+      reasoning: medium
+      maxTokens: 4096
+      appName: eetr-journal
+
+  # Web search. Only the synchronous half is used, so no webhook secret is
+  # configured: a task run would need somewhere to call back to, and there is
+  # nowhere yet.
+  - name: research
+    type: parallel
+    settings:
+      apiKey: ${PARALLEL_API_KEY}

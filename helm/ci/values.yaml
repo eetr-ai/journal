@@ -8,6 +8,15 @@ postgres:
 auth:
   existingSecret: ci-auth
 
+platform:
+  existingSecret: ci-platform
+
+redis:
+  existingSecret: ci-redis
+
+models:
+  existingSecret: ci-models
+
 gateway:
   parentRef:
     name: ci-gateway
