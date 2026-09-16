@@ -19,6 +19,10 @@ export type SheetVariant = "drawer" | "entry";
  * also takes a closed panel out of the tab order and the accessibility tree for
  * free, which a transform would leave behind for a keyboard to walk into.
  *
+ * The stored width is a basis the entry may shrink from, and the drawer holds
+ * its own. A number chosen on a wide screen is not a promise that the
+ * conversation between them can be squeezed to nothing to keep it.
+ *
  * `display` is not an animatable property, which is what `transition-discrete`
  * is for: it holds the panel displayed until the slide has finished rather than
  * cutting it away at the first frame. The docked sizes undo both the transform
@@ -28,13 +32,13 @@ export type SheetVariant = "drawer" | "entry";
 const SHEET: Record<SheetVariant, { docked: string; open: string; shut: string }> = {
   drawer: {
     docked:
-      "absolute inset-y-0 left-0 z-20 w-[85vw] max-w-xs shadow-xl starting:-translate-x-full lg:static lg:z-auto lg:flex lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none lg:transition-none",
+      "absolute inset-y-0 left-0 z-20 w-[85vw] max-w-xs shadow-xl starting:-translate-x-full lg:static lg:z-auto lg:flex lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none lg:transition-none",
     open: "flex translate-x-0",
     shut: "hidden -translate-x-full",
   },
   entry: {
     docked:
-      "absolute inset-0 z-20 starting:translate-y-full md:static md:inset-auto md:z-auto md:flex md:min-w-0 md:flex-1 md:translate-y-0 md:transition-none lg:w-(--today-width) lg:flex-none lg:shrink-0",
+      "absolute inset-0 z-20 starting:translate-y-full md:static md:inset-auto md:z-auto md:flex md:min-w-0 md:flex-1 md:translate-y-0 md:transition-none lg:basis-(--today-width) lg:grow-0 lg:shrink",
     open: "flex translate-y-0",
     shut: "hidden translate-y-full",
   },

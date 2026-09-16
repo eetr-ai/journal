@@ -31,7 +31,7 @@ export default function ChatBody(options: ChatBodyOptions) {
   const { region, onScroll } = useStickToBottom(written);
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-background">
+    <section className="flex min-w-0 flex-1 flex-col bg-background lg:min-w-80">
       <header className="flex items-center gap-2 border-b border-border px-5 py-3">
         <h2 className="flex-1 text-sm font-semibold">{t.title}</h2>
       </header>
