@@ -92,11 +92,23 @@ flows:
   # as one piece of writing instead of a pile of additions.
   - name: entry-write
     process:
-      # Set before the embedding is attempted, so the path where there is no
-      # vector needs no branch of its own.
+      # A chunk is a paragraph. For now nothing merges the short ones and nothing
+      # splits the long ones: a day written as prose falls into its parts on the
+      # blank lines already in it, and a rule cleverer than that is worth having
+      # only once there is an entry it gets wrong.
+      #
+      # Each one is embedded with the title in front of it, so a paragraph that
+      # says "it went again on the stairs" still carries what the day was about.
       - type: set-variable
-        name: no-vector
-        settings: { name: vectorJson, value: '""' }
+        name: split-into-chunks
+        settings:
+          name: chunks
+          value: 'body.content.split("\n\n").map(p, p.trim()).filter(p, p != "")'
+      # Set before the embedding is attempted, so the path where there are no
+      # vectors needs no branch of its own.
+      - type: set-variable
+        name: no-vectors
+        settings: { name: chunkJson, value: '""' }
       # Best effort, deliberately. An entry that could not be embedded is still
       # an entry; losing what somebody said because a vector provider was down
       # would be the wrong trade. It costs its place in search until it is
@@ -104,19 +116,31 @@ flows:
       - type: handle-errors
         name: embed-if-we-can
         process:
+          # One call for the whole entry: a list in, the vectors back in the same
+          # order.
           - type: ai-embed
-            name: embed-note
+            name: embed-chunks
             settings:
               connector: router
               model: ${EMBEDDING_MODEL}
               dimensions: 1024
-              text: 'body.title + "\n\n" + body.content'
-              resultVar: vector
+              text: 'vars.chunks.map(c, body.title + "\n\n" + c)'
+              resultVar: vectors
+          # Sealed the same way the entry is, under the same key. A chunk is the
+          # person's words cut smaller, not something less private than they are.
           - type: set-variable
-            settings: { name: vectorJson, value: 'toJson(vars.vector)' }
+            name: build-chunks
+            settings:
+              name: chunkJson
+              value: >
+                toJson(lists.range(size(vars.chunks)).map(i, {
+                  "ordinal": i,
+                  "content": "enc1:" + base64.encode(toAes(vars.chunks[i], base64.decode(vars.dataKey))),
+                  "embedding": vars.vectors[i]
+                }))
         error:
           - type: set-variable
-            settings: { name: vectorJson, value: '""' }
+            settings: { name: chunkJson, value: '""' }
       # Sealed here, under the key this run was handed. The marker is ours, not
       # octo's: it is what tells a reader whether a row predates the key.
       - type: set-variable
@@ -144,8 +168,6 @@ flows:
                   UPDATE journal_entry
                   SET title = $3,
                       content = $4,
-                      embedding = COALESCE(NULLIF($5, '')::vector, embedding),
-                      embedded_at = CASE WHEN $5 = '' THEN embedded_at ELSE now() END,
                       updated_at = now()
                   WHERE oidc_subject = $1 AND id = $2::uuid
                   RETURNING id, thread_key, entry_date, title, content, created_at, updated_at
@@ -154,7 +176,6 @@ flows:
                   - body.id
                   - vars.sealedTitle
                   - vars.sealedContent
-                  - vars.vectorJson
                 single: true
         else:
           process:
@@ -168,11 +189,9 @@ flows:
                 connector: db
                 query: |
                   INSERT INTO journal_entry
-                    (oidc_subject, thread_key, entry_date, title, content, embedding, embedded_at)
+                    (oidc_subject, thread_key, entry_date, title, content)
                   VALUES
-                    ($1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5,
-                     NULLIF($6, '')::vector,
-                     CASE WHEN $6 = '' THEN NULL ELSE now() END)
+                    ($1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5)
                   -- entry_date is deliberately NOT updated. A note belongs to
                   -- the day it is about, and advancing it would move the note
                   -- off that day and leave it empty — a conversation picked up
@@ -182,11 +201,6 @@ flows:
                   DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
-                    embedding = COALESCE(EXCLUDED.embedding, journal_entry.embedding),
-                    embedded_at = CASE
-                      WHEN EXCLUDED.embedding IS NULL THEN journal_entry.embedded_at
-                      ELSE now()
-                    END,
                     updated_at = now()
                   RETURNING id, thread_key, entry_date, title, content, created_at, updated_at
                 args:
@@ -195,7 +209,6 @@ flows:
                   - 'has(body.date) && body.date != "" ? body.date : vars.today'
                   - vars.sealedTitle
                   - vars.sealedContent
-                  - vars.vectorJson
                 single: true
       - type: set-variable
         name: hold-written
@@ -212,6 +225,38 @@ flows:
               settings: { value: '{"saved": false}' }
         else:
           process:
+            # Wholesale, the way the note itself is rewritten: the entry that
+            # came back is the whole of it, so its chunks are the whole of its
+            # chunks. Skipped entirely when the embedding failed, which leaves
+            # the last good set standing rather than emptying the entry out of
+            # search on a bad afternoon.
+            - type: if
+              name: chunks-to-write
+              condition: 'vars.chunkJson != ""'
+              then:
+                process:
+                  - type: sql
+                    name: clear-chunks
+                    settings:
+                      connector: db
+                      query: DELETE FROM journal_entry_chunk WHERE entry_id = $1::uuid
+                      args:
+                        - vars.written.id
+                      exec: true
+                  - type: sql
+                    name: write-chunks
+                    settings:
+                      connector: db
+                      query: |
+                        INSERT INTO journal_entry_chunk
+                          (entry_id, ordinal, content, embedding, embedded_at)
+                        SELECT $1::uuid, (c->>'ordinal')::int, c->>'content',
+                               (c->>'embedding')::vector, now()
+                        FROM jsonb_array_elements($2::jsonb) AS c
+                      args:
+                        - vars.written.id
+                        - vars.chunkJson
+                      exec: true
             # The panel beside the conversation, repainted mid-run. Sealed,
             # because the reader opens an entry exactly one way whether it
             # arrived in a page or in a frame.
@@ -255,18 +300,25 @@ flows:
                 dimensions: 1024
                 text: 'body.query'
                 resultVar: vector
-            # Cosine distance, matching the index. Rows written while the
-            # embedding provider was unreachable have no vector and cannot be
-            # ranked; they are still found by date.
+            # Cosine distance, matching the index. An entry is ranked by its
+            # closest chunk rather than by all of them averaged: a day is
+            # usually several things, and the one the question is about should
+            # not be dragged down by the others it sat beside. The GROUP BY is
+            # what makes this a list of days rather than a list of paragraphs.
+            #
+            # Entries written while the embedding provider was unreachable have
+            # no chunks and cannot be ranked; they are still found by date.
             - type: sql
               name: search-entries
               settings:
                 connector: db
                 query: |
-                  SELECT id, entry_date, title, content, created_at, updated_at
-                  FROM journal_entry
-                  WHERE oidc_subject = $1 AND embedding IS NOT NULL
-                  ORDER BY embedding <=> $2::vector
+                  SELECT e.id, e.entry_date, e.title, e.content, e.created_at, e.updated_at
+                  FROM journal_entry e
+                  JOIN journal_entry_chunk c ON c.entry_id = e.id
+                  WHERE e.oidc_subject = $1 AND c.embedding IS NOT NULL
+                  GROUP BY e.id, e.entry_date, e.title, e.content, e.created_at, e.updated_at
+                  ORDER BY min(c.embedding <=> $2::vector)
                   LIMIT $3
                 args:
                   - vars.subject

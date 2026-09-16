@@ -9,6 +9,10 @@
 -- reason the agent's tables do: a value written before there was a key still has
 -- to read, and the marker is what says which of the two it is.
 --
+-- What an entry is about is not held here. A vector over a whole day averages
+-- its parts into something that matches everything weakly, so meaning is held
+-- per chunk instead, one table along.
+--
 -- Sealing stops at the text. `entry_date` is a plain date because every query in
 -- this feature is by one — a day, a range, this day a year ago — and 002 already
 -- concedes the same trade: when a person wrote is not hidden, only what.
@@ -23,12 +27,6 @@ CREATE TABLE IF NOT EXISTS journal_entry (
   entry_date   date        NOT NULL,
   title        text        NOT NULL DEFAULT '',
   content      text        NOT NULL DEFAULT '',
-  -- Taken from the plaintext before it was sealed, and not sealed itself — the
-  -- same concession agent_turn.embedding already makes. A vector is not the
-  -- text, but it is derived from it; this is the cost of finding an entry by
-  -- what it was about.
-  embedding    vector(1024),
-  embedded_at  timestamptz,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -43,8 +41,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS journal_entry_per_conversation
 -- The drawer's query, and every lookup by day or range.
 CREATE INDEX IF NOT EXISTS journal_entry_by_day
   ON journal_entry (oidc_subject, entry_date DESC, created_at DESC);
-
--- Cosine, 1024 dimensions, matching the agent's tables: the embeddings are
--- normalised and the question is always "closest in meaning".
-CREATE INDEX IF NOT EXISTS journal_entry_by_meaning
-  ON journal_entry USING hnsw (embedding vector_cosine_ops);
