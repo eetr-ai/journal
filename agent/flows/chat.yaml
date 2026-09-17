@@ -479,7 +479,9 @@ flows:
               Look something up in Bronze Age Pervert's Substack — his own
               writing on vitality, beauty, exercise and the shape of a life
               worth living. Use it when the person has named him or that
-              current as something they read, not to introduce him.
+              current as something they read, not to introduce him — and not
+              when they are low enough that being told to be harder would land
+              as a rebuke.
             inputSchema: |
               {
                 "type": "object",
@@ -492,7 +494,7 @@ flows:
                 settings:
                   connector: research
                   objective: '"Find what Bronze Age Pervert has written about this on his Substack: " + body.query'
-                  searchQueries: '["site:bronzeagepervert.substack.com " + body.query, "site:substack.com bronzeagepervert " + body.query]'
+                  searchQueries: '["site:bronzeagepervert.substack.com " + body.query]'
                   mode: fast
                   maxResults: 5
                   maxCharsTotal: 6000
