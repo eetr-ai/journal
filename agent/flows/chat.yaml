@@ -427,6 +427,29 @@ flows:
                   maxResults: 5
                   maxCharsTotal: 6000
 
+          - name: search_gutenberg
+            description: >
+              Find the actual text of a book on Project Gutenberg — the works
+              old enough to be there in full, rather than what is written about
+              them. Use it when the words themselves are the point: a passage
+              they half remember, a line worth getting right.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["query"],
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: parallel-search
+                name: gutenberg
+                settings:
+                  connector: research
+                  objective: '"Find this on Project Gutenberg, and the text of the passage itself: " + body.query'
+                  searchQueries: '["site:gutenberg.org " + body.query]'
+                  mode: fast
+                  maxResults: 5
+                  maxCharsTotal: 6000
+
           - name: search_scripture
             description: >
               Find a passage of the Bible, by reference or by what it says. Use
@@ -442,8 +465,36 @@ flows:
                 name: scripture
                 settings:
                   connector: research
-                  objective: '"Find the Bible passage and its text: " + body.query'
-                  searchQueries: '["site:biblegateway.com " + body.query]'
+                  # One translation, so a verse quoted twice reads the same way
+                  # twice. Named in the objective as well as the query because
+                  # biblegateway serves every translation off the same paths.
+                  objective: '"Find the Bible passage and its text in the ESV translation: " + body.query'
+                  searchQueries: '["site:biblegateway.com ESV " + body.query]'
+                  mode: fast
+                  maxResults: 5
+                  maxCharsTotal: 6000
+
+          - name: search_bronze_age_pervert
+            description: >
+              Look something up in Bronze Age Pervert's Substack — his own
+              writing on vitality, beauty, exercise and the shape of a life
+              worth living. Use it when the person has named him or that
+              current as something they read, not to introduce him — and not
+              when they are low enough that being told to be harder would land
+              as a rebuke.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["query"],
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: parallel-search
+                name: bap
+                settings:
+                  connector: research
+                  objective: '"Find what Bronze Age Pervert has written about this on his Substack: " + body.query'
+                  searchQueries: '["site:bronzeagepervert.substack.com " + body.query]'
                   mode: fast
                   maxResults: 5
                   maxCharsTotal: 6000
