@@ -52,7 +52,7 @@ function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } 
     case "reasoning":
       return { type: ChatActionType.Reasoning, data: frame.text };
     case "tool":
-      return { type: ChatActionType.Tool, data: frame.done };
+      return { type: ChatActionType.Tool, data: frame };
     case "answer":
       return { type: ChatActionType.Answered, data: frame.text };
     default:

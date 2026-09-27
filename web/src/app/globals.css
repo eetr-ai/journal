@@ -207,3 +207,102 @@ body:has(.viewport-pinned) {
     min-height: 2.75rem;
   }
 }
+
+/*
+ * Motion while the journal is working. Components apply these only under
+ * `motion-safe:`, so a reader who asked for less motion sees the same states
+ * standing still.
+ */
+@theme {
+  --animate-rise-in: rise-in 220ms ease-out both;
+  --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-caret: caret 1s steps(1, end) infinite;
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes typing-dot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.25;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+
+  @keyframes caret {
+    50% {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * Text with light passing along it, for a step still under way. Standing still
+ * it is plain muted text with a brighter middle.
+ */
+@utility shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    var(--muted) 35%,
+    var(--foreground) 50%,
+    var(--muted) 65%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation: var(--animate-shimmer);
+  }
+}
+
+/*
+ * A caret after the last words of an answer still being written. It follows
+ * the last paragraph, heading or list item of rendered markdown; after a table
+ * or a quote it simply does not show.
+ */
+@utility live-caret {
+  & > div > :is(p, h1, h2, h3, h4, h5, h6):last-child::after,
+  & > div > :is(ul, ol):last-child > li:last-child::after {
+    content: "";
+    display: inline-block;
+    width: 0.45em;
+    height: 1em;
+    margin-left: 0.15em;
+    vertical-align: text-bottom;
+    background: var(--brand);
+    border-radius: 1px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    & > div > :is(p, h1, h2, h3, h4, h5, h6):last-child::after,
+    & > div > :is(ul, ol):last-child > li:last-child::after {
+      animation: var(--animate-caret);
+    }
+  }
+}

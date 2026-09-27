@@ -1,4 +1,5 @@
 import type { Dictionary } from "./en";
+import tools from "./es_tools";
 
 // Typed as Dictionary rather than inferred, which is what makes a missing or
 // misspelled key fail the build instead of silently falling back to English.
@@ -140,7 +141,7 @@ const es: Dictionary = {
     stop: "Parar",
     thinking: "Pensando...",
     reasoning: "Pensándolo",
-    working: "Buscando algo...",
+    tools,
     emptyTitle: "Todavía no hay nada",
     unavailableTitle: "Esta no cargó",
     unavailablePrompt:

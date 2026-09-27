@@ -1,3 +1,5 @@
+import tools from "./en_tools";
+
 // The source dictionary. Every other locale is typed against this shape, so a
 // key added here is a compile error everywhere it is missing.
 const en = {
@@ -137,7 +139,7 @@ const en = {
     stop: "Stop",
     thinking: "Thinking...",
     reasoning: "Thinking it through",
-    working: "Looking something up...",
+    tools,
     emptyTitle: "Nothing here yet",
     unavailableTitle: "This one would not load",
     unavailablePrompt:

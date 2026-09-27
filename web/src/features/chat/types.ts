@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import type { Entry } from "@/features/entries/types";
+import type { ToolFrame } from "./tool_steps";
 
 /**
  * What a conversation is, on both sides of the agent boundary.
@@ -133,7 +134,7 @@ export function turnFromEntity(entity: TurnEntity): Turn {
 export type AgentFrame =
   | { kind: "text"; text: string }
   | { kind: "reasoning"; text: string }
-  | { kind: "tool"; done: boolean }
+  | ({ kind: "tool" } & ToolFrame)
   | { kind: "answer"; text: string }
   // The agent writing in the journal beside the conversation, and moving the
   // reader to an entry. Both carry it sealed, the way a page does, so there is

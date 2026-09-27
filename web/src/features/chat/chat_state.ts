@@ -2,6 +2,7 @@
 
 import { createContext, type Dispatch } from "react";
 import { useContextNullSafe, type ReducerAction } from "@eetr/react-reducer-utils";
+import { NO_STEPS, closedSteps, withToolFrame, type ToolFrame, type ToolStep } from "./tool_steps";
 import type { Turn } from "./types";
 
 /**
@@ -30,8 +31,8 @@ export interface ChatTurn extends Omit<Turn, "seq"> {
    * nothing downstream of the browser ever sees it.
    */
   reasoning: string;
-  /** How many tools the journal has reached for on this turn, and how many came back. */
-  tools: { started: number; finished: number };
+  /** The tools the journal reached for on this turn, while it was live. */
+  tools: ToolStep[];
 }
 
 export interface ChatUiState {
@@ -66,8 +67,6 @@ export enum ChatActionType {
 
 export type ChatAction = ReducerAction<ChatActionType>;
 
-const NO_TOOLS = { started: 0, finished: 0 };
-
 export function initialChatState(threadId: string, turns: Turn[] = []): ChatUiState {
   return {
     threadId,
@@ -85,7 +84,7 @@ export function chatTurnFrom(turn: Turn): ChatTurn {
     text: turn.text,
     at: turn.at,
     reasoning: "",
-    tools: NO_TOOLS,
+    tools: NO_STEPS,
   };
 }
 
@@ -96,7 +95,7 @@ function said(from: Turn["from"], id: string, text: string): ChatTurn {
     text,
     at: new Date().toISOString(),
     reasoning: "",
-    tools: NO_TOOLS,
+    tools: NO_STEPS,
   };
 }
 
@@ -116,13 +115,18 @@ function withStreamingTurn(state: ChatUiState, change: (turn: ChatTurn) => ChatT
 /**
  * A run that ended without producing anything leaves no empty turn behind: it
  * would go on saying "thinking" underneath a notice saying it had stopped. A
- * turn with text in it stays — a part-answer is still an answer.
+ * turn with text in it stays — a part-answer is still an answer — and any call
+ * it was still waiting on is marked as not coming back.
  */
 function ended(state: ChatUiState): ChatUiState {
   const last = state.turns.at(-1);
 
-  if (!last || last.from !== "journal" || last.text !== "") {
+  if (!last || last.from !== "journal") {
     return state;
+  }
+
+  if (last.text !== "") {
+    return withStreamingTurn(state, (turn) => ({ ...turn, tools: closedSteps(turn.tools) }));
   }
 
   return { ...state, turns: state.turns.slice(0, -1) };
@@ -199,10 +203,7 @@ const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) 
   [ChatActionType.Tool]: (state, action) =>
     withStreamingTurn(state, (turn) => ({
       ...turn,
-      tools: {
-        started: turn.tools.started + (action.data ? 0 : 1),
-        finished: turn.tools.finished + (action.data ? 1 : 0),
-      },
+      tools: withToolFrame(turn.tools, action.data as ToolFrame),
     })),
 
   // The final frame carries the last model turn's text, which is not always the
