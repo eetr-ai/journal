@@ -43,9 +43,7 @@ function Step(options: StepOptions) {
       <span aria-hidden className={running ? "text-brand motion-safe:animate-pulse" : ""}>
         <Icon size={ICON_SIZE} weight="duotone" />
       </span>
-      <span className={running ? "shimmer-text" : ""}>
-        {options.step.status === "done" ? display.done : display.running}
-      </span>
+      <span className={running ? "shimmer-text" : ""}>{display[options.step.status]}</span>
       <Mark status={options.step.status} />
     </li>
   );

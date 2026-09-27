@@ -51,6 +51,7 @@ export interface ToolDisplay {
   icon: Icon;
   running: string;
   done: string;
+  failed: string;
 }
 
 export function toolDisplay(name: string, tools: ToolDictionary): ToolDisplay {

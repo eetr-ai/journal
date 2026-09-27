@@ -115,8 +115,9 @@ function withStreamingTurn(state: ChatUiState, change: (turn: ChatTurn) => ChatT
 /**
  * A run that ended without producing anything leaves no empty turn behind: it
  * would go on saying "thinking" underneath a notice saying it had stopped. A
- * turn with text in it stays — a part-answer is still an answer — and any call
- * it was still waiting on is marked as not coming back.
+ * turn with text or tool steps in it stays — a part-answer is still an answer,
+ * and what was tried is worth seeing — and any call it was still waiting on is
+ * marked as not coming back.
  */
 function ended(state: ChatUiState): ChatUiState {
   const last = state.turns.at(-1);
@@ -125,7 +126,7 @@ function ended(state: ChatUiState): ChatUiState {
     return state;
   }
 
-  if (last.text !== "") {
+  if (last.text !== "" || last.tools.length > 0) {
     return withStreamingTurn(state, (turn) => ({ ...turn, tools: closedSteps(turn.tools) }));
   }
 
