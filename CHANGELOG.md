@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.10](https://github.com/eetr-ai/journal/compare/v0.0.9...v0.0.10) (2026-09-27)
+
+
+### Features
+
+* reset this device's passkey ([6906559](https://github.com/eetr-ai/journal/commit/690655970e723bd2d5de58ccc5c8d50c8d22e2d1))
+* the chat says what it is looking at, and shows it working ([6906559](https://github.com/eetr-ai/journal/commit/690655970e723bd2d5de58ccc5c8d50c8d22e2d1))
+* the journal can look up a song's lyrics ([6906559](https://github.com/eetr-ai/journal/commit/690655970e723bd2d5de58ccc5c8d50c8d22e2d1))
+
+
+### Bug Fixes
+
+* a failed tool says it failed, and a run cut short keeps what it tried ([6906559](https://github.com/eetr-ai/journal/commit/690655970e723bd2d5de58ccc5c8d50c8d22e2d1))
+* the entry shows its title, and the address keeps both ids ([6906559](https://github.com/eetr-ai/journal/commit/690655970e723bd2d5de58ccc5c8d50c8d22e2d1))
+
 ## [0.0.9](https://github.com/eetr-ai/journal/compare/v0.0.8...v0.0.9) (2026-09-17)
 
 
