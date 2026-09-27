@@ -135,8 +135,10 @@ async function evaluate(
   return output ? { credentialId: toBase64Url(toBytes(assertion.rawId)), output } : null;
 }
 
-/** The data key, or null when no enrolled passkey could produce it. */
-export async function unlockWithPasskey(passkeys: VaultPasskey[]): Promise<VaultKeys | null> {
+/** The data key and the passkey that produced it, or null when none could. */
+export async function unlockWithPasskey(
+  passkeys: VaultPasskey[],
+): Promise<{ keys: VaultKeys; credentialId: string } | null> {
   if (!passkeysAreAvailable() || passkeys.length === 0) {
     return null;
   }
@@ -160,5 +162,5 @@ export async function unlockWithPasskey(passkeys: VaultPasskey[]): Promise<Vault
 
   const raw = await unwrap(used.wrappedKey, await wrappingKeyFrom(result.output));
 
-  return raw ? keysFrom(raw) : null;
+  return raw ? { keys: await keysFrom(raw), credentialId: used.credentialId } : null;
 }

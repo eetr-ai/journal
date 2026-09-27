@@ -257,6 +257,11 @@ const en = {
     addPasskey: "Add a passkey",
     addingPasskey: "Waiting for your device...",
     removePasskey: "Remove",
+    thisDevice: "This device",
+    resetTitle: "Replace this device's passkey",
+    resetHint:
+      "A new passkey takes the place of this one. Any other device that shares it through your password manager will need one of its own again.",
+    confirmReset: "Replace the passkey",
     errors: {
       tooShort: "Use at least 12 characters. This is the only thing protecting your writing.",
       mismatch: "Those two do not match.",

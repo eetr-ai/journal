@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { SimpleProvider } from "@eetr/react-reducer-utils";
 import VaultUnlocked from "./vault_unlocked";
 import { recallKey } from "../session";
+import { thisDeviceCredential } from "../this_device";
 import {
   VaultActionType,
   VaultDispatchContext,
@@ -40,6 +41,7 @@ function Body(options: VaultSettingsOptions) {
         data: {
           vault: options.vault,
           passkeys: options.passkeys,
+          thisDevice: thisDeviceCredential(options.identity.subject),
           dataKey: (await recallKey(options.identity.subject))?.dataKey ?? null,
         },
       });

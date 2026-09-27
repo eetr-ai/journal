@@ -255,6 +255,11 @@ const es: Dictionary = {
     addPasskey: "Agregar una passkey",
     addingPasskey: "Esperando a tu dispositivo...",
     removePasskey: "Quitar",
+    thisDevice: "Este dispositivo",
+    resetTitle: "Reemplazar la passkey de este dispositivo",
+    resetHint:
+      "Una passkey nueva toma el lugar de esta. Cualquier otro dispositivo que la comparta a través de tu gestor de contraseñas va a necesitar una propia otra vez.",
+    confirmReset: "Reemplazar la passkey",
     errors: {
       tooShort: "Usá al menos 12 caracteres. Es lo único que protege lo que escribís.",
       mismatch: "Esas dos no coinciden.",

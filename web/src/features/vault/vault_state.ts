@@ -27,6 +27,8 @@ export interface VaultUiState {
   status: VaultStatus;
   vault: Vault | null;
   passkeys: VaultPasskey[];
+  /** The credential this browser opens the vault with, when it has said. */
+  thisDevice: string | null;
   /** Non-extractable, so holding it here cannot leak the bytes. */
   dataKey: CryptoKey | null;
   busy: boolean;
@@ -47,13 +49,21 @@ export type VaultAction = ReducerAction<VaultActionType>;
 export interface LoadedData {
   vault: Vault;
   passkeys: VaultPasskey[];
+  thisDevice: string | null;
   dataKey: CryptoKey | null;
+}
+
+/** The enrolled passkeys after a change, and which of them is this browser's. */
+export interface PasskeysData {
+  passkeys: VaultPasskey[];
+  thisDevice: string | null;
 }
 
 export const initialVaultState: VaultUiState = {
   status: "checking",
   vault: null,
   passkeys: [],
+  thisDevice: null,
   dataKey: null,
   busy: false,
   error: null,
@@ -98,7 +108,7 @@ export function vaultReducer(state: VaultUiState, action: VaultAction): VaultUiS
       return { ...state, dataKey: null, status: "locked", busy: false, error: null };
 
     case VaultActionType.Passkeys:
-      return { ...state, passkeys: action.data as VaultPasskey[], busy: false, error: null };
+      return { ...state, ...(action.data as PasskeysData), busy: false, error: null };
 
     default:
       return state;
