@@ -271,6 +271,8 @@ const en = {
       rejected: "Those settings were refused as too weak to store.",
       noStorage:
         "This browser will not let us keep your key, so the journal cannot stay open. Private browsing and blocked site data both do this.",
+      oldPasskeyKept:
+        "The new passkey is in place, but the old one could not be removed. Remove it from the list above.",
       failed: "That did not save. Nothing changed.",
     },
   },

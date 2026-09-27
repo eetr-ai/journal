@@ -77,8 +77,9 @@ function refuse(message: string, agentKey: string | null): ChatError | null {
 const TOO_EARLY = 409;
 
 /**
- * A conversation exists once a run on it has ended, so that is when it earns its
- * place in the address. Replaced rather than pushed: nothing was navigated.
+ * A conversation exists once the agent has accepted a run on it, so that is when
+ * it earns its place in the address. Replaced rather than pushed: nothing was
+ * navigated.
  */
 function markConversation(threadId: string) {
   const current = new URLSearchParams(window.location.search);
@@ -140,6 +141,7 @@ async function run(
   }
 
   dispatch({ type: ChatActionType.Started });
+  markConversation(ask.threadId);
   await pump(body, dispatch, panel);
 
   return true;
@@ -237,13 +239,12 @@ export function useChatStream(options: ChatStreamOptions) {
         await runToEnd(ask(message.trim(), "say"), running.current, dispatch, panel);
       } finally {
         running.current = null;
-        markConversation(state.threadId);
         // The conversation may be new, and the drawer beside this panel was
         // rendered before it existed.
         router.refresh();
       }
     },
-    [agentKey, ask, dispatch, panel, router, state.threadId],
+    [agentKey, ask, dispatch, panel, router],
   );
 
   /**

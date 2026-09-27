@@ -180,7 +180,7 @@ export function useVaultDevices(identity: VaultIdentity) {
   /**
    * Replaces the passkey this browser opens with. The new one is stored before
    * the old one goes, so a failure part-way leaves two ways in, never none; an
-   * old one that would not go stays listed for removing by hand.
+   * old one that would not go stays listed, and the panel says so.
    */
   async function reset(password: string, label: string): Promise<boolean> {
     const old = state.thisDevice;
@@ -195,7 +195,11 @@ export function useVaultDevices(identity: VaultIdentity) {
 
     dispatch({
       type: VaultActionType.Passkeys,
-      data: { passkeys: [...kept, made], thisDevice: made.credentialId },
+      data: {
+        passkeys: [...kept, made],
+        thisDevice: made.credentialId,
+        ...(old !== null && !gone ? { error: "oldPasskeyKept" } : {}),
+      },
     });
 
     return true;

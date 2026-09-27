@@ -269,6 +269,8 @@ const es: Dictionary = {
       rejected: "Rechazamos esa configuración por ser demasiado débil para guardarla.",
       noStorage:
         "Este navegador no nos deja guardar tu clave, así que el diario no puede quedar abierto. La navegación privada y el bloqueo de datos del sitio hacen esto.",
+      oldPasskeyKept:
+        "La passkey nueva ya está, pero no se pudo quitar la anterior. Quitala de la lista de arriba.",
       failed: "No se guardó. No cambió nada.",
     },
   },

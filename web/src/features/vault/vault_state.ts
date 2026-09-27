@@ -21,6 +21,7 @@ export type VaultError =
   | "passkeyFailed"
   | "rejected"
   | "noStorage"
+  | "oldPasskeyKept"
   | "failed";
 
 export interface VaultUiState {
@@ -57,6 +58,8 @@ export interface LoadedData {
 export interface PasskeysData {
   passkeys: VaultPasskey[];
   thisDevice: string | null;
+  /** A change that landed only in part says so here, in the same dispatch. */
+  error?: VaultError;
 }
 
 export const initialVaultState: VaultUiState = {
@@ -107,8 +110,17 @@ export function vaultReducer(state: VaultUiState, action: VaultAction): VaultUiS
     case VaultActionType.Locked:
       return { ...state, dataKey: null, status: "locked", busy: false, error: null };
 
-    case VaultActionType.Passkeys:
-      return { ...state, ...(action.data as PasskeysData), busy: false, error: null };
+    case VaultActionType.Passkeys: {
+      const data = action.data as PasskeysData;
+
+      return {
+        ...state,
+        passkeys: data.passkeys,
+        thisDevice: data.thisDevice,
+        busy: false,
+        error: data.error ?? null,
+      };
+    }
 
     default:
       return state;
