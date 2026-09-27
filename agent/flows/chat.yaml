@@ -450,6 +450,35 @@ flows:
                   maxResults: 5
                   maxCharsTotal: 6000
 
+          - name: search_lyrics
+            description: >
+              Find a song's lyrics by its title, its artist, or a line they
+              remember, in whatever language it was sung. Use it when a song
+              comes up and its words matter, and quote the lines that matter
+              rather than the whole song.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["query"],
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: parallel-search
+                name: lyrics
+                settings:
+                  connector: research
+                  # One query per site, so each is ranked on its own: Genius
+                  # for breadth, Musixmatch for other languages, Letras for
+                  # Spanish and Portuguese.
+                  objective: '"Find the lyrics of this song, with its title and artist: " + body.query'
+                  searchQueries: >-
+                    ["site:genius.com " + body.query,
+                     "site:musixmatch.com " + body.query,
+                     "site:letras.com " + body.query]
+                  mode: fast
+                  maxResults: 5
+                  maxCharsTotal: 6000
+
           - name: search_scripture
             description: >
               Find a passage of the Bible, by reference or by what it says. Use
