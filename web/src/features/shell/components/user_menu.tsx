@@ -6,6 +6,7 @@ import Avatar from "./avatar";
 import { forgetEveryKey } from "@/features/vault/session";
 import LanguageOptions from "./language_options";
 import MenuRow from "./menu_row";
+import { useViewHref } from "../use_view_href";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -63,6 +64,7 @@ function useDismiss(open: boolean, onDismiss: () => void) {
 
 function MenuBody(options: UserMenuOptions) {
   const t = options.t;
+  const href = useViewHref();
 
   return (
     <>
@@ -75,10 +77,10 @@ function MenuBody(options: UserMenuOptions) {
       </div>
 
       <div className="border-t border-border p-1">
-        <MenuRow href={`/${options.locale}/settings`} icon={<GearSixIcon size={ICON_SIZE} />}>
+        <MenuRow href={href(`/${options.locale}/settings`)} icon={<GearSixIcon size={ICON_SIZE} />}>
           {t.settings}
         </MenuRow>
-        <MenuRow href={`/${options.locale}/privacy`} icon={<LockKeyIcon size={ICON_SIZE} />}>
+        <MenuRow href={href(`/${options.locale}/privacy`)} icon={<LockKeyIcon size={ICON_SIZE} />}>
           {t.vault.title}
         </MenuRow>
       </div>

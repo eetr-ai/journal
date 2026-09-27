@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { EntriesActionType, useEntries } from "./entries_state";
+import { viewHref } from "@/features/shell/view_url";
 
 /**
  * Keeps the address bar on whatever the panel is showing, in both directions.
@@ -18,17 +19,9 @@ import { EntriesActionType, useEntries } from "./entries_state";
 const PARAM = "entry";
 
 function urlFor(showing: string | null): string {
-  const params = new URLSearchParams(window.location.search);
-
-  if (showing) {
-    params.set(PARAM, showing);
-  } else {
-    params.delete(PARAM);
-  }
-
-  const query = params.toString();
-
-  return query ? `${window.location.pathname}?${query}` : window.location.pathname;
+  return viewHref(window.location.pathname, new URLSearchParams(window.location.search), {
+    [PARAM]: showing,
+  });
 }
 
 export function useEntryUrl() {

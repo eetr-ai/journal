@@ -1,4 +1,5 @@
-import { ChatsCircleIcon, NotePencilIcon } from "@phosphor-icons/react/dist/ssr";
+import { ChatsCircleIcon } from "@phosphor-icons/react/dist/ssr";
+import NewChatLink from "@/features/chat/components/new_chat_link";
 import ConversationList from "@/features/chat/components/conversation_list";
 import EntryList from "@/features/entries/components/entry_list";
 import type { Conversation } from "@/features/chat/types";
@@ -36,14 +37,7 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
           {/* A compose icon, which is what every chat app uses for this now,
               rather than a second run of words competing with the heading. The
               name is still there for anyone not reading pixels. */}
-          <a
-            aria-label={options.t.chat.newChat}
-            className="tap-target shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
-            href={`/${options.locale}`}
-            title={options.t.chat.newChat}
-          >
-            <NotePencilIcon size={ICON_SIZE} />
-          </a>
+          <NewChatLink label={options.t.chat.newChat} locale={options.locale} />
         </header>
         <ConversationList
           conversations={options.conversations}

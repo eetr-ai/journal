@@ -76,6 +76,7 @@ const es: Dictionary = {
     transcripts: "Charlas recientes",
     entries: "Diario",
     todayTitle: "Hoy",
+    todayDate: "Hoy · {day}",
     resizeToday: "Redimensionar la entrada de hoy",
     openDrawer: "Ver charlas y diario",
     closeDrawer: "Ocultar charlas y diario",

@@ -13,6 +13,7 @@ import { useEntryUrl } from "../use_entry_url";
 import { useThrowAway } from "../use_throw_away";
 import { useKeeping } from "../use_keeping";
 import { dayIn } from "../days";
+import { format } from "@/i18n/format";
 import { isDraft, type Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -127,12 +128,8 @@ function PanelHeader(options: PanelHeaderOptions) {
         <SunHorizonIcon size={ICON_SIZE} weight="fill" />
       </span>
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-sm font-semibold">
-          {showingToday ? options.t.shell.todayTitle : options.title || options.t.entries.untitled}
-        </h2>
-        <p className="text-xs text-muted">
-          {dayIn(options.entry?.date ?? options.today, options.locale)}
-        </p>
+        <h2 className="truncate text-sm font-semibold">{headingOf(options, showingToday)}</h2>
+        <p className="text-xs text-muted">{dayLineOf(options, showingToday)}</p>
       </div>
       {/* Only when the panel has been moved off today. Getting back is the one
           thing a reader cannot do from the drawer, because today may have
@@ -156,6 +153,22 @@ function PanelHeader(options: PanelHeaderOptions) {
       )}
     </header>
   );
+}
+
+// The entry's own title wins once it has one; "Today" only stands in for a
+// title that has not been written or opened yet.
+function headingOf(options: PanelHeaderOptions, showingToday: boolean): string {
+  if (options.title) {
+    return options.title;
+  }
+
+  return showingToday ? options.t.shell.todayTitle : options.t.entries.untitled;
+}
+
+function dayLineOf(options: PanelHeaderOptions, showingToday: boolean): string {
+  const day = dayIn(options.entry?.date ?? options.today, options.locale);
+
+  return showingToday ? format(options.t.shell.todayDate, { day }) : day;
 }
 
 interface HeaderActionsOptions {

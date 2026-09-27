@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { forgetConversationAction } from "./actions";
+import { useViewHref } from "@/features/shell/use_view_href";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -24,6 +25,7 @@ export function useForgetting(threadId: string, locale: Locale): Forgetting {
   const [asking, setAsking] = useState(false);
   const [failed, setFailed] = useState(false);
   const router = useRouter();
+  const href = useViewHref();
 
   async function forget() {
     setAsking(false);
@@ -41,7 +43,7 @@ export function useForgetting(threadId: string, locale: Locale): Forgetting {
     }
 
     // This was the open one, so there is nothing left here to read.
-    router.push(`/${locale}`);
+    router.push(href(`/${locale}`, { chat: null }));
   }
 
   return {

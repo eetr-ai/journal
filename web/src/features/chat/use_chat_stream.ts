@@ -9,6 +9,7 @@ import { useAgentKey } from "./use_agent_key";
 import { ChatActionType, useChat, type ChatError } from "./chat_state";
 import { EntriesActionType, useEntries } from "@/features/entries/entries_state";
 import { useOpenEntry } from "@/features/entries/use_open_entry";
+import { viewHref } from "@/features/shell/view_url";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -74,6 +75,24 @@ function refuse(message: string, agentKey: string | null): ChatError | null {
 // is there is no such day — so this is "not yet", and saying "could not be
 // reached" would send someone looking for a fault that is not there.
 const TOO_EARLY = 409;
+
+/**
+ * A conversation exists once a run on it has ended, so that is when it earns its
+ * place in the address. Replaced rather than pushed: nothing was navigated.
+ */
+function markConversation(threadId: string) {
+  const current = new URLSearchParams(window.location.search);
+
+  if (current.get("chat") === threadId) {
+    return;
+  }
+
+  window.history.replaceState(
+    null,
+    "",
+    viewHref(window.location.pathname, current, { chat: threadId }),
+  );
+}
 
 function refusal(status: number): ChatError {
   return status === TOO_EARLY ? "notReady" : "unreachable";
@@ -218,12 +237,13 @@ export function useChatStream(options: ChatStreamOptions) {
         await runToEnd(ask(message.trim(), "say"), running.current, dispatch, panel);
       } finally {
         running.current = null;
+        markConversation(state.threadId);
         // The conversation may be new, and the drawer beside this panel was
         // rendered before it existed.
         router.refresh();
       }
     },
-    [agentKey, ask, dispatch, panel, router],
+    [agentKey, ask, dispatch, panel, router, state.threadId],
   );
 
   /**

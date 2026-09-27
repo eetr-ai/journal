@@ -74,6 +74,7 @@ const en = {
     transcripts: "Recent chats",
     entries: "Journal",
     todayTitle: "Today",
+    todayDate: "Today · {day}",
     resizeToday: "Resize today's entry",
     openDrawer: "Show chats and journal",
     closeDrawer: "Hide chats and journal",
