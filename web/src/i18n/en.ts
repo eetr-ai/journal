@@ -1,3 +1,5 @@
+import tools from "./en_tools";
+
 // The source dictionary. Every other locale is typed against this shape, so a
 // key added here is a compile error everywhere it is missing.
 const en = {
@@ -74,6 +76,7 @@ const en = {
     transcripts: "Recent chats",
     entries: "Journal",
     todayTitle: "Today",
+    todayDate: "Today · {day}",
     resizeToday: "Resize today's entry",
     openDrawer: "Show chats and journal",
     closeDrawer: "Hide chats and journal",
@@ -136,7 +139,7 @@ const en = {
     stop: "Stop",
     thinking: "Thinking...",
     reasoning: "Thinking it through",
-    working: "Looking something up...",
+    tools,
     emptyTitle: "Nothing here yet",
     unavailableTitle: "This one would not load",
     unavailablePrompt:
@@ -254,6 +257,11 @@ const en = {
     addPasskey: "Add a passkey",
     addingPasskey: "Waiting for your device...",
     removePasskey: "Remove",
+    thisDevice: "This device",
+    resetTitle: "Replace this device's passkey",
+    resetHint:
+      "A new passkey takes the place of this one. Any other device that shares it through your password manager will need one of its own again.",
+    confirmReset: "Replace the passkey",
     errors: {
       tooShort: "Use at least 12 characters. This is the only thing protecting your writing.",
       mismatch: "Those two do not match.",
@@ -263,6 +271,8 @@ const en = {
       rejected: "Those settings were refused as too weak to store.",
       noStorage:
         "This browser will not let us keep your key, so the journal cannot stay open. Private browsing and blocked site data both do this.",
+      oldPasskeyKept:
+        "The new passkey is in place, but the old one could not be removed. Remove it from the list above.",
       failed: "That did not save. Nothing changed.",
     },
   },

@@ -1,6 +1,7 @@
 "use client";
 
 import Moment from "./moment";
+import { useViewHref } from "@/features/shell/use_view_href";
 import { useOpenedTitles } from "../use_opened_titles";
 import type { Conversation } from "../types";
 import type { Dictionary } from "@/i18n/en";
@@ -18,13 +19,15 @@ export interface ConversationListOptions {
 /**
  * Past conversations. Opening one is a navigation rather than client state, so
  * it survives a reload and can be linked to; the id is in the query because it
- * is a view of the same page, not a different one.
+ * is a view of the same page, not a different one. The entry beside it stays
+ * where it is.
  */
 export default function ConversationList(options: ConversationListOptions) {
   const t = options.t.chat;
   // A title is written by the agent about what was said, so it is sealed with
   // everything else and opened here rather than on the server.
   const titles = useOpenedTitles(options.conversations, options.subject, t.unreadable);
+  const href = useViewHref();
 
   if (options.conversations.length === 0) {
     return <p className="px-4 py-2 text-xs text-muted">{t.noConversations}</p>;
@@ -37,7 +40,7 @@ export default function ConversationList(options: ConversationListOptions) {
           <a
             aria-current={conversation.id === options.current ? "page" : undefined}
             className="block rounded-lg px-2 py-2 hover:bg-surface-muted aria-[current]:bg-surface-muted"
-            href={`/${options.locale}?chat=${encodeURIComponent(conversation.id)}`}
+            href={href(`/${options.locale}`, { chat: conversation.id })}
           >
             <p className="truncate text-sm">{titles[conversation.id] ?? ""}</p>
             <Moment

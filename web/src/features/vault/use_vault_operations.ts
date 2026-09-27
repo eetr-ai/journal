@@ -4,7 +4,9 @@ import { createVault, unlockWithPassword, unwrapWithPassword, type VaultKeys } f
 import { enrollPasskey, passkeysAreAvailable, unlockWithPasskey } from "./passkey";
 import { addPasskeyAction, removePasskeyAction, saveVaultAction } from "./actions";
 import { forgetKey, rememberKey } from "./session";
+import { forgetThisDevice, rememberThisDevice } from "./this_device";
 import { VaultActionType, useVault, type VaultError } from "./vault_state";
+import type { VaultPasskey } from "./types";
 
 /**
  * Everything the vault panel can do, kept out of the components so each of them
@@ -99,7 +101,13 @@ export function useVaultUnlock(identity: VaultIdentity) {
     dispatch({ type: VaultActionType.Busy });
 
     try {
-      await accept(await unlockWithPasskey(state.passkeys), "passkeyFailed");
+      const opened = await unlockWithPasskey(state.passkeys);
+
+      if (opened) {
+        rememberThisDevice(identity.subject, opened.credentialId);
+      }
+
+      await accept(opened?.keys ?? null, "passkeyFailed");
     } catch {
       // A cancelled prompt and a device that cannot do PRF both land here, and
       // neither is worth telling apart to the person in front of it.
@@ -110,19 +118,21 @@ export function useVaultUnlock(identity: VaultIdentity) {
   return { create, byPassword, byPasskey };
 }
 
-/** Managing the devices that can open it, once it is open. */
-export function useVaultDevices(identity: VaultIdentity) {
+function useEnrolled(identity: VaultIdentity) {
   const { state, dispatch } = useVault();
 
   /**
+   * A new passkey, stored and noted as this browser's; every failure has already
+   * been dispatched when this returns null.
+   *
    * Enrolling re-wraps the data key, which needs its bytes — and the key held in
    * memory is deliberately not readable. Asking for the password again is also
    * the right thing: adding a credential should cost a re-authentication.
    */
-  async function enroll(password: string, label: string): Promise<boolean> {
+  async function enrolled(password: string, label: string): Promise<VaultPasskey | null> {
     if (!passkeysAreAvailable()) {
       dispatch({ type: VaultActionType.Failed, data: "passkeyUnsupported" });
-      return false;
+      return null;
     }
 
     dispatch({ type: VaultActionType.Busy });
@@ -131,19 +141,65 @@ export function useVaultDevices(identity: VaultIdentity) {
 
     if (!raw) {
       dispatch({ type: VaultActionType.Failed, data: "wrongPassword" });
-      return false;
+      return null;
     }
 
-    const enrolled = await enrollPasskey({ ...identity, dataKey: raw, label }).catch(() => null);
+    const made = await enrollPasskey({ ...identity, dataKey: raw, label }).catch(() => null);
 
-    if (!enrolled || (await addPasskeyAction(enrolled)) !== "saved") {
+    if (!made || (await addPasskeyAction(made)) !== "saved") {
       dispatch({ type: VaultActionType.Failed, data: "passkeyFailed" });
+      return null;
+    }
+
+    rememberThisDevice(identity.subject, made.credentialId);
+
+    return { ...made, createdAt: new Date().toISOString() };
+  }
+
+  return enrolled;
+}
+
+/** Managing the devices that can open it, once it is open. */
+export function useVaultDevices(identity: VaultIdentity) {
+  const { state, dispatch } = useVault();
+  const enrolled = useEnrolled(identity);
+
+  async function enroll(password: string, label: string): Promise<boolean> {
+    const made = await enrolled(password, label);
+
+    if (made) {
+      dispatch({
+        type: VaultActionType.Passkeys,
+        data: { passkeys: [...state.passkeys, made], thisDevice: made.credentialId },
+      });
+    }
+
+    return made !== null;
+  }
+
+  /**
+   * Replaces the passkey this browser opens with. The new one is stored before
+   * the old one goes, so a failure part-way leaves two ways in, never none; an
+   * old one that would not go stays listed, and the panel says so.
+   */
+  async function reset(password: string, label: string): Promise<boolean> {
+    const old = state.thisDevice;
+    const made = await enrolled(password, label);
+
+    if (!made) {
       return false;
     }
+
+    const gone = old !== null && (await removePasskeyAction(old)) === "saved";
+    const kept = state.passkeys.filter((passkey) => !gone || passkey.credentialId !== old);
 
     dispatch({
       type: VaultActionType.Passkeys,
-      data: [...state.passkeys, { ...enrolled, createdAt: new Date().toISOString() }],
+      data: {
+        passkeys: [...kept, made],
+        thisDevice: made.credentialId,
+        ...(old !== null && !gone ? { error: "oldPasskeyKept" } : {}),
+      },
     });
 
     return true;
@@ -157,9 +213,18 @@ export function useVaultDevices(identity: VaultIdentity) {
       return;
     }
 
+    const wasThisDevice = credentialId === state.thisDevice;
+
+    if (wasThisDevice) {
+      forgetThisDevice(identity.subject);
+    }
+
     dispatch({
       type: VaultActionType.Passkeys,
-      data: state.passkeys.filter((passkey) => passkey.credentialId !== credentialId),
+      data: {
+        passkeys: state.passkeys.filter((passkey) => passkey.credentialId !== credentialId),
+        thisDevice: wasThisDevice ? null : state.thisDevice,
+      },
     });
   }
 
@@ -168,5 +233,5 @@ export function useVaultDevices(identity: VaultIdentity) {
     dispatch({ type: VaultActionType.Locked });
   }
 
-  return { enroll, forget, lock };
+  return { enroll, reset, forget, lock };
 }

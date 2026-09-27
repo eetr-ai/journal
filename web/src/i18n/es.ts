@@ -1,4 +1,5 @@
 import type { Dictionary } from "./en";
+import tools from "./es_tools";
 
 // Typed as Dictionary rather than inferred, which is what makes a missing or
 // misspelled key fail the build instead of silently falling back to English.
@@ -76,6 +77,7 @@ const es: Dictionary = {
     transcripts: "Charlas recientes",
     entries: "Diario",
     todayTitle: "Hoy",
+    todayDate: "Hoy · {day}",
     resizeToday: "Redimensionar la entrada de hoy",
     openDrawer: "Ver charlas y diario",
     closeDrawer: "Ocultar charlas y diario",
@@ -139,7 +141,7 @@ const es: Dictionary = {
     stop: "Parar",
     thinking: "Pensando...",
     reasoning: "Pensándolo",
-    working: "Buscando algo...",
+    tools,
     emptyTitle: "Todavía no hay nada",
     unavailableTitle: "Esta no cargó",
     unavailablePrompt:
@@ -253,6 +255,11 @@ const es: Dictionary = {
     addPasskey: "Agregar una passkey",
     addingPasskey: "Esperando a tu dispositivo...",
     removePasskey: "Quitar",
+    thisDevice: "Este dispositivo",
+    resetTitle: "Reemplazar la passkey de este dispositivo",
+    resetHint:
+      "Una passkey nueva toma el lugar de esta. Cualquier otro dispositivo que la comparta a través de tu gestor de contraseñas va a necesitar una propia otra vez.",
+    confirmReset: "Reemplazar la passkey",
     errors: {
       tooShort: "Usá al menos 12 caracteres. Es lo único que protege lo que escribís.",
       mismatch: "Esas dos no coinciden.",
@@ -262,6 +269,8 @@ const es: Dictionary = {
       rejected: "Rechazamos esa configuración por ser demasiado débil para guardarla.",
       noStorage:
         "Este navegador no nos deja guardar tu clave, así que el diario no puede quedar abierto. La navegación privada y el bloqueo de datos del sitio hacen esto.",
+      oldPasskeyKept:
+        "La passkey nueva ya está, pero no se pudo quitar la anterior. Quitala de la lista de arriba.",
       failed: "No se guardó. No cambió nada.",
     },
   },

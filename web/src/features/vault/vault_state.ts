@@ -21,12 +21,15 @@ export type VaultError =
   | "passkeyFailed"
   | "rejected"
   | "noStorage"
+  | "oldPasskeyKept"
   | "failed";
 
 export interface VaultUiState {
   status: VaultStatus;
   vault: Vault | null;
   passkeys: VaultPasskey[];
+  /** The credential this browser opens the vault with, when it has said. */
+  thisDevice: string | null;
   /** Non-extractable, so holding it here cannot leak the bytes. */
   dataKey: CryptoKey | null;
   busy: boolean;
@@ -47,13 +50,23 @@ export type VaultAction = ReducerAction<VaultActionType>;
 export interface LoadedData {
   vault: Vault;
   passkeys: VaultPasskey[];
+  thisDevice: string | null;
   dataKey: CryptoKey | null;
+}
+
+/** The enrolled passkeys after a change, and which of them is this browser's. */
+export interface PasskeysData {
+  passkeys: VaultPasskey[];
+  thisDevice: string | null;
+  /** A change that landed only in part says so here, in the same dispatch. */
+  error?: VaultError;
 }
 
 export const initialVaultState: VaultUiState = {
   status: "checking",
   vault: null,
   passkeys: [],
+  thisDevice: null,
   dataKey: null,
   busy: false,
   error: null,
@@ -97,8 +110,17 @@ export function vaultReducer(state: VaultUiState, action: VaultAction): VaultUiS
     case VaultActionType.Locked:
       return { ...state, dataKey: null, status: "locked", busy: false, error: null };
 
-    case VaultActionType.Passkeys:
-      return { ...state, passkeys: action.data as VaultPasskey[], busy: false, error: null };
+    case VaultActionType.Passkeys: {
+      const data = action.data as PasskeysData;
+
+      return {
+        ...state,
+        passkeys: data.passkeys,
+        thisDevice: data.thisDevice,
+        busy: false,
+        error: data.error ?? null,
+      };
+    }
 
     default:
       return state;

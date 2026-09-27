@@ -44,8 +44,8 @@ connectors:
 
   # The model behind the chat. Reasoning rides on the assistant turn and is
   # never folded into the answer, so turning it up cannot leak a chain of
-  # thought into what a person reads — and `thinking` is deliberately left out
-  # of the agent's emit list, so it does not reach the browser either.
+  # thought into what a person reads. It does reach the browser as `thinking`
+  # events, shown apart from the answer and folded away once it lands.
   - name: router
     type: llm-openrouter
     settings:

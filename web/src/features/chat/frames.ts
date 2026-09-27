@@ -1,5 +1,6 @@
 import { entryFromEntity, type EntryEntity } from "@/features/entries/types";
 import type { AgentFrame } from "./types";
+import type { ToolFrame } from "./tool_steps";
 import type { SseEvent } from "./sse";
 
 /**
@@ -14,6 +15,9 @@ interface AgentEvent {
   type?: unknown;
   text?: unknown;
   thinking?: unknown;
+  tool?: unknown;
+  toolCallId?: unknown;
+  isError?: unknown;
 }
 
 function parsed(data: string): unknown {
@@ -33,14 +37,26 @@ function agentFrame(event: AgentEvent): AgentFrame | null {
     case "thinking":
       return reasoningFrom(event);
     case "tool_call":
-      return { kind: "tool", done: false };
+      return toolFrom(event, false);
     case "tool_result":
-      return { kind: "tool", done: true };
+      return toolFrom(event, true);
     case "done":
       return { kind: "done" };
     default:
       return null;
   }
+}
+
+// A tool without a name still gets a step: the name only chooses its words.
+function toolFrom(event: AgentEvent, done: boolean): AgentFrame {
+  const frame: ToolFrame = {
+    id: typeof event.toolCallId === "string" ? event.toolCallId : "",
+    name: typeof event.tool === "string" ? event.tool : "",
+    done,
+    failed: event.isError === true,
+  };
+
+  return { kind: "tool", ...frame };
 }
 
 function reasoningFrom(event: AgentEvent): AgentFrame | null {

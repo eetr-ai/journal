@@ -9,6 +9,7 @@ import { useAgentKey } from "./use_agent_key";
 import { ChatActionType, useChat, type ChatError } from "./chat_state";
 import { EntriesActionType, useEntries } from "@/features/entries/entries_state";
 import { useOpenEntry } from "@/features/entries/use_open_entry";
+import { viewHref } from "@/features/shell/view_url";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -51,7 +52,7 @@ function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } 
     case "reasoning":
       return { type: ChatActionType.Reasoning, data: frame.text };
     case "tool":
-      return { type: ChatActionType.Tool, data: frame.done };
+      return { type: ChatActionType.Tool, data: frame };
     case "answer":
       return { type: ChatActionType.Answered, data: frame.text };
     default:
@@ -74,6 +75,25 @@ function refuse(message: string, agentKey: string | null): ChatError | null {
 // is there is no such day — so this is "not yet", and saying "could not be
 // reached" would send someone looking for a fault that is not there.
 const TOO_EARLY = 409;
+
+/**
+ * A conversation exists once the agent has accepted a run on it, so that is when
+ * it earns its place in the address. Replaced rather than pushed: nothing was
+ * navigated.
+ */
+function markConversation(threadId: string) {
+  const current = new URLSearchParams(window.location.search);
+
+  if (current.get("chat") === threadId) {
+    return;
+  }
+
+  window.history.replaceState(
+    null,
+    "",
+    viewHref(window.location.pathname, current, { chat: threadId }),
+  );
+}
 
 function refusal(status: number): ChatError {
   return status === TOO_EARLY ? "notReady" : "unreachable";
@@ -121,6 +141,7 @@ async function run(
   }
 
   dispatch({ type: ChatActionType.Started });
+  markConversation(ask.threadId);
   await pump(body, dispatch, panel);
 
   return true;

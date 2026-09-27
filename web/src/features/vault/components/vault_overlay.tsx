@@ -2,6 +2,7 @@
 
 import OverlayDialog from "@/components/overlay_dialog";
 import VaultSettings from "./vault_settings";
+import { useViewHref } from "@/features/shell/use_view_href";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 import type { VaultIdentity } from "../use_vault_operations";
@@ -17,9 +18,11 @@ export interface VaultOverlayOptions {
 
 /** Private storage on its own, rather than a section at the bottom of settings. */
 export default function VaultOverlay(options: VaultOverlayOptions) {
+  const href = useViewHref();
+
   return (
     <OverlayDialog
-      closeHref={`/${options.locale}`}
+      closeHref={href(`/${options.locale}`)}
       closeLabel={options.t.close}
       subtitle={options.t.vault.summary}
       title={options.t.vault.title}
