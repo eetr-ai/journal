@@ -52,6 +52,9 @@ tasks:
       # Where the runtime delegates storage, leases and agent memory. The
       # sidecar answers on loopback, exactly as it does in the pod.
       OCTO_PLATFORM_API_URL: '{{.PLATFORM_URL}}'
+      # Named rather than implied by the build: the runtime picks its services
+      # provider from this, and falls back to one this binary does not carry.
+      RUNTIME_SERVICES_MODULE: api
     cmds:
       # --watch reloads the config when a file under flows/ changes, so editing
       # a flow does not mean restarting the stack.
