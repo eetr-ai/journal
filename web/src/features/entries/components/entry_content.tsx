@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Markdown from "@/components/markdown";
 import InlinePicture from "@/features/images/components/inline_picture";
 import PicturesBadge from "@/features/images/components/pictures_badge";
@@ -30,6 +30,9 @@ export default function EntryContent(options: EntryContentOptions) {
   const { state } = useEntries();
   const entry = options.entry;
   const [looking, setLooking] = useState(false);
+  // Stable, because the dialog reopens whenever its close handler changes, and
+  // this re-renders on every frame the conversation streams in.
+  const stopLooking = useCallback(() => setLooking(false), []);
   const pictures = useEntryImages({
     subject: options.subject,
     entryId: entry && !isDraft(entry) ? entry.id : null,
@@ -72,7 +75,7 @@ export default function EntryContent(options: EntryContentOptions) {
           anchored={content === undefined ? null : anchored}
           entryId={entry.id}
           images={pictures.images}
-          onClose={() => setLooking(false)}
+          onClose={stopLooking}
           onRemoved={pictures.removed}
           t={options.t}
         />

@@ -11,6 +11,8 @@ import type { OpenedImage } from "./types";
 export type ImagesStatus = "idle" | "loading" | "ready" | "failed";
 
 export interface ImagesUiState {
+  /** The entry `images` belong to. */
+  entryId: string | null;
   status: ImagesStatus;
   images: OpenedImage[];
 }
@@ -25,17 +27,22 @@ export enum ImagesActionType {
 
 export type ImagesAction = ReducerAction<ImagesActionType>;
 
-export const INITIAL_IMAGES_STATE: ImagesUiState = { status: "idle", images: [] };
+export const INITIAL_IMAGES_STATE: ImagesUiState = { entryId: null, status: "idle", images: [] };
 
 const handlers: Record<
   ImagesActionType,
   (state: ImagesUiState, action: ImagesAction) => ImagesUiState
 > = {
   [ImagesActionType.Cleared]: () => INITIAL_IMAGES_STATE,
-  // What was on screen stays while the next set loads, so a picture kept
-  // mid-conversation does not blank the ones already there.
-  [ImagesActionType.Loading]: (state) => ({ ...state, status: "loading" }),
-  [ImagesActionType.Opened]: (_state, action) => ({
+  // The same entry's pictures stay on screen while the next set loads, so a
+  // picture kept mid-conversation does not blank the ones already there. Another
+  // entry's never do.
+  [ImagesActionType.Loading]: (state, action) =>
+    state.entryId === action.data
+      ? { ...state, status: "loading" }
+      : { entryId: action.data as string, status: "loading", images: [] },
+  [ImagesActionType.Opened]: (state, action) => ({
+    ...state,
     status: "ready",
     images: action.data as OpenedImage[],
   }),

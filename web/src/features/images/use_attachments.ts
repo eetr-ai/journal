@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { prepared, type Prepared } from "./prepare";
 import type { AttachmentProblem } from "./rules";
 import type { Attachment } from "./types";
@@ -37,27 +37,37 @@ function problemOf(overflowed: boolean, results: Prepared[]): PickProblem | null
 export function useAttachments(maxImages: number) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [problem, setProblem] = useState<PickProblem | null>(null);
+  // Places taken, counting picks still being prepared. Reserved before the
+  // wait, so two picks in quick succession cannot both see the same room.
+  const taken = useRef(0);
 
   const add = useCallback(
     async (files: File[]) => {
-      const room = Math.max(0, maxImages - attachments.length);
-      const results = await Promise.all(files.slice(0, room).map(prepared));
+      const room = Math.max(0, maxImages - taken.current);
+      const reserved = Math.min(files.length, room);
+      taken.current += reserved;
+
+      const results = await Promise.all(files.slice(0, reserved).map(prepared));
       const added = results.flatMap((result) =>
         "attachment" in result ? [result.attachment] : [],
       );
 
-      setAttachments((current) => [...current, ...added].slice(0, maxImages));
+      // A picture that could not be prepared gives its place back.
+      taken.current -= reserved - added.length;
+      setAttachments((current) => [...current, ...added]);
       setProblem(problemOf(files.length > room, results));
     },
-    [attachments.length, maxImages],
+    [maxImages],
   );
 
   const remove = useCallback((index: number) => {
+    taken.current = Math.max(0, taken.current - 1);
     setAttachments((current) => current.filter((_, at) => at !== index));
     setProblem(null);
   }, []);
 
   const clear = useCallback(() => {
+    taken.current = 0;
     setAttachments([]);
     setProblem(null);
   }, []);

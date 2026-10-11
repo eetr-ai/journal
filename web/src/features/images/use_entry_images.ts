@@ -59,7 +59,7 @@ export function useEntryImages(options: EntryImagesOptions): EntryImages {
     let abandoned = false;
 
     async function load(id: string, key: string) {
-      dispatch({ type: ImagesActionType.Loading });
+      dispatch({ type: ImagesActionType.Loading, data: id });
       // A server action that could not be reached rejects rather than answering.
       const outcome = await entryImagesAction(id).catch(() => ({ kind: "failed" }) as const);
 

@@ -41,9 +41,30 @@ const SSE_HEADERS = {
   "x-accel-buffering": "no",
 };
 
-async function body(request: Request): Promise<unknown> {
+/**
+ * The posted JSON, null when it is not JSON, or "tooLarge" once more than
+ * `limit` bytes have arrived. Counted as they arrive rather than trusted from
+ * content-length, which a chunked request does not send.
+ */
+async function body(request: Request, limit: number): Promise<unknown> {
+  const reader = request.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  for (let read = await reader?.read(); read && !read.done; read = await reader?.read()) {
+    received += read.value.byteLength;
+
+    if (received > limit) {
+      await reader?.cancel();
+
+      return "tooLarge";
+    }
+
+    chunks.push(read.value);
+  }
+
   try {
-    return await request.json();
+    return JSON.parse(new TextDecoder().decode(Buffer.concat(chunks)));
   } catch {
     return null;
   }
@@ -83,18 +104,26 @@ async function admit(request: Request): Promise<Admitted> {
 }
 
 /**
- * The posted ask, or the answer that refuses it. Refused before it is read when
- * it is larger than the picture rules allow: nothing caps a route handler's
- * body, and one that large could never have been valid.
+ * The posted ask, or the answer that refuses it. A body larger than the picture
+ * rules allow could never have been valid, and nothing else caps a route
+ * handler's body, so it is refused without being read to the end — or at all,
+ * when content-length already says so.
  */
 async function askIn(request: Request): Promise<ChatAsk | Response> {
   const limit = maxImages();
+  const cap = maxBodyBytes(limit);
 
-  if (Number(request.headers.get("content-length") ?? 0) > maxBodyBytes(limit)) {
+  if (Number(request.headers.get("content-length") ?? 0) > cap) {
     return new Response(null, { status: TOO_LARGE });
   }
 
-  return askFrom(await body(request), limit) ?? new Response(null, { status: BAD_REQUEST });
+  const posted = await body(request, cap);
+
+  if (posted === "tooLarge") {
+    return new Response(null, { status: TOO_LARGE });
+  }
+
+  return askFrom(posted, limit) ?? new Response(null, { status: BAD_REQUEST });
 }
 
 export async function POST(request: Request): Promise<Response> {
