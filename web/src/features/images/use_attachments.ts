@@ -40,17 +40,25 @@ export function useAttachments(maxImages: number) {
   // Places taken, counting picks still being prepared. Reserved before the
   // wait, so two picks in quick succession cannot both see the same room.
   const taken = useRef(0);
+  // Bumped by clear(), so a pick still being prepared when the message went
+  // lands nowhere rather than in the emptied tray.
+  const generation = useRef(0);
 
   const add = useCallback(
     async (files: File[]) => {
       const room = Math.max(0, maxImages - taken.current);
       const reserved = Math.min(files.length, room);
       taken.current += reserved;
+      const started = generation.current;
 
       const results = await Promise.all(files.slice(0, reserved).map(prepared));
       const added = results.flatMap((result) =>
         "attachment" in result ? [result.attachment] : [],
       );
+
+      if (started !== generation.current) {
+        return;
+      }
 
       // A picture that could not be prepared gives its place back.
       taken.current -= reserved - added.length;
@@ -67,6 +75,7 @@ export function useAttachments(maxImages: number) {
   }, []);
 
   const clear = useCallback(() => {
+    generation.current += 1;
     taken.current = 0;
     setAttachments([]);
     setProblem(null);

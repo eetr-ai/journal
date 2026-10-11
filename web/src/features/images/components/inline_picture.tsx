@@ -23,12 +23,14 @@ export default function InlinePicture(options: InlinePictureOptions) {
   const t = options.t.images;
 
   if (!options.image) {
-    return options.loading ? <span className="block text-xs text-muted">{t.opening}</span> : null;
+    return options.loading ? (
+      <span className="block text-center text-xs text-muted">{t.opening}</span>
+    ) : null;
   }
 
   if (!options.image.src) {
     return (
-      <span className="flex items-center gap-1 text-xs text-muted">
+      <span className="flex items-center justify-center gap-1 text-xs text-muted">
         <ImageBrokenIcon size={ICON_SIZE} />
         {t.unreadable}
       </span>
@@ -41,7 +43,7 @@ export default function InlinePicture(options: InlinePictureOptions) {
   return (
     <Image
       alt={options.alt || options.image.caption || t.attached}
-      className="my-3 h-auto w-auto max-w-full rounded-lg border border-border"
+      className="mx-auto my-3 block h-auto w-auto max-w-full rounded-lg border border-border"
       height={0}
       sizes="100vw"
       src={options.image.src}
