@@ -91,7 +91,7 @@ tasks:
     cmds:
       # Idempotent, so it is safe to re-run. Once the volume exists, this is the
       # only way a schema edit reaches the database.
-      - for f in sql/*.sql; do echo "applying $f..."; {{.PSQL}} -f "/docker-entrypoint-initdb.d/$(basename $f)"; done
+      - for f in sql/*.sql; do echo "applying $f..."; {{.PSQL}} -f "/journal/sql/$(basename $f)"; done
 
   db:seed:
     desc: Load the flow suites' fixture rows

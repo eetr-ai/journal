@@ -20,11 +20,14 @@ services:
       - ./data/postgres:/var/lib/postgresql/data
       # Postgres runs these on first boot only, against an empty data
       # directory. An existing volume ignores any later edit to them.
-      - ./sql:/docker-entrypoint-initdb.d:ro
-      # Sorts ahead of 001, and lives outside sql/ because a migration must
-      # never run it: creating an extension needs a superuser, which the local
-      # bootstrap role is and a deployed one is not.
-      - ./deploy/local/postgres-extensions.sql:/docker-entrypoint-initdb.d/000_extensions.sql:ro
+      # Nothing is mounted inside another read-only mount: the runtime cannot
+      # create a mountpoint there, so a fresh container would refuse to start.
+      - ./sql:/journal/sql:ro
+      # Outside sql/ because a migration must never run it: creating an
+      # extension needs a superuser, which the local bootstrap role is and a
+      # deployed one is not.
+      - ./deploy/local/postgres-extensions.sql:/journal/postgres-extensions.sql:ro
+      - ./deploy/local/postgres-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     # `--wait` blocks on this, so a caller can assume the first query lands.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U journal -d journal']
