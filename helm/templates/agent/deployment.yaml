@@ -46,6 +46,8 @@ spec:
               value: {{ include "journal.fullname" . | quote }}
             - name: CHAT_MODEL
               value: {{ .Values.agent.chatModel | quote }}
+            - name: MAX_BODY_BYTES
+              value: {{ .Values.agent.maxBodyBytes | int | quote }}
             {{- include "journal.openrouterEnv" . | nindent 12 }}
             {{- include "journal.parallelEnv" . | nindent 12 }}
             {{- include "journal.postgresEnv" . | nindent 12 }}

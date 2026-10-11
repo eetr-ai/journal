@@ -6,11 +6,12 @@ import { openChat, steerChat } from "./browser_client";
 import { readFrames } from "./stream_reader";
 import { messageProblem } from "./rules";
 import { useAgentKey } from "./use_agent_key";
-import { ChatActionType, useChat, type ChatError } from "./chat_state";
+import { ChatActionType, useChat, type ChatError, type SentMessage } from "./chat_state";
 import { EntriesActionType, useEntries } from "@/features/entries/entries_state";
 import { useOpenEntry } from "@/features/entries/use_open_entry";
 import { viewHref } from "@/features/shell/view_url";
 import type { AgentFrame, ChatAsk } from "./types";
+import type { Attachment } from "@/features/images/types";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -40,6 +41,8 @@ function panelAction(frame: AgentFrame): { type: EntriesActionType; data: unknow
       return { type: EntriesActionType.Arrived, data: frame.entry };
     case "open":
       return { type: EntriesActionType.Shown, data: frame.entry };
+    case "image":
+      return { type: EntriesActionType.Pictured, data: frame.entryId };
     default:
       return null;
   }
@@ -66,8 +69,12 @@ function actionFor(frame: AgentFrame): { type: ChatActionType; data?: unknown } 
  * A missing key is one of the reasons: what the agent writes down is sealed
  * under it, so a message sent without one would be recorded in the clear.
  */
-function refuse(message: string, agentKey: string | null): ChatError | null {
-  return messageProblem(message) ?? (agentKey ? null : "locked");
+function refuse(message: string, agentKey: string | null, withImages: boolean): ChatError | null {
+  return messageProblem(message, withImages) ?? (agentKey ? null : "locked");
+}
+
+function dataUrl(attachment: Attachment): string {
+  return `data:${attachment.mimeType};base64,${attachment.data}`;
 }
 
 // The one refusal worth its own words. Everything the journal writes down is
@@ -179,13 +186,14 @@ function useAsk(threadId: string, locale: Locale, agentKey: string | null) {
   const open = useOpenEntry();
 
   return useCallback(
-    (message: string, intent: ChatAsk["intent"]): ChatAsk => ({
+    (message: string, intent: ChatAsk["intent"], images: Attachment[] = []): ChatAsk => ({
       threadId,
       message,
       locale,
       key: agentKey ?? "",
       intent,
       ...(open ? { working: { id: open.id, date: open.date } } : {}),
+      ...(images.length > 0 ? { images } : {}),
     }),
     [agentKey, locale, open, threadId],
   );
@@ -203,8 +211,8 @@ export function useChatStream(options: ChatStreamOptions) {
   const ask = useAsk(state.threadId, options.locale, agentKey);
 
   const send = useCallback(
-    async (message: string): Promise<void> => {
-      const problem = refuse(message, agentKey);
+    async (message: string, images: Attachment[] = []): Promise<void> => {
+      const problem = refuse(message, agentKey, images.length > 0);
 
       if (problem) {
         dispatch({ type: ChatActionType.Failed, data: problem });
@@ -213,7 +221,8 @@ export function useChatStream(options: ChatStreamOptions) {
       }
 
       // A run already holds this conversation, so this joins it. The answer
-      // keeps arriving where it already was.
+      // keeps arriving where it already was. Pictures cannot join a run in
+      // flight, so the composer never offers them here.
       //
       // Shown only once it has landed: a follow-up the BFF refused never
       // reached the conversation, and leaving it on screen would say it had.
@@ -232,11 +241,14 @@ export function useChatStream(options: ChatStreamOptions) {
         return;
       }
 
-      dispatch({ type: ChatActionType.Sent, data: message.trim() });
+      dispatch({
+        type: ChatActionType.Sent,
+        data: { text: message.trim(), images: images.map(dataUrl) } satisfies SentMessage,
+      });
       running.current = new AbortController();
 
       try {
-        await runToEnd(ask(message.trim(), "say"), running.current, dispatch, panel);
+        await runToEnd(ask(message.trim(), "say", images), running.current, dispatch, panel);
       } finally {
         running.current = null;
         // The conversation may be new, and the drawer beside this panel was

@@ -1,5 +1,6 @@
 import type { Dictionary } from "./en";
 import tools from "./es_tools";
+import images from "./es_images";
 
 // Typed as Dictionary rather than inferred, which is what makes a missing or
 // misspelled key fail the build instead of silently falling back to English.
@@ -231,7 +232,7 @@ const es: Dictionary = {
       "Tu contraseña nunca sale de este navegador, y la clave que sale de ella solo la tenemos el tiempo que lleva responder algo que pediste. Todo lo que escribís se cifra antes de guardarse, así que lo que queda en nuestra base de datos y en nuestros backups no se puede leer, ni siquiera para quien opera este servicio.",
     visibleTitle: "Qué podemos ver",
     visibleBody:
-      "Para que una entrada se pueda buscar hay que leerla, así que lo que escribís pasa por nuestro servidor camino a ser cifrado, y las palabras clave y los embeddings numéricos que salen de ahí se guardan sin cifrar junto a la entrada. Nada de eso queda guardado ni registrado en claro.",
+      "Para que una entrada se pueda buscar hay que leerla, así que lo que escribís pasa por nuestro servidor camino a ser cifrado, y las palabras clave y los embeddings numéricos que salen de ahí se guardan sin cifrar junto a la entrada. Las fotos que mandás hacen el mismo camino; las que se guardan con un día se cifran como tus palabras, y solo su tipo de archivo queda sin cifrar. Nada de eso queda guardado ni registrado en claro.",
     lossTitle: "Si olvidás tu contraseña",
     lossBody:
       "Lo que escribiste sería muy difícil de recuperar: lo suficiente como para darlo por perdido, y lo suficiente como para que no podamos hacerlo por vos aunque nos lo pidas. Una passkey abre el mismo diario, así que sumar una es una buena segunda forma de entrar. Cambiar esta contraseña todavía no lo podés hacer vos: pedilo y lo arreglamos.",
@@ -274,6 +275,8 @@ const es: Dictionary = {
       failed: "No se guardó. No cambió nada.",
     },
   },
+
+  images,
 
   validation: {
     required: "Esto no puede estar vacío",

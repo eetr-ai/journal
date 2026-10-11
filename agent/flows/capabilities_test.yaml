@@ -1,0 +1,56 @@
+# The catalogue is mocked in every case: a suite that reached OpenRouter would
+# fail when the network did, and what is worth proving is how its answer is read.
+flow: capabilities
+
+env:
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+cases:
+  - name: a model that lists image input can be handed pictures
+    input:
+      data: {}
+      vars: { method: GET }
+    mocks:
+      capabilities.ask-if-we-can[process].read-model:
+        cases:
+          - when: "true"
+            body:
+              data:
+                id: some/vision-model
+                architecture:
+                  input_modalities: [text, image]
+    expect:
+      body:
+        images: true
+
+  - name: a model that reads only text cannot
+    input:
+      data: {}
+      vars: { method: GET }
+    mocks:
+      capabilities.ask-if-we-can[process].read-model:
+        cases:
+          - when: "true"
+            body:
+              data:
+                id: some/text-model
+                architecture:
+                  input_modalities: [text]
+    expect:
+      body:
+        images: false
+
+  # Offering a picture the model cannot read fails mid-conversation; not
+  # offering one costs nothing. So an unreachable catalogue means no.
+  - name: an unreachable catalogue answers no rather than failing
+    input:
+      data: {}
+      vars: { method: GET }
+    mocks:
+      capabilities.ask-if-we-can[process].read-model:
+        default:
+          error: catalogue unreachable
+    expect:
+      body:
+        images: false

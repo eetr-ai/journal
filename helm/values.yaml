@@ -19,6 +19,9 @@ web:
   # Must be the URL the browser uses: OIDC callback URLs are built from it, and
   # the issuer compares what it gets against what is registered.
   authUrl: http://journal.local
+  # Pictures one chat message may carry. Raising it past 5 means raising
+  # agent.maxBodyBytes with it.
+  maxChatImages: 5
   resources: {}
 
 agent:
@@ -37,6 +40,9 @@ agent:
     port: 8080
   # Which model answers, vendor-prefixed the way OpenRouter publishes ids.
   chatModel: deepseek/deepseek-v4.1-flash
+  # The largest chat request the agent accepts, pictures included. Sized for
+  # web.maxChatImages pictures of 4 MiB each after base64.
+  maxBodyBytes: 33554432
   # The agent trusts its caller, so the only thing keeping it to the BFF is this.
   # Turn it off only for a cluster whose CNI does not enforce policy, where it
   # would be a promise nothing keeps.

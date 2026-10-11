@@ -1,0 +1,99 @@
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. This
+# suite appends pictures to the first two `dolphin-images` entries; the seed
+# empties them again before every run.
+#
+# The pictures are tiny but real: a 1x1 png, base64.
+flow: entry-image-keep
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a picture is kept with the entry the reader has open, sealed
+    input:
+      data: { index: 0, caption: The view from the top }
+      vars:
+        subject: dolphin-images
+        threadId: dolphin-images-elsewhere
+        entryId: f1f1f1f1-0000-4000-8000-000000000002
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        images:
+          - { mimeType: image/png, name: red.png, data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC }
+    expect:
+      that:
+        - body.kept == true
+        - body.entryId == "f1f1f1f1-0000-4000-8000-000000000002"
+    # What reaches the statement is what is stored. The plain picture must not.
+    spies:
+      entry-image-keep.can-keep[2].insert-image:
+        records:
+          - input:
+              that:
+                - vars.sealedData.startsWith("enc1:")
+                - vars.sealedCaption.startsWith("enc1:")
+                - '!vars.sealedData.contains(vars.images[0].data)'
+
+  - name: without an open entry it goes with this conversation's note
+    input:
+      data: { index: 1, caption: Dinner }
+      vars:
+        subject: dolphin-images
+        threadId: dolphin-images-thread
+        entryId: ""
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        images:
+          - { mimeType: image/png, name: a.png, data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC }
+          - { mimeType: image/jpeg, name: b.jpg, data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC }
+    expect:
+      that:
+        - body.kept == true
+        - body.entryId == "f1f1f1f1-0000-4000-8000-000000000001"
+
+  - name: an index past the pictures on the message keeps nothing
+    input:
+      data: { index: 3, caption: Nothing there }
+      vars:
+        subject: dolphin-images
+        threadId: dolphin-images-thread
+        entryId: ""
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        images:
+          - { mimeType: image/png, name: a.png, data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC }
+    expect:
+      that:
+        - body.kept == false
+    spies:
+      entry-image-keep.can-keep[2].insert-image:
+        count: 0
+
+  - name: a conversation with no note yet keeps nothing
+    input:
+      data: { index: 0, caption: Too early }
+      vars:
+        subject: dolphin-images
+        threadId: dolphin-images-unwritten
+        entryId: ""
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        images:
+          - { mimeType: image/png, name: a.png, data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC }
+    expect:
+      that:
+        - body.kept == false
+
+  # Holding an id is not enough: the lookup is scoped by subject as well.
+  - name: another person's entry cannot be named by its id alone
+    input:
+      data: { index: 0, caption: Intruder, id: f1f1f1f1-0000-4000-8000-000000000002 }
+      vars:
+        subject: dolphin-entries-other
+        threadId: dolphin-images-intruder
+        entryId: ""
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        images:
+          - { mimeType: image/png, name: a.png, data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC }
+    expect:
+      that:
+        - body.kept == false
+    spies:
+      entry-image-keep.can-keep[2].insert-image:
+        count: 0

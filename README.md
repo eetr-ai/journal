@@ -90,6 +90,12 @@ the agent in Postgres.
   extension, so quick unlock needs no password. What reaches the database cannot
   decrypt anything. See **Private data** in [CLAUDE.md](CLAUDE.md) for what that
   does and does not cover.
+- **Pictures in the chat.** Up to `MAX_CHAT_IMAGES` (default 5) per message,
+  shrunk in the browser and read by the model on that turn only. The agent's
+  `keep_image` tool seals one under the same key as the entry and stores it in
+  `journal_entry_image`; the entry panel fetches them sealed and opens them in
+  the browser. The attach button appears only when `CHAT_MODEL` lists image
+  input in OpenRouter's catalogue, which the agent's `GET /capabilities` asks.
 - Phosphor icons and `react-markdown` for the UI.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.

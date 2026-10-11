@@ -3,6 +3,7 @@
 import { BookmarkSimpleIcon, SunHorizonIcon, TrashIcon } from "@phosphor-icons/react";
 import Markdown from "@/components/markdown";
 import ConfirmDialog from "@/components/confirm_dialog";
+import EntryImages from "@/features/images/components/entry_images";
 import PanelSheet from "@/features/shell/components/panel_sheet";
 import ResizeHandle from "@/features/shell/components/resize_handle";
 import { MAX_TODAY_WIDTH, MIN_TODAY_WIDTH } from "@/features/profile/types";
@@ -14,7 +15,7 @@ import { useThrowAway } from "../use_throw_away";
 import { useKeeping } from "../use_keeping";
 import { dayIn } from "../days";
 import { format } from "@/i18n/format";
-import { isDraft, type Entry } from "../types";
+import { isDraft, type Entry, type OpenedEntry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -79,15 +80,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
         />
         {going.failed && <Failure text={options.t.entries.deleteFailed} />}
         {keeping.failed && <Failure text={options.t.entries.bookmarkFailed} />}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm">
-          <EntryBody
-            body={opened?.content}
-            empty={options.t.entries.empty}
-            sealed={Boolean(entry)}
-            started={options.t.entries.started}
-            waiting={options.t.entries.opening}
-          />
-        </div>
+        <EntryContent entry={entry} opened={opened} subject={options.subject} t={options.t} />
       </aside>
       {going.asking && entry && (
         <ConfirmDialog
@@ -213,6 +206,39 @@ function HeaderActions(options: HeaderActionsOptions) {
         <TrashIcon size={ICON_SIZE} />
       </button>
     </>
+  );
+}
+
+interface EntryContentOptions {
+  t: Dictionary;
+  subject: string;
+  entry: Entry | null;
+  /** What the key made of it, absent until it has been through. */
+  opened?: OpenedEntry;
+}
+
+// The words, and under them the pictures kept with the day. A draft has no row
+// yet, so it has no pictures to ask for.
+function EntryContent(options: EntryContentOptions) {
+  const { state } = useEntries();
+  const entry = options.entry;
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm">
+      <EntryBody
+        body={options.opened?.content}
+        empty={options.t.entries.empty}
+        sealed={Boolean(entry)}
+        started={options.t.entries.started}
+        waiting={options.t.entries.opening}
+      />
+      <EntryImages
+        entryId={entry && !isDraft(entry) ? entry.id : null}
+        revision={entry ? (state.pictured[entry.id] ?? 0) : 0}
+        subject={options.subject}
+        t={options.t}
+      />
+    </div>
   );
 }
 

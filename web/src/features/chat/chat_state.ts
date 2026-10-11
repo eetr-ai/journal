@@ -33,6 +33,17 @@ export interface ChatTurn extends Omit<Turn, "seq"> {
   reasoning: string;
   /** The tools the journal reached for on this turn, while it was live. */
   tools: ToolStep[];
+  /**
+   * Pictures sent with this turn, as data URLs, for this session only: the
+   * stored conversation is text, so a reopened one shows the words without them.
+   */
+  images?: string[];
+}
+
+/** What the reader sent: the words, and the pictures that went with them. */
+export interface SentMessage {
+  text: string;
+  images: string[];
 }
 
 export interface ChatUiState {
@@ -88,7 +99,7 @@ export function chatTurnFrom(turn: Turn): ChatTurn {
   };
 }
 
-function said(from: Turn["from"], id: string, text: string): ChatTurn {
+function said(from: Turn["from"], id: string, text: string, images?: string[]): ChatTurn {
   return {
     id,
     from,
@@ -96,6 +107,7 @@ function said(from: Turn["from"], id: string, text: string): ChatTurn {
     at: new Date().toISOString(),
     reasoning: "",
     tools: NO_STEPS,
+    ...(images && images.length > 0 ? { images } : {}),
   };
 }
 
@@ -142,6 +154,7 @@ const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) 
     // The two ids share the number and differ by prefix, so neither depends on
     // the other having been counted.
     const at = state.issued;
+    const sent = action.data as SentMessage;
 
     return {
       ...state,
@@ -150,7 +163,7 @@ const handlers: Record<ChatActionType, (state: ChatUiState, action: ChatAction) 
       issued: at + 1,
       turns: [
         ...state.turns,
-        said("you", `q${at}`, action.data as string),
+        said("you", `q${at}`, sent.text, sent.images),
         // The empty journal turn is what the stream fills in, so it exists from
         // the moment the message is sent rather than from the first token.
         said("journal", `a${at}`, ""),

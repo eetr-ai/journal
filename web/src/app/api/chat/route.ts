@@ -2,9 +2,12 @@ import { auth } from "@/auth";
 import { vaultGate } from "@/features/vault/gate";
 import { chatClient } from "@/features/chat/client";
 import { askFrom } from "@/features/chat/rules";
+import { maxImages } from "@/features/images/config";
+import { maxBodyBytes } from "@/features/images/rules";
 import { momentFor } from "@/features/chat/now";
 import { currentProfile } from "@/features/profile/service";
 import { needsDetection } from "@/features/profile/types";
+import type { ChatAsk } from "@/features/chat/types";
 
 /**
  * The chat stream, proxied from the agent to the browser.
@@ -25,6 +28,7 @@ const UNAUTHORIZED = 401;
 const LOCKED = 423;
 const BAD_REQUEST = 400;
 const UNSUPPORTED_MEDIA = 415;
+const TOO_LARGE = 413;
 const BAD_GATEWAY = 502;
 // Early, not wrong: the reader's zone has not reached the server yet.
 const TOO_EARLY = 409;
@@ -78,6 +82,21 @@ async function admit(request: Request): Promise<Admitted> {
   return { subject };
 }
 
+/**
+ * The posted ask, or the answer that refuses it. Refused before it is read when
+ * it is larger than the picture rules allow: nothing caps a route handler's
+ * body, and one that large could never have been valid.
+ */
+async function askIn(request: Request): Promise<ChatAsk | Response> {
+  const limit = maxImages();
+
+  if (Number(request.headers.get("content-length") ?? 0) > maxBodyBytes(limit)) {
+    return new Response(null, { status: TOO_LARGE });
+  }
+
+  return askFrom(await body(request), limit) ?? new Response(null, { status: BAD_REQUEST });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const admitted = await admit(request);
 
@@ -85,10 +104,10 @@ export async function POST(request: Request): Promise<Response> {
     return admitted.refused;
   }
 
-  const ask = askFrom(await body(request));
+  const ask = await askIn(request);
 
-  if (!ask) {
-    return new Response(null, { status: BAD_REQUEST });
+  if (ask instanceof Response) {
+    return ask;
   }
 
   // The agent has no clock of its own, and the day it files an entry under has

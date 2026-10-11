@@ -208,3 +208,26 @@ VALUES
   (UUID 'bbbbbbbb-0000-4000-8000-000000000001', 0,
    'enc1:Qidwd777Viml7Hl+A5dhb6rODBpQpqWtcaURfXMp6nwhQbWCGH4C/hk5rGRiTOws7CEg',
    dolphin_vector('{"0": 1}'), now());
+
+-- Pictures, for the image suites. `dolphin-images` owns this fixture; the keep
+-- cases append to the first two entries and the list cases read only the third,
+-- so the suites can run concurrently. The entries going takes the pictures with
+-- them, which is what keeps a second run the same as the first.
+--
+-- The stored values only need to look sealed: nothing here opens them.
+INSERT INTO user_profile (oidc_subject, email, name, config)
+VALUES ('dolphin-images', 'images@example.com', 'Images', '{}'::jsonb)
+ON CONFLICT (oidc_subject) DO NOTHING;
+
+DELETE FROM journal_entry WHERE oidc_subject = 'dolphin-images';
+
+INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, content)
+VALUES
+  (UUID 'f1f1f1f1-0000-4000-8000-000000000001', 'dolphin-images', 'dolphin-images-thread', DATE '2026-09-15', 'enc1:x', 'enc1:x'),
+  (UUID 'f1f1f1f1-0000-4000-8000-000000000002', 'dolphin-images', '', DATE '2026-09-14', 'enc1:x', 'enc1:x'),
+  (UUID 'f1f1f1f1-0000-4000-8000-000000000003', 'dolphin-images', '', DATE '2026-09-13', 'enc1:x', 'enc1:x');
+
+INSERT INTO journal_entry_image (id, entry_id, oidc_subject, ordinal, mime_type, caption, data)
+VALUES
+  (UUID 'f2f2f2f2-0000-4000-8000-000000000002', UUID 'f1f1f1f1-0000-4000-8000-000000000003', 'dolphin-images', 1, 'image/jpeg', 'enc1:second', 'enc1:second'),
+  (UUID 'f2f2f2f2-0000-4000-8000-000000000001', UUID 'f1f1f1f1-0000-4000-8000-000000000003', 'dolphin-images', 0, 'image/png', 'enc1:first', 'enc1:first');

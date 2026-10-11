@@ -1,0 +1,31 @@
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. This
+# suite reads only the third `dolphin-images` entry, which nothing writes to.
+#
+# The pictures come back sealed: the browser holds the key and opens them.
+flow: entry-images
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  # Seeded out of order, so a list that came back in insertion order would fail.
+  - name: an entry's pictures come back in order, still sealed
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-images, id: f1f1f1f1-0000-4000-8000-000000000003 }
+    expect:
+      that:
+        - body.images.size() == 2
+        - body.images[0].id == "f2f2f2f2-0000-4000-8000-000000000001"
+        - body.images[0].mime_type == "image/png"
+        - body.images[1].id == "f2f2f2f2-0000-4000-8000-000000000002"
+        - body.images[0].data.startsWith("enc1:")
+
+  # The subject is the whole access check: an entry id alone shows nothing.
+  - name: another person sees none of them with the entry id alone
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-entries-other, id: f1f1f1f1-0000-4000-8000-000000000003 }
+    expect:
+      that:
+        - body.images.size() == 0

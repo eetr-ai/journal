@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import AppShell from "@/features/shell/components/app_shell";
 import { chatView } from "@/features/chat/service";
 import { journalView } from "@/features/entries/service";
+import { imagesView } from "@/features/images/service";
 import { auth } from "@/auth";
 import { currentProfile } from "@/features/profile/service";
 import { vaultGate } from "@/features/vault/gate";
@@ -46,6 +47,7 @@ export default async function Home(options: HomeOptions) {
       profile={profile}
       t={dictionary(locale)}
       {...await chatView(chat)}
+      images={await imagesView()}
       journal={await journalView(entry)}
     />
   );
