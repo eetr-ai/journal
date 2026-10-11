@@ -20,6 +20,7 @@ export enum ImagesActionType {
   Loading = "loading",
   Opened = "opened",
   Failed = "failed",
+  Removed = "removed",
 }
 
 export type ImagesAction = ReducerAction<ImagesActionType>;
@@ -39,6 +40,10 @@ const handlers: Record<
     images: action.data as OpenedImage[],
   }),
   [ImagesActionType.Failed]: (state) => ({ ...state, status: "failed" }),
+  [ImagesActionType.Removed]: (state, action) => ({
+    ...state,
+    images: state.images.filter((image) => image.id !== action.data),
+  }),
 };
 
 export function imagesReducer(state: ImagesUiState, action: ImagesAction): ImagesUiState {

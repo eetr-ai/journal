@@ -91,10 +91,14 @@ the agent in Postgres.
   decrypt anything. See **Private data** in [CLAUDE.md](CLAUDE.md) for what that
   does and does not cover.
 - **Pictures in the chat.** Up to `MAX_CHAT_IMAGES` (default 5) per message,
-  shrunk in the browser and read by the model on that turn only. The agent's
-  `keep_image` tool seals one under the same key as the entry and stores it in
-  `journal_entry_image`; the entry panel fetches them sealed and opens them in
-  the browser. The attach button appears only when `CHAT_MODEL` lists image
+  attached with the `+` button or pasted into the box, shrunk in the browser and
+  read by the model on that turn only. The agent's `keep_image` tool seals one
+  under the same key as the entry, stores it in `journal_entry_image`, and hands
+  back an anchor — `![caption](image:<id>)` — that places it in the entry's
+  words. A rewrite that drops the anchor leaves the picture with the entry,
+  unanchored; the badge on the entry lists every picture and lets the loose ones
+  be deleted. The entry panel fetches pictures sealed and opens them in the
+  browser. The attach button appears only when `CHAT_MODEL` lists image
   input in OpenRouter's catalogue, which the agent's `GET /capabilities` asks.
 - Phosphor icons and `react-markdown` for the UI.
 

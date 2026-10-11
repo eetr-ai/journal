@@ -106,3 +106,21 @@ export function attachmentsFrom(value: unknown, maxImages: number): Attachment[]
 
   return attachmentProblem(attachments, maxImages) ? null : attachments;
 }
+
+/**
+ * How an entry places a picture in its words: `![caption](image:<id>)`. The id
+ * is the row's, so an anchor names exactly one picture.
+ */
+export const IMAGE_SCHEME = "image:";
+
+const ANCHOR = /\]\(image:([0-9a-f-]{36})\)/gu;
+
+/** The pictures an entry's words place in it, by id. */
+export function anchoredIn(content: string): Set<string> {
+  return new Set(Array.from(content.matchAll(ANCHOR), (match) => match[1]));
+}
+
+/** The picture id an anchor's URL names, or null when it is any other URL. */
+export function anchoredId(url: string): string | null {
+  return url.startsWith(IMAGE_SCHEME) ? url.slice(IMAGE_SCHEME.length) : null;
+}

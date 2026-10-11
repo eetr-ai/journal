@@ -7,6 +7,11 @@ import type { Attachment } from "./types";
 
 export type PickProblem = AttachmentProblem | "unreadable" | "busy";
 
+/** The pictures on a clipboard or a drop, ignoring anything else on it. */
+export function picturesIn(data: DataTransfer): File[] {
+  return Array.from(data.files).filter((file) => file.type.startsWith("image/"));
+}
+
 /** Why a pick did not all make it: too many first, then the first refusal. */
 function problemOf(overflowed: boolean, results: Prepared[]): PickProblem | null {
   if (overflowed) {

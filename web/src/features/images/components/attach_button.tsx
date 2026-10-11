@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { ImageIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { ACCEPTED_TYPES } from "../rules";
 
 const ICON_SIZE = 16;
@@ -13,7 +13,7 @@ export interface AttachButtonOptions {
 }
 
 /**
- * Picks pictures. Any image the browser can draw is offered, not only the types
+ * Picks pictures. Pasting into the message box is the other way in. Any image the browser can draw is offered, not only the types
  * we send, because the composer re-encodes what it has to.
  */
 export default function AttachButton(options: AttachButtonOptions) {
@@ -42,7 +42,7 @@ export default function AttachButton(options: AttachButtonOptions) {
         title={options.label}
         type="button"
       >
-        <ImageIcon size={ICON_SIZE} />
+        <PlusIcon size={ICON_SIZE} weight="bold" />
       </button>
     </>
   );

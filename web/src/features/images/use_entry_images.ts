@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { openSealed } from "@/features/chat/sealed";
 import { useAgentKey } from "@/features/chat/use_agent_key";
 import { entryImagesAction } from "./actions";
@@ -39,7 +39,12 @@ export interface EntryImagesOptions {
   revision: number;
 }
 
-export function useEntryImages(options: EntryImagesOptions): ImagesUiState {
+export interface EntryImages extends ImagesUiState {
+  /** Takes a picture off the panel once the server has thrown it away. */
+  removed: (id: string) => void;
+}
+
+export function useEntryImages(options: EntryImagesOptions): EntryImages {
   const [state, dispatch] = useReducer(imagesReducer, INITIAL_IMAGES_STATE);
   const agentKey = useAgentKey(options.subject);
   const { entryId, revision } = options;
@@ -83,5 +88,10 @@ export function useEntryImages(options: EntryImagesOptions): ImagesUiState {
     };
   }, [agentKey, entryId, revision]);
 
-  return state;
+  const removed = useCallback(
+    (id: string) => dispatch({ type: ImagesActionType.Removed, data: id }),
+    [],
+  );
+
+  return { ...state, removed };
 }

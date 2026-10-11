@@ -1,10 +1,10 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type ClipboardEvent, type RefObject } from "react";
 import ComposerActions from "./composer_actions";
 import AttachButton from "@/features/images/components/attach_button";
 import AttachmentTray from "@/features/images/components/attachment_tray";
-import { useAttachments } from "@/features/images/use_attachments";
+import { picturesIn, useAttachments } from "@/features/images/use_attachments";
 import { useImagesConfig } from "@/features/images/images_config";
 import { useChat } from "../chat_state";
 import { messageProblem } from "../rules";
@@ -100,7 +100,35 @@ function useComposer(options: ComposerOptions, box: RefObject<HTMLTextAreaElemen
     await send(message, attached);
   }
 
-  return { draft, setDraft, busy, withImages, images, pictures, submit, stop };
+  // Pictures cannot join an answer already being written, whichever way they
+  // arrive.
+  function attach(files: File[]) {
+    if (busy) {
+      pictures.refuse("busy");
+
+      return;
+    }
+
+    void pictures.add(files);
+  }
+
+  // A picture pasted into the box is attached rather than pasted. Text copied
+  // with it, from a web page or a document, still lands in the box.
+  function paste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = picturesIn(event.clipboardData);
+
+    if (!images.allowed || files.length === 0) {
+      return;
+    }
+
+    if (!event.clipboardData.types.includes("text/plain")) {
+      event.preventDefault();
+    }
+
+    attach(files);
+  }
+
+  return { draft, setDraft, busy, withImages, images, pictures, submit, stop, attach, paste };
 }
 
 export default function Composer(options: ComposerOptions) {
@@ -122,13 +150,14 @@ export default function Composer(options: ComposerOptions) {
           <AttachButton
             disabled={composer.busy || pictures.attachments.length >= images.maxImages}
             label={options.t.images.attach}
-            onFiles={(files) => void pictures.add(files)}
+            onFiles={composer.attach}
           />
         ) : null}
         <textarea
           className="max-h-44 flex-1 resize-none bg-transparent py-1 text-base outline-none md:text-sm"
           onChange={(event) => composer.setDraft(event.target.value)}
           enterKeyHint="enter"
+          onPaste={composer.paste}
           onKeyDown={(event) => {
             // Enter sends, shift-Enter is a new line — which is the convention
             // every chat box uses, and the reason this is a textarea at all.

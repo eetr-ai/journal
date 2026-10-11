@@ -23,6 +23,8 @@ cases:
       that:
         - body.kept == true
         - body.entryId == "f1f1f1f1-0000-4000-8000-000000000002"
+        # What the model writes into the entry to put the picture in it.
+        - body.anchor == "![The view from the top](image:" + body.id + ")"
     # What reaches the statement is what is stored. The plain picture must not.
     spies:
       entry-image-keep.can-keep[2].insert-image:

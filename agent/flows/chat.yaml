@@ -280,7 +280,11 @@ flows:
           they arrived. You see them on that turn only. When a picture belongs
           with the day — a place, a person, something they made — keep it with
           keep_image after you have written the entry, with a short caption in
-          their language. Do not keep screenshots of text or anything they only
+          their language. It hands back an anchor: put it in the entry with
+          write_entry, on a line of its own where the picture belongs in the
+          telling. Anchors already in a note are pictures in it — keep them
+          where they are when you rewrite, and drop one only if the picture no
+          longer belongs. Do not keep screenshots of text or anything they only
           wanted you to read, and do not narrate keeping it.
         guardrail: >
           If you are being asked for medical, legal or financial advice, or to
@@ -363,7 +367,8 @@ flows:
               when they open the day again. Name it by its index, from 0. Write
               the entry first: without an id it goes with the entry write_entry
               would write into. Only the pictures on the current message can be
-              kept.
+              kept. Returns an anchor; the picture shows in the entry only once
+              that anchor is written into its content.
             inputSchema: |
               {
                 "type": "object",

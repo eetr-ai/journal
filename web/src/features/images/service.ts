@@ -9,15 +9,15 @@ import type { EntryImage, ImagesView } from "./types";
  * comes from the session; nothing here takes one from a caller.
  */
 
-// Minted in the browser with crypto.randomUUID().
-const ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+// Minted in the browser with crypto.randomUUID(), or by Postgres; the same shape.
+const MINTED_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
 export type ImagesOutcome = { kind: "found"; images: EntryImage[] } | { kind: "failed" };
 
 export async function entryImages(entryId: string): Promise<ImagesOutcome> {
   const subject = (await auth())?.user?.subject;
 
-  if (!subject || !ENTRY_ID.test(entryId)) {
+  if (!subject || !MINTED_ID.test(entryId)) {
     return { kind: "found", images: [] };
   }
 
@@ -27,6 +27,27 @@ export async function entryImages(entryId: string): Promise<ImagesOutcome> {
     console.error("[images] could not list an entry's pictures", error);
 
     return { kind: "failed" };
+  }
+}
+
+/**
+ * Throw a picture away. The browser decides it is unanchored, because only the
+ * browser can read the words that would anchor it; the server only makes sure
+ * it is this person's.
+ */
+export async function deleteImage(entryId: string, imageId: string): Promise<boolean> {
+  const subject = (await auth())?.user?.subject;
+
+  if (!subject || !MINTED_ID.test(entryId) || !MINTED_ID.test(imageId)) {
+    return false;
+  }
+
+  try {
+    return await imagesClient.remove(subject, entryId, imageId);
+  } catch (error) {
+    console.error("[images] could not delete a picture", error);
+
+    return false;
   }
 }
 

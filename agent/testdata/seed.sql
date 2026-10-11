@@ -230,4 +230,7 @@ VALUES
 INSERT INTO journal_entry_image (id, entry_id, oidc_subject, ordinal, mime_type, caption, data)
 VALUES
   (UUID 'f2f2f2f2-0000-4000-8000-000000000002', UUID 'f1f1f1f1-0000-4000-8000-000000000003', 'dolphin-images', 1, 'image/jpeg', 'enc1:second', 'enc1:second'),
-  (UUID 'f2f2f2f2-0000-4000-8000-000000000001', UUID 'f1f1f1f1-0000-4000-8000-000000000003', 'dolphin-images', 0, 'image/png', 'enc1:first', 'enc1:first');
+  (UUID 'f2f2f2f2-0000-4000-8000-000000000001', UUID 'f1f1f1f1-0000-4000-8000-000000000003', 'dolphin-images', 0, 'image/png', 'enc1:first', 'enc1:first'),
+  -- For the delete suite only: one to throw away, and one somebody else tries to.
+  (UUID 'f2f2f2f2-0000-4000-8000-000000000003', UUID 'f1f1f1f1-0000-4000-8000-000000000002', 'dolphin-images', 100, 'image/png', 'enc1:gone', 'enc1:gone'),
+  (UUID 'f2f2f2f2-0000-4000-8000-000000000004', UUID 'f1f1f1f1-0000-4000-8000-000000000002', 'dolphin-images', 101, 'image/png', 'enc1:stays', 'enc1:stays');

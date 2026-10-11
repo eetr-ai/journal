@@ -1,6 +1,7 @@
 # Pictures kept with an entry.
 #
-#   GET /entries/{subject}/{id}/images  an entry's pictures, sealed, in order
+#   GET    /entries/{subject}/{id}/images          an entry's pictures, sealed, in order
+#   DELETE /entries/{subject}/{id}/images/{image}  throw one away
 #
 # and `entry-image-keep`, the sourceless flow behind the agent's keep_image tool.
 #
@@ -10,6 +11,11 @@
 #
 # What the tool is told, besides the variables entries.yaml lists:
 #   vars.images    the pictures on this turn, [{mimeType, data, name}], data base64
+#
+# A kept picture is placed in the entry by an anchor in its words,
+# `![caption](image:<id>)`. Whether a picture is still anchored is decided in
+# the browser, which is the only side that can read the words; a rewrite that
+# drops an anchor leaves the picture with the entry, unanchored.
 #
 # Rows leave the route sealed; the browser opens them.
 flows:
@@ -39,6 +45,36 @@ flows:
         name: wrap
         settings:
           value: '{"images": body}'
+
+  # Scoped by subject and entry as well as id, so holding a picture's id is not
+  # enough to throw it away. One that names nothing is not an error, just
+  # `deleted: false`: asking twice for the same picture to be gone is the same
+  # request.
+  - name: entry-image
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/{id}/images/{image}
+        methods: [DELETE]
+    process:
+      - type: sql
+        name: delete-image
+        settings:
+          connector: db
+          query: |
+            DELETE FROM journal_entry_image
+            WHERE oidc_subject = $1 AND entry_id = $2::uuid AND id = $3::uuid
+            RETURNING id
+          args:
+            - vars.subject
+            - vars.id
+            - vars.image
+          single: true
+      - type: set-payload
+        name: done
+        settings:
+          value: '{"deleted": body != null}'
 
   - name: entry-image-keep
     process:
@@ -161,7 +197,12 @@ flows:
                         event: image
                         data: 'toJson({"entryId": vars.kept.entry_id, "id": vars.kept.id})'
                         ifClosed: ignore
+              # The anchor is what puts the picture in the entry; until the model
+              # writes it into the words, the picture is kept but unanchored.
               - type: set-payload
                 name: kept-result
                 settings:
-                  value: '{"kept": true, "id": vars.kept.id, "entryId": vars.kept.entry_id}'
+                  value: >
+                    {"kept": true, "id": vars.kept.id, "entryId": vars.kept.entry_id,
+                     "anchor": "![" + (has(vars.ask.caption) ? vars.ask.caption : "")
+                       .replace("]", "").replace("\n", " ") + "](image:" + vars.kept.id + ")"}

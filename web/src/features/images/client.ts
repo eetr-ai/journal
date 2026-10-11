@@ -45,6 +45,15 @@ export const imagesClient = {
     return response.getOrThrow().images.map(imageFromEntity);
   },
 
+  /** Throw one away. False when it named nothing of this person's. */
+  async remove(subject: string, entryId: string, imageId: string): Promise<boolean> {
+    const response = await agent().delete<{ deleted: boolean }>(
+      `/entries/${encodeURIComponent(subject)}/${encodeURIComponent(entryId)}/images/${encodeURIComponent(imageId)}`,
+    );
+
+    return response.getOrThrow().deleted;
+  },
+
   /**
    * Whether the chat model reads pictures. Any failure is "no": offering one to
    * a model that cannot read it fails mid-conversation, and not offering costs

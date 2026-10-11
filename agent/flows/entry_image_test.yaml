@@ -1,0 +1,33 @@
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. This
+# suite owns the two pictures seeded at ordinals 100 and 101 on the second
+# `dolphin-images` entry; the seed puts them back before every run.
+flow: entry-image
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a picture is thrown away
+    input:
+      data: {}
+      vars:
+        method: DELETE
+        subject: dolphin-images
+        id: f1f1f1f1-0000-4000-8000-000000000002
+        image: f2f2f2f2-0000-4000-8000-000000000003
+    expect:
+      body:
+        deleted: true
+
+  # Holding the ids is not enough: the statement is scoped by subject as well.
+  - name: another person cannot throw it away with its ids alone
+    input:
+      data: {}
+      vars:
+        method: DELETE
+        subject: dolphin-entries-other
+        id: f1f1f1f1-0000-4000-8000-000000000002
+        image: f2f2f2f2-0000-4000-8000-000000000004
+    expect:
+      body:
+        deleted: false
