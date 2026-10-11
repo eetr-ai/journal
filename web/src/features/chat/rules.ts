@@ -1,5 +1,6 @@
 import { isLocale, type Locale } from "@/i18n/config";
 import { isAgentKey } from "@/features/vault/rules";
+import { attachmentsFrom } from "@/features/images/rules";
 import type { ChatAsk } from "./types";
 
 /**
@@ -18,11 +19,12 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
 export type MessageProblem = "empty" | "tooLong";
 
-export function messageProblem(message: string): MessageProblem | null {
+/** A message that carries pictures may say nothing else: the pictures are the message. */
+export function messageProblem(message: string, withImages = false): MessageProblem | null {
   const trimmed = message.trim();
 
   if (trimmed === "") {
-    return "empty";
+    return withImages ? null : "empty";
   }
 
   return trimmed.length > MAX_MESSAGE_CHARS ? "tooLong" : null;
@@ -67,7 +69,7 @@ function isAsk(value: unknown): value is ChatAsk {
  * Total: it takes `unknown` because what arrives at a route handler is unknown,
  * whatever the type on the other end claimed.
  */
-export function askFrom(value: unknown): ChatAsk | null {
+export function askFrom(value: unknown, maxImages: number): ChatAsk | null {
   if (!isAsk(value)) {
     return null;
   }
@@ -90,18 +92,33 @@ export function askFrom(value: unknown): ChatAsk | null {
     };
   }
 
-  const working = workingIn(value as unknown as Record<string, unknown>);
+  return sayFrom(value, locale, maxImages);
+}
 
-  return messageProblem(value.message)
-    ? null
-    : {
-        threadId: value.threadId,
-        message: value.message.trim(),
-        locale,
-        key: value.key,
-        intent: "say",
-        ...(working ? { working } : {}),
-      };
+/**
+ * Something said, with whatever it carries. Pictures that are malformed, of a
+ * type we do not send, too big or too many refuse the whole message rather than
+ * being dropped: the person would be answered about pictures nobody saw.
+ */
+function sayFrom(value: ChatAsk, locale: Locale, maxImages: number): ChatAsk | null {
+  const raw = value as unknown as Record<string, unknown>;
+  const images = attachmentsFrom(raw.images, maxImages);
+
+  if (!images || messageProblem(value.message, images.length > 0)) {
+    return null;
+  }
+
+  const working = workingIn(raw);
+
+  return {
+    threadId: value.threadId,
+    message: value.message.trim(),
+    locale,
+    key: value.key,
+    intent: "say",
+    ...(working ? { working } : {}),
+    ...(images.length > 0 ? { images } : {}),
+  };
 }
 
 export function newThreadId(): string {

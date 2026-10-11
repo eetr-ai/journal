@@ -1,4 +1,5 @@
 import tools from "./en_tools";
+import images from "./en_images";
 
 // The source dictionary. Every other locale is typed against this shape, so a
 // key added here is a compile error everywhere it is missing.
@@ -234,7 +235,7 @@ const en = {
       "Your password never leaves this browser, and we only hold the key made from it for as long as it takes to answer something you asked for. Everything you write is encrypted before it is stored, so what sits in our database and our backups is not readable — including to whoever runs this service.",
     visibleTitle: "What we can see",
     visibleBody:
-      "Making an entry searchable means reading it, so what you write passes through our server on its way to being encrypted, and the keywords and numerical embeddings taken from it are stored alongside it unencrypted. None of that is written down or logged in the clear.",
+      "Making an entry searchable means reading it, so what you write passes through our server on its way to being encrypted, and the keywords and numerical embeddings taken from it are stored alongside it unencrypted. Pictures you send take the same path; the ones kept with a day are encrypted like your words, and only their file type is stored in the clear. None of that is written down or logged in the clear.",
     lossTitle: "If you forget your password",
     lossBody:
       "Your writing would be very hard to get back — hard enough that you should treat it as gone, and hard enough that we could not do it for you if you asked. A passkey opens the same journal, so enrolling one is a good second way in. Changing this password is not something you can do yourself yet: ask, and we will arrange it.",
@@ -276,6 +277,8 @@ const en = {
       failed: "That did not save. Nothing changed.",
     },
   },
+
+  images,
 
   validation: {
     required: "This cannot be empty",

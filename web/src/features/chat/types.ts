@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import type { Entry } from "@/features/entries/types";
+import type { Attachment } from "@/features/images/types";
 import type { ToolFrame } from "./tool_steps";
 
 /**
@@ -39,6 +40,12 @@ export interface ChatAsk {
    * entry that already exists.
    */
   working?: { id: string; date: string };
+  /**
+   * Pictures for the model to look at with this message. They ride this one
+   * turn: the agent can keep one with an entry, and otherwise nothing stores
+   * them.
+   */
+  images?: Attachment[];
 }
 
 /**
@@ -141,4 +148,6 @@ export type AgentFrame =
   // one kind of entry in the browser however it arrived.
   | { kind: "entry"; entry: Entry }
   | { kind: "open"; entry: Entry }
+  // A picture kept with an entry. Ids only; the picture is fetched sealed.
+  | { kind: "image"; entryId: string }
   | { kind: "done" };

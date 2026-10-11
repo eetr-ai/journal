@@ -32,6 +32,9 @@ flows:
         headers: [X-Agent-Stop]
         # Bounds the wait for the FIRST frame only, not the whole run.
         timeout: 60s
+        # Pictures ride on the body as base64, so the default 1 MiB would refuse
+        # a single photo.
+        maxBodyBytes: ${MAX_BODY_BYTES}
         sse:
           enabled: true
           # The agent's final answer arrives as one last frame before the close,
@@ -79,6 +82,11 @@ flows:
       - type: set-variable
         name: hold-today
         settings: { name: today, value: 'has(body.now) ? body.now.date : ""' }
+      # The pictures on this turn. The model reads them as attachments, and
+      # keep_image seals one of them from here by its place in the list.
+      - type: set-variable
+        name: hold-images
+        settings: { name: images, value: 'has(body.images) ? body.images : []' }
       - type: ai-agent
         name: journal-chat
         connector: router
@@ -106,7 +114,14 @@ flows:
         # A stop that finds nothing running is a no-op, so a client can send one
         # blind.
         stopWhen: '"X-Agent-Stop" in vars && vars["X-Agent-Stop"] != ""' 
-        input: body.message
+        # A message may be pictures alone. The model still needs a turn to
+        # answer, and this is also what a reopened conversation shows for it,
+        # since the pictures themselves are never in the record.
+        input: 'body.message != "" || size(vars.images) == 0 ? body.message : "[picture]"'
+        # Read on the first model call and dropped after it, so memory never
+        # holds the bytes; keep_image is how one outlives the turn.
+        attachments: >
+          vars.images.map(i, {"mimeType": i.mimeType, "data": i.data, "name": i.name})
         answer: text
         contextMaxTokens: 120000
         # Summarize rather than prune: losing the oldest turns of a journal
@@ -259,6 +274,18 @@ flows:
 
           Search the web only when the answer depends on something outside the
           conversation, and say where it came from when you do.
+
+
+          They may send pictures with a message, numbered from 0 in the order
+          they arrived. You see them on that turn only. When a picture belongs
+          with the day — a place, a person, something they made — keep it with
+          keep_image after you have written the entry, with a short caption in
+          their language. It hands back an anchor: put it in the entry with
+          write_entry, on a line of its own where the picture belongs in the
+          telling. Anchors already in a note are pictures in it — keep them
+          where they are when you rewrite, and drop one only if the picture no
+          longer belongs. Do not keep screenshots of text or anything they only
+          wanted you to read, and do not narrate keeping it.
         guardrail: >
           If you are being asked for medical, legal or financial advice, or to
           do something that is not talking with this person about their life,
@@ -333,6 +360,29 @@ flows:
               - type: flow-ref
                 name: write
                 settings: { flow: entry-write }
+
+          - name: keep_image
+            description: >
+              Keep a picture from this message with an entry, so it is there
+              when they open the day again. Name it by its index, from 0. Write
+              the entry first: without an id it goes with the entry write_entry
+              would write into. Only the pictures on the current message can be
+              kept. Returns an anchor; the picture shows in the entry only once
+              that anchor is written into its content.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["index", "caption"],
+                "properties": {
+                  "index": { "type": "integer" },
+                  "caption": { "type": "string" },
+                  "id": { "type": "string" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: keep
+                settings: { flow: entry-image-keep }
 
           - name: find_entries
             description: >

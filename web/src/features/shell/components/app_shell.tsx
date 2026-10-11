@@ -11,6 +11,8 @@ import type { Locale } from "@/i18n/config";
 import { needsDetection, type Profile } from "@/features/profile/types";
 import type { Conversation, Turn } from "@/features/chat/types";
 import type { JournalView } from "@/features/entries/service";
+import type { ImagesView } from "@/features/images/types";
+import { ImagesConfigProvider } from "@/features/images/images_config";
 
 export interface AppShellOptions {
   t: Dictionary;
@@ -24,6 +26,8 @@ export interface AppShellOptions {
   unavailable: boolean;
   /** The journal beside the conversation: what is written, and what to show. */
   journal: JournalView;
+  /** Whether the composer offers pictures, and how many. */
+  images: ImagesView;
 }
 
 // The page never scrolls; each panel does. That is also why the shell is laid
@@ -49,24 +53,26 @@ export default function AppShell(options: AppShellOptions) {
             name={options.profile.name}
             t={options.t}
           />
-          <EntriesProvider
-            days={options.journal.days}
-            entries={options.journal.entries}
-            showing={options.journal.showing}
-            today={options.journal.today}
-          >
-            <ShellPanels
-              conversations={options.conversations}
-              locale={options.locale}
-              subject={options.profile.subject}
-              t={options.t}
-              threadId={options.threadId}
-              timezone={options.profile.config.timezone}
-              todayWidth={options.profile.config.todayWidth}
-              turns={options.turns}
-              unavailable={options.unavailable}
-            />
-          </EntriesProvider>
+          <ImagesConfigProvider view={options.images}>
+            <EntriesProvider
+              days={options.journal.days}
+              entries={options.journal.entries}
+              showing={options.journal.showing}
+              today={options.journal.today}
+            >
+              <ShellPanels
+                conversations={options.conversations}
+                locale={options.locale}
+                subject={options.profile.subject}
+                t={options.t}
+                threadId={options.threadId}
+                timezone={options.profile.config.timezone}
+                todayWidth={options.profile.config.todayWidth}
+                turns={options.turns}
+                unavailable={options.unavailable}
+              />
+            </EntriesProvider>
+          </ImagesConfigProvider>
         </SearchProvider>
       </div>
     </ShellProvider>

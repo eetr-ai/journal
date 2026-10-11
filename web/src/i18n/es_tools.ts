@@ -16,6 +16,11 @@ const tools: ToolDictionary = {
     done: "Escribí en tu diario",
     failed: "No pude escribir en tu diario",
   },
+  keep_image: {
+    running: "Guardando tu foto...",
+    done: "Guardé tu foto con el día",
+    failed: "No pude guardar tu foto",
+  },
   find_entries: {
     running: "Buscando en tu diario...",
     done: "Busqué en tu diario",

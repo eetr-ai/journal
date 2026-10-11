@@ -1,0 +1,37 @@
+# GET /capabilities — what the chat model can be handed besides words.
+#
+# Answers {"images": bool}. Asked of OpenRouter's catalogue rather than set by
+# hand, so it follows CHAT_MODEL when that changes. Anything that goes wrong
+# answers false: offering a picture to a model that cannot read it ends in a
+# provider error mid-conversation, and not offering it costs nothing.
+flows:
+  - name: capabilities
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /capabilities
+        methods: [GET]
+    process:
+      - type: set-payload
+        name: assume-words-only
+        settings: { value: '{"images": false}' }
+      - type: handle-errors
+        name: ask-if-we-can
+        process:
+          - type: rest
+            name: read-model
+            settings:
+              connector: openrouter
+              method: GET
+              path: /api/v1/models/${CHAT_MODEL}/endpoints
+          - type: set-payload
+            name: read-modalities
+            settings:
+              value: >
+                {"images": has(body.data) && has(body.data.architecture)
+                  && has(body.data.architecture.input_modalities)
+                  && "image" in body.data.architecture.input_modalities}
+        error:
+          - type: set-payload
+            settings: { value: '{"images": false}' }

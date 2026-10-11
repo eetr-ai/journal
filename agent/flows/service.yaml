@@ -22,6 +22,10 @@ env:
   # model is wider, and pgvector indexes nothing past 2000.
   - name: EMBEDDING_MODEL
     default: qwen/qwen3-embedding-8b
+  # The largest chat request accepted, pictures included. Sized for five 4 MiB
+  # images after base64 plus the message; raise it with the web's image limit.
+  - name: MAX_BODY_BYTES
+    default: "33554432"
 
 # Skill bodies, resolved relative to this directory and pulled into a
 # conversation only when the agent asks for one by its alias.
@@ -54,6 +58,18 @@ connectors:
       reasoning: medium
       maxTokens: 4096
       appName: eetr-journal
+
+  # OpenRouter's public model catalogue, for asking what CHAT_MODEL reads. No
+  # credential: the catalogue is public. Cached, because the answer changes
+  # when the model does and not between requests.
+  - name: openrouter
+    type: http-client
+    settings:
+      baseURL: https://openrouter.ai
+      timeout: 10s
+      cache:
+        enabled: true
+        ttl: 1h
 
   # Web search. Only the synchronous half is used, so no webhook secret is
   # configured: a task run would need somewhere to call back to, and there is

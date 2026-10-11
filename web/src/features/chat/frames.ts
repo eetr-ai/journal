@@ -94,6 +94,12 @@ function entryFrame(kind: "entry" | "open", body: unknown): AgentFrame | null {
   return { kind, entry: entryFromEntity(body as EntryEntity) };
 }
 
+function imageFrame(body: unknown): AgentFrame | null {
+  const entryId = (body as { entryId?: unknown } | null)?.entryId;
+
+  return typeof entryId === "string" ? { kind: "image", entryId } : null;
+}
+
 export function frameFrom(event: SseEvent): AgentFrame | null {
   const body = parsed(event.data);
 
@@ -107,6 +113,10 @@ export function frameFrom(event: SseEvent): AgentFrame | null {
   // event path — so these are named frames and carry a row, not an event type.
   if (event.name === "entry" || event.name === "open") {
     return entryFrame(event.name, body);
+  }
+
+  if (event.name === "image") {
+    return imageFrame(body);
   }
 
   if (typeof body !== "object" || body === null) {

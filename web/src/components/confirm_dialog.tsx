@@ -31,7 +31,7 @@ export interface ConfirmDialogOptions {
  * and the top layer would take the page's scroll position with it. This one
  * belongs to a moment.
  */
-function useModal(onCancel: () => void) {
+export function useModal(onCancel: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {

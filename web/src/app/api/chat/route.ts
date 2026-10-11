@@ -2,9 +2,12 @@ import { auth } from "@/auth";
 import { vaultGate } from "@/features/vault/gate";
 import { chatClient } from "@/features/chat/client";
 import { askFrom } from "@/features/chat/rules";
+import { maxImages } from "@/features/images/config";
+import { maxBodyBytes } from "@/features/images/rules";
 import { momentFor } from "@/features/chat/now";
 import { currentProfile } from "@/features/profile/service";
 import { needsDetection } from "@/features/profile/types";
+import type { ChatAsk } from "@/features/chat/types";
 
 /**
  * The chat stream, proxied from the agent to the browser.
@@ -25,6 +28,7 @@ const UNAUTHORIZED = 401;
 const LOCKED = 423;
 const BAD_REQUEST = 400;
 const UNSUPPORTED_MEDIA = 415;
+const TOO_LARGE = 413;
 const BAD_GATEWAY = 502;
 // Early, not wrong: the reader's zone has not reached the server yet.
 const TOO_EARLY = 409;
@@ -37,9 +41,30 @@ const SSE_HEADERS = {
   "x-accel-buffering": "no",
 };
 
-async function body(request: Request): Promise<unknown> {
+/**
+ * The posted JSON, null when it is not JSON, or "tooLarge" once more than
+ * `limit` bytes have arrived. Counted as they arrive rather than trusted from
+ * content-length, which a chunked request does not send.
+ */
+async function body(request: Request, limit: number): Promise<unknown> {
+  const reader = request.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  for (let read = await reader?.read(); read && !read.done; read = await reader?.read()) {
+    received += read.value.byteLength;
+
+    if (received > limit) {
+      await reader?.cancel();
+
+      return "tooLarge";
+    }
+
+    chunks.push(read.value);
+  }
+
   try {
-    return await request.json();
+    return JSON.parse(new TextDecoder().decode(Buffer.concat(chunks)));
   } catch {
     return null;
   }
@@ -78,6 +103,29 @@ async function admit(request: Request): Promise<Admitted> {
   return { subject };
 }
 
+/**
+ * The posted ask, or the answer that refuses it. A body larger than the picture
+ * rules allow could never have been valid, and nothing else caps a route
+ * handler's body, so it is refused without being read to the end — or at all,
+ * when content-length already says so.
+ */
+async function askIn(request: Request): Promise<ChatAsk | Response> {
+  const limit = maxImages();
+  const cap = maxBodyBytes(limit);
+
+  if (Number(request.headers.get("content-length") ?? 0) > cap) {
+    return new Response(null, { status: TOO_LARGE });
+  }
+
+  const posted = await body(request, cap);
+
+  if (posted === "tooLarge") {
+    return new Response(null, { status: TOO_LARGE });
+  }
+
+  return askFrom(posted, limit) ?? new Response(null, { status: BAD_REQUEST });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const admitted = await admit(request);
 
@@ -85,10 +133,10 @@ export async function POST(request: Request): Promise<Response> {
     return admitted.refused;
   }
 
-  const ask = askFrom(await body(request));
+  const ask = await askIn(request);
 
-  if (!ask) {
-    return new Response(null, { status: BAD_REQUEST });
+  if (ask instanceof Response) {
+    return ask;
   }
 
   // The agent has no clock of its own, and the day it files an entry under has

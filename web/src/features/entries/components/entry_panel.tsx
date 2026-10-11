@@ -1,8 +1,8 @@
 "use client";
 
 import { BookmarkSimpleIcon, SunHorizonIcon, TrashIcon } from "@phosphor-icons/react";
-import Markdown from "@/components/markdown";
 import ConfirmDialog from "@/components/confirm_dialog";
+import EntryContent from "./entry_content";
 import PanelSheet from "@/features/shell/components/panel_sheet";
 import ResizeHandle from "@/features/shell/components/resize_handle";
 import { MAX_TODAY_WIDTH, MIN_TODAY_WIDTH } from "@/features/profile/types";
@@ -79,15 +79,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
         />
         {going.failed && <Failure text={options.t.entries.deleteFailed} />}
         {keeping.failed && <Failure text={options.t.entries.bookmarkFailed} />}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm">
-          <EntryBody
-            body={opened?.content}
-            empty={options.t.entries.empty}
-            sealed={Boolean(entry)}
-            started={options.t.entries.started}
-            waiting={options.t.entries.opening}
-          />
-        </div>
+        <EntryContent entry={entry} opened={opened} subject={options.subject} t={options.t} />
       </aside>
       {going.asking && entry && (
         <ConfirmDialog
@@ -214,32 +206,4 @@ function HeaderActions(options: HeaderActionsOptions) {
       </button>
     </>
   );
-}
-
-interface EntryBodyOptions {
-  body?: string;
-  empty: string;
-  waiting: string;
-  started: string;
-  /** There is an entry; whether its words have arrived yet is the other flag. */
-  sealed: boolean;
-}
-
-// Four states worth telling apart: no entry at all, an entry the reader started
-// and has not filled in, one the key has not been through yet, and the thing
-// itself.
-function EntryBody(options: EntryBodyOptions) {
-  if (!options.sealed) {
-    return <p className="text-muted">{options.empty}</p>;
-  }
-
-  if (options.body === undefined) {
-    return <p className="text-muted">{options.waiting}</p>;
-  }
-
-  if (options.body === "") {
-    return <p className="text-muted">{options.started}</p>;
-  }
-
-  return <Markdown>{options.body}</Markdown>;
 }

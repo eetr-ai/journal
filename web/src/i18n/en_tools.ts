@@ -16,6 +16,11 @@ const tools = {
     done: "Wrote in your journal",
     failed: "Could not write in your journal",
   },
+  keep_image: {
+    running: "Keeping your picture...",
+    done: "Kept your picture with the day",
+    failed: "Could not keep your picture",
+  },
   find_entries: {
     running: "Looking through your journal...",
     done: "Looked through your journal",

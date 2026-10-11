@@ -34,6 +34,12 @@ export interface EntriesUiState {
    * one would otherwise put a deleted day back on screen with its old words.
    */
   discarded: string[];
+  /**
+   * How many pictures the agent has kept with each entry in this session, by
+   * entry id. Only ever counted up: it is what tells the panel to fetch an
+   * entry's pictures again, not how many it has.
+   */
+  pictured: Record<string, number>;
 }
 
 export enum EntriesActionType {
@@ -46,6 +52,7 @@ export enum EntriesActionType {
   DaysArrived = "daysArrived",
   Drafted = "drafted",
   Kept = "kept",
+  Pictured = "pictured",
 }
 
 export type EntriesAction = ReducerAction<EntriesActionType>;
@@ -59,7 +66,15 @@ export function initialEntriesState(
   // Sorted here too, not only as entries arrive. The list a page opens with can
   // carry an entry fetched by id, which has any date at all — and it is put in
   // front of the rest by the fetch, not by being the newest.
-  return { entries: byNewest(entries), opened: {}, showing, today, days, discarded: [] };
+  return {
+    entries: byNewest(entries),
+    opened: {},
+    showing,
+    today,
+    days,
+    discarded: [],
+    pictured: {},
+  };
 }
 
 // Newest first, the order the list is kept in and the order the drawer reads.
@@ -137,6 +152,12 @@ const handlers: Record<
 
   // Back to today — from the reader pressing back, or leaving an old entry.
   [EntriesActionType.Closed]: (state) => ({ ...state, showing: null }),
+
+  [EntriesActionType.Pictured]: (state, action) => {
+    const id = action.data as string;
+
+    return { ...state, pictured: { ...state.pictured, [id]: (state.pictured[id] ?? 0) + 1 } };
+  },
 
   [EntriesActionType.Removed]: (state, action) => removed(state, action.data as Entry),
 

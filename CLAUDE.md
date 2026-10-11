@@ -74,6 +74,10 @@ and change the other.
 - **Content is encrypted under the data key, not under the password.** Changing
   the password re-wraps 32 bytes and touches no content, and every enrolled
   passkey keeps working. There is no UI for it yet.
+- **Pictures are content.** A picture kept with an entry is sealed in the flow
+  under the same key, as its base64 text; only its MIME type is stored in the
+  clear. Like words, the bytes are in server memory only for the request that
+  carried them, and the browser opens what it fetches.
 - **What is tolerated, and must stay tolerated rather than grow:** plaintext and
   the key in server memory for the length of a request the person initiated.
   Never written down, never logged.

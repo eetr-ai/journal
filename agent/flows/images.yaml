@@ -1,0 +1,208 @@
+# Pictures kept with an entry.
+#
+#   GET    /entries/{subject}/{id}/images          an entry's pictures, sealed, in order
+#   DELETE /entries/{subject}/{id}/images/{image}  throw one away
+#
+# and `entry-image-keep`, the sourceless flow behind the agent's keep_image tool.
+#
+# A picture reaches the agent as an attachment on one turn and nowhere else, so
+# a tool cannot be handed its bytes: the model names it by its place in
+# vars.images and this flow seals what the run is already holding.
+#
+# What the tool is told, besides the variables entries.yaml lists:
+#   vars.images    the pictures on this turn, [{mimeType, data, name}], data base64
+#
+# A kept picture is placed in the entry by an anchor in its words,
+# `![caption](image:<id>)`. Whether a picture is still anchored is decided in
+# the browser, which is the only side that can read the words; a rewrite that
+# drops an anchor leaves the picture with the entry, unanchored.
+#
+# Rows leave the route sealed; the browser opens them.
+flows:
+  - name: entry-images
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/{id}/images
+        methods: [GET]
+    process:
+      # Scoped by subject, so holding an entry's id is not enough to see its
+      # pictures. An entry with none, or that is not theirs, is an empty list.
+      - type: sql
+        name: select-images
+        settings:
+          connector: db
+          query: |
+            SELECT id, entry_id, ordinal, mime_type, caption, data, created_at
+            FROM journal_entry_image
+            WHERE oidc_subject = $1 AND entry_id = $2::uuid
+            ORDER BY ordinal
+          args:
+            - vars.subject
+            - vars.id
+      - type: set-payload
+        name: wrap
+        settings:
+          value: '{"images": body}'
+
+  # Scoped by subject and entry as well as id, so holding a picture's id is not
+  # enough to throw it away. One that names nothing is not an error, just
+  # `deleted: false`: asking twice for the same picture to be gone is the same
+  # request.
+  - name: entry-image
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /entries/{subject}/{id}/images/{image}
+        methods: [DELETE]
+    process:
+      - type: sql
+        name: delete-image
+        settings:
+          connector: db
+          query: |
+            DELETE FROM journal_entry_image
+            WHERE oidc_subject = $1 AND entry_id = $2::uuid AND id = $3::uuid
+            RETURNING id
+          args:
+            - vars.subject
+            - vars.id
+            - vars.image
+          single: true
+      - type: set-payload
+        name: done
+        settings:
+          value: '{"deleted": body != null}'
+
+  - name: entry-image-keep
+    process:
+      - type: set-variable
+        name: hold-ask
+        settings: { name: ask, value: body }
+      # The same three places entry-write would put the words, in the same
+      # order, each scoped by subject: a named entry, the open one, or this
+      # conversation's note. Nothing is created here; a picture belongs to an
+      # entry that already exists.
+      - type: switch
+        name: which-entry
+        cases:
+          - when: 'has(body.id) && body.id != ""'
+            process:
+              - type: sql
+                name: named-entry
+                settings:
+                  connector: db
+                  query: SELECT id FROM journal_entry WHERE oidc_subject = $1 AND id = $2::uuid
+                  args:
+                    - vars.subject
+                    - body.id
+                  single: true
+          - when: 'has(vars.entryId) && vars.entryId != ""'
+            process:
+              - type: sql
+                name: open-entry
+                settings:
+                  connector: db
+                  query: SELECT id FROM journal_entry WHERE oidc_subject = $1 AND id = $2::uuid
+                  args:
+                    - vars.subject
+                    - vars.entryId
+                  single: true
+          - when: "true"
+            process:
+              - type: sql
+                name: conversation-entry
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id FROM journal_entry
+                    WHERE oidc_subject = $1 AND thread_key = $2 AND thread_key <> ''
+                  args:
+                    - vars.subject
+                    - vars.threadId
+                  single: true
+      - type: set-variable
+        name: hold-entry
+        settings: { name: entry, value: body }
+      - type: set-variable
+        name: hold-index
+        settings:
+          name: index
+          value: 'has(vars.ask.index) ? int(vars.ask.index) : -1'
+      # The only judgement this flow makes, and only so the model is told
+      # plainly what went wrong rather than the tool failing under it.
+      - type: switch
+        name: can-keep
+        cases:
+          - when: 'vars.entry == null'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"kept": false, "reason": "no entry to keep it with; write the entry first"}'
+          - when: '!has(vars.images) || vars.index < 0 || vars.index >= size(vars.images)'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"kept": false, "reason": "no picture at that index on this message"}'
+          - when: "true"
+            process:
+              - type: set-variable
+                name: seal-image
+                settings:
+                  name: sealedData
+                  value: '"enc1:" + base64.encode(toAes(vars.images[vars.index].data, base64.decode(vars.dataKey)))'
+              - type: set-variable
+                name: seal-caption
+                settings:
+                  name: sealedCaption
+                  value: >
+                    "enc1:" + base64.encode(toAes(
+                      has(vars.ask.caption) ? vars.ask.caption : "", base64.decode(vars.dataKey)))
+              # Appended: the next ordinal is computed in the same statement so
+              # two pictures kept in one turn cannot both take the same place.
+              - type: sql
+                name: insert-image
+                settings:
+                  connector: db
+                  query: |
+                    INSERT INTO journal_entry_image
+                      (entry_id, oidc_subject, ordinal, mime_type, caption, data)
+                    SELECT $2::uuid, $1,
+                           COALESCE((SELECT max(ordinal) + 1 FROM journal_entry_image
+                                     WHERE entry_id = $2::uuid), 0),
+                           $3, $4, $5
+                    RETURNING id, entry_id
+                  args:
+                    - vars.subject
+                    - vars.entry.id
+                    - vars.images[vars.index].mimeType
+                    - vars.sealedCaption
+                    - vars.sealedData
+                  single: true
+              - type: set-variable
+                name: hold-kept
+                settings: { name: kept, value: body }
+              # Tells an open entry panel to fetch its pictures again. The frame
+              # carries ids only; the picture is fetched sealed like any other.
+              - type: if
+                name: tell-the-reader
+                condition: 'has(vars.sseStream) && vars.sseStream != ""'
+                then:
+                  process:
+                    - type: sse-event
+                      name: image-frame
+                      settings:
+                        event: image
+                        data: 'toJson({"entryId": vars.kept.entry_id, "id": vars.kept.id})'
+                        ifClosed: ignore
+              # The anchor is what puts the picture in the entry; until the model
+              # writes it into the words, the picture is kept but unanchored.
+              - type: set-payload
+                name: kept-result
+                settings:
+                  value: >
+                    {"kept": true, "id": vars.kept.id, "entryId": vars.kept.entry_id,
+                     "anchor": "![" + (has(vars.ask.caption) ? vars.ask.caption : "")
+                       .replace("]", "").replace("\n", " ") + "](image:" + vars.kept.id + ")"}

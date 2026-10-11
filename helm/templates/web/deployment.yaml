@@ -31,6 +31,8 @@ spec:
             # thing that talks to it, and the only thing enforcing the rules.
             - name: AGENT_URL
               value: "http://{{ include "journal.fullname" . }}-agent:{{ .Values.agent.service.port }}"
+            - name: MAX_CHAT_IMAGES
+              value: {{ .Values.web.maxChatImages | quote }}
           # envFrom rather than named keys, so adding a provider is a secret
           # edit and not a chart edit.
           envFrom:

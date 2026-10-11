@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Markdown from "@/components/markdown";
 import Moment from "./moment";
 import ReasoningPanel from "./reasoning_panel";
@@ -28,7 +29,6 @@ export interface TurnListOptions {
  */
 export default function TurnList(options: TurnListOptions) {
   const { state } = useChat();
-  const t = options.t.chat;
   // The turn being written is always the last one, and only while a run is in
   // flight — otherwise nothing is live and every panel is folded away.
   const streaming =
@@ -38,22 +38,14 @@ export default function TurnList(options: TurnListOptions) {
     <>
       {state.turns.map((turn, at) =>
         turn.from === "you" ? (
-          <div className="flex flex-col items-end gap-1 motion-safe:animate-rise-in" key={turn.id}>
-            <div
-              aria-label={t.you}
-              className="max-w-lg rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand"
-            >
-              {turn.text}
-            </div>
-            {endsARun(turn.at, state.turns[at + 1], turn.from) ? (
-              <Moment
-                className="px-1 text-xs text-muted"
-                fallbackLocale={options.locale}
-                iso={turn.at}
-                timezone={options.timezone}
-              />
-            ) : null}
-          </div>
+          <YourTurn
+            key={turn.id}
+            locale={options.locale}
+            next={state.turns[at + 1]}
+            t={options.t}
+            timezone={options.timezone}
+            turn={turn}
+          />
         ) : (
           <JournalTurn
             key={turn.id}
@@ -67,6 +59,65 @@ export default function TurnList(options: TurnListOptions) {
         ),
       )}
     </>
+  );
+}
+
+interface YourTurnOptions {
+  t: Dictionary;
+  locale: Locale;
+  timezone: string;
+  turn: ChatTurn;
+  /** The turn after this one, which decides whether it carries the time. */
+  next?: ChatTurn;
+}
+
+// The pictures sit above the words, the way a message with a photo reads.
+function YourTurn(options: YourTurnOptions) {
+  const turn = options.turn;
+  const t = options.t.chat;
+
+  return (
+    <div className="flex flex-col items-end gap-1 motion-safe:animate-rise-in">
+      {turn.images ? <SentPictures alt={options.t.images.attached} images={turn.images} /> : null}
+      {turn.text === "" ? null : (
+        <div
+          aria-label={t.you}
+          className="max-w-lg rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand"
+        >
+          {turn.text}
+        </div>
+      )}
+      {endsARun(turn.at, options.next, turn.from) ? (
+        <Moment
+          className="px-1 text-xs text-muted"
+          fallbackLocale={options.locale}
+          iso={turn.at}
+          timezone={options.timezone}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const SENT_PICTURE_PX = 112;
+
+function SentPictures(options: { images: string[]; alt: string }) {
+  return (
+    <ul className="flex max-w-lg flex-wrap justify-end gap-1">
+      {options.images.map((src, at) => (
+        <li key={at}>
+          <Image
+            alt={options.alt}
+            className="rounded-xl border border-border object-cover"
+            height={SENT_PICTURE_PX}
+            src={src}
+            style={{ height: SENT_PICTURE_PX, width: SENT_PICTURE_PX }}
+            unoptimized
+            width={SENT_PICTURE_PX}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
 
