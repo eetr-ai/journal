@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.11](https://github.com/eetr-ai/journal/compare/v0.0.10...v0.0.11) (2026-10-11)
+
+
+### Features
+
+* attach pictures in chat and keep them in entries ([#41](https://github.com/eetr-ai/journal/issues/41)) ([3ecdfe0](https://github.com/eetr-ai/journal/commit/3ecdfe031f24101c67ed29fb46ce25e7e5a1c7bd))
+
 ## [0.0.10](https://github.com/eetr-ai/journal/compare/v0.0.9...v0.0.10) (2026-09-27)
 
 
