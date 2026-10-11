@@ -36,11 +36,12 @@ export default function InlinePicture(options: InlinePictureOptions) {
   }
 
   // A data URL opened in this browser: nothing to fetch or optimise, and its
-  // size is only known once drawn, so it takes the column's width.
+  // size is only known once drawn. CSS sizes it rather than the attributes: its
+  // own size, shrunk to the column when it is wider, never stretched.
   return (
     <Image
       alt={options.alt || options.image.caption || t.attached}
-      className="my-3 h-auto w-full rounded-lg border border-border"
+      className="my-3 h-auto w-auto max-w-full rounded-lg border border-border"
       height={0}
       sizes="100vw"
       src={options.image.src}

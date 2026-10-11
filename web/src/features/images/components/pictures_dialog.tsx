@@ -95,7 +95,7 @@ function PictureView(options: { image: OpenedImage; t: Dictionary }) {
     <figure>
       <Image
         alt={options.image.caption || t.attached}
-        className="h-auto w-full rounded-lg"
+        className="mx-auto h-auto w-auto max-w-full rounded-lg"
         height={0}
         sizes="100vw"
         src={options.image.src}
