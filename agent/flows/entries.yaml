@@ -485,7 +485,7 @@ flows:
                       content = $4,
                       updated_at = now()
                   WHERE oidc_subject = $1 AND id = $2::uuid
-                    AND ($5 = '' OR content = $5)
+                    AND (NOT $6::boolean OR content = $5)
                   RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
                 args:
                   - vars.subject
@@ -493,6 +493,7 @@ flows:
                   - vars.sealedTitle
                   - vars.sealedContent
                   - 'has(body.expected) ? body.expected : ""'
+                  - 'has(body.expected)'
                 single: true
 
           # The entry the reader has open, which they may have started
@@ -888,7 +889,7 @@ flows:
                      "expected": vars.target.content,
                      "content": vars.find != "" ? vars.oldContent.replace(vars.find, vars.text, 1)
                        : vars.text == "" ? vars.oldContent
-                       : vars.oldContent.trim() == "" ? vars.text
+                       : vars.oldContent == "" ? vars.text
                        : vars.oldContent + "\n\n" + vars.text}
               - type: flow-ref
                 name: save
