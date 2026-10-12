@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.12](https://github.com/eetr-ai/journal/compare/v0.0.11...v0.0.12) (2026-10-12)
+
+
+### Features
+
+* patch entries in place, a more exploratory voice, and show what changed ([#43](https://github.com/eetr-ai/journal/issues/43)) ([9f45f4f](https://github.com/eetr-ai/journal/commit/9f45f4fe82c1b25bf359faa54ce5a9cd32c1878d))
+
 ## [0.0.11](https://github.com/eetr-ai/journal/compare/v0.0.10...v0.0.11) (2026-10-11)
 
 
