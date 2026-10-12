@@ -40,6 +40,11 @@ export interface EntriesUiState {
    * entry's pictures again, not how many it has.
    */
   pictured: Record<string, number>;
+  /**
+   * What an entry said before the agent last wrote into it, by entry id, until
+   * the change has been shown. Only a write the agent made puts one here.
+   */
+  previous: Record<string, OpenedEntry>;
 }
 
 export enum EntriesActionType {
@@ -53,6 +58,7 @@ export enum EntriesActionType {
   Drafted = "drafted",
   Kept = "kept",
   Pictured = "pictured",
+  Highlighted = "highlighted",
 }
 
 export type EntriesAction = ReducerAction<EntriesActionType>;
@@ -74,6 +80,7 @@ export function initialEntriesState(
     days,
     discarded: [],
     pictured: {},
+    previous: {},
   };
 }
 
@@ -99,11 +106,12 @@ function arrived(state: EntriesUiState, entry: Entry): EntriesUiState {
   const others = state.entries.filter((held) => held.id !== entry.id);
   // What the key made of the old version says nothing about the new one.
   const { [entry.id]: _replaced, ...opened } = state.opened;
+  const { [entry.id]: _shown, ...previous } = state.previous;
   // A first entry on a day is a day the calendar has to start marking — this is
   // the agent writing tonight's note as much as it is a delete being undone.
   const days = state.days.includes(entry.date) ? state.days : [entry.date, ...state.days];
 
-  return { ...state, entries: byNewest([...others, entry]), opened, days };
+  return { ...state, entries: byNewest([...others, entry]), opened, previous, days };
 }
 
 /**
@@ -116,6 +124,7 @@ function arrived(state: EntriesUiState, entry: Entry): EntriesUiState {
 function removed(state: EntriesUiState, entry: Entry): EntriesUiState {
   const entries = state.entries.filter((held) => held.id !== entry.id);
   const { [entry.id]: _gone, ...opened } = state.opened;
+  const { [entry.id]: _was, ...previous } = state.previous;
 
   // `days` is deliberately left alone. Whether that was the last thing written
   // on its day is not answerable here — the list is capped and the calendar is
@@ -124,6 +133,7 @@ function removed(state: EntriesUiState, entry: Entry): EntriesUiState {
     ...state,
     entries,
     opened,
+    previous,
     discarded: [...state.discarded, entry.id],
     showing: state.showing === entry.id ? null : state.showing,
   };
@@ -133,7 +143,25 @@ const handlers: Record<
   EntriesActionType,
   (state: EntriesUiState, action: EntriesAction) => EntriesUiState
 > = {
-  [EntriesActionType.Arrived]: (state, action) => arrived(state, action.data as Entry),
+  // The agent wrote into it. What was on screen is kept, so the panel can show
+  // the old words while the new ones open and then point at what changed.
+  [EntriesActionType.Arrived]: (state, action) => {
+    const entry = action.data as Entry;
+    // A second write before the first has opened keeps the words still on
+    // screen, which are the ones the reader last saw.
+    const before = state.opened[entry.id] ?? state.previous[entry.id];
+    const after = arrived(state, entry);
+
+    return before && after !== state
+      ? { ...after, previous: { ...after.previous, [entry.id]: before } }
+      : after;
+  },
+
+  [EntriesActionType.Highlighted]: (state, action) => {
+    const { [action.data as string]: _shown, ...previous } = state.previous;
+
+    return { ...state, previous };
+  },
 
   // The agent moved the reader, or the reader moved themselves. The entry
   // travels with it, because the one being opened may be older than anything

@@ -46,6 +46,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
 
   const entry = entryShowing(state);
   const opened = entry ? state.opened[entry.id] : undefined;
+  const previous = entry ? state.previous[entry.id] : undefined;
 
   return (
     // The width is published as a custom property rather than an inline width,
@@ -74,12 +75,18 @@ export default function EntryPanel(options: EntryPanelOptions) {
           onKeep={keeping.keep}
           onThrowAway={going.ask}
           t={options.t}
-          title={opened?.title}
+          title={opened?.title ?? previous?.title}
           today={state.today}
         />
         {going.failed && <Failure text={options.t.entries.deleteFailed} />}
         {keeping.failed && <Failure text={options.t.entries.bookmarkFailed} />}
-        <EntryContent entry={entry} opened={opened} subject={options.subject} t={options.t} />
+        <EntryContent
+          entry={entry}
+          opened={opened}
+          previous={previous}
+          subject={options.subject}
+          t={options.t}
+        />
       </aside>
       {going.asking && entry && (
         <ConfirmDialog

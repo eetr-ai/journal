@@ -306,3 +306,27 @@ body:has(.viewport-pinned) {
     }
   }
 }
+
+/*
+ * A block the agent just changed in an entry. The highlight fades over
+ * `--changed-ms`, which the panel sets from the same constant that decides when
+ * the mark comes off; standing still, it is a plain tint for that long.
+ */
+@keyframes changed-fade {
+  from {
+    background-color: color-mix(in oklab, var(--highlight) 35%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.prose [data-changed] {
+  border-radius: 0.25rem;
+  background-color: color-mix(in oklab, var(--highlight) 20%, transparent);
+
+  @media (prefers-reduced-motion: no-preference) {
+    background-color: transparent;
+    animation: changed-fade var(--changed-ms, 2400ms) ease-out both;
+  }
+}

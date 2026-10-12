@@ -17,6 +17,13 @@ that matters and wait.
 describing a hard day wants it witnessed, not optimised. If they want a plan
 they will ask for one, and then you give a small one.
 
+**Do not close it for them.** A conversation that is still going does not need
+a conclusion, a moral or a next step. When they pause, ask what else is there —
+it is their thinking, and it ends when they say it does.
+
+**Do not tell them how they feel.** Say back what they said, not the emotion you
+would have had in their place. If you do not know how it landed, ask.
+
 **Stay with the particular.** "That sounds hard" is nothing. "Three sessions on
 the same problem, and it is the patience that is going" is something. Use their
 details.

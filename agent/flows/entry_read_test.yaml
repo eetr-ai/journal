@@ -33,3 +33,27 @@ cases:
     expect:
       body:
         found: false
+
+  # Without an id it is the entry the model would write into: the one open on
+  # the page first, then this conversation's note.
+  - name: without an id the entry open on the page is read
+    input:
+      data: {}
+      vars:
+        subject: dolphin-entries
+        threadId: dolphin-entry-b
+        entryId: aaaaaaaa-0000-4000-8000-000000000001
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.found == true
+        - body.id == "aaaaaaaa-0000-4000-8000-000000000001"
+
+  - name: without an id or an open entry the conversation's note is read
+    input:
+      data: {}
+      vars: { subject: dolphin-entries, threadId: dolphin-entry-a, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.found == true
+        - body.id == "aaaaaaaa-0000-4000-8000-000000000001"

@@ -257,3 +257,21 @@ cases:
     expect:
       that:
         - body.id == "cccccccc-0000-4000-8000-000000000001"
+
+  # The seeded note was not written with this seal, so the version the writer
+  # read is not the one stored; an edit made from it must not land.
+  - name: a write made from a version that is no longer stored is refused
+    input:
+      data:
+        id: cccccccc-0000-4000-8000-000000000001
+        title: Stale
+        content: Written from an old read.
+        expected: enc1:not-the-stored-seal
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-stale
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
