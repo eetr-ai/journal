@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Markdown from "@/components/markdown";
 import InlinePicture from "@/features/images/components/inline_picture";
 import PicturesBadge from "@/features/images/components/pictures_badge";
@@ -8,6 +8,8 @@ import PicturesDialog from "@/features/images/components/pictures_dialog";
 import { IMAGE_SCHEME, anchoredId, anchoredIn } from "@/features/images/rules";
 import { useEntryImages } from "@/features/images/use_entry_images";
 import { useEntries } from "../entries_state";
+import { changedRanges, type TextRange } from "../changes";
+import { HIGHLIGHT_MS, useRevealChange } from "../use_reveal_change";
 import { isDraft, type Entry, type OpenedEntry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 
@@ -17,6 +19,31 @@ export interface EntryContentOptions {
   entry: Entry | null;
   /** What the key made of it, absent until it has been through. */
   opened?: OpenedEntry;
+  /** What it said before the agent's last write, until that change is shown. */
+  previous?: OpenedEntry;
+}
+
+// The old words stand in while the new ones are opened, and once they are, the
+// blocks that differ are what gets marked.
+function useWords(options: EntryContentOptions) {
+  const after = options.opened?.content;
+  const before = options.previous?.content;
+  const changed = useMemo(
+    () => (after === undefined || before === undefined ? null : changedRanges(before, after)),
+    [after, before],
+  );
+
+  return { content: after ?? before, changed };
+}
+
+function usePicturesOf(entry: Entry | null, subject: string) {
+  const { state } = useEntries();
+
+  return useEntryImages({
+    subject,
+    entryId: entry && !isDraft(entry) ? entry.id : null,
+    revision: entry ? (state.pictured[entry.id] ?? 0) : 0,
+  });
 }
 
 /**
@@ -27,18 +54,15 @@ export interface EntryContentOptions {
  * that can read the words.
  */
 export default function EntryContent(options: EntryContentOptions) {
-  const { state } = useEntries();
   const entry = options.entry;
   const [looking, setLooking] = useState(false);
   // Stable, because the dialog reopens whenever its close handler changes, and
   // this re-renders on every frame the conversation streams in.
   const stopLooking = useCallback(() => setLooking(false), []);
-  const pictures = useEntryImages({
-    subject: options.subject,
-    entryId: entry && !isDraft(entry) ? entry.id : null,
-    revision: entry ? (state.pictured[entry.id] ?? 0) : 0,
-  });
-  const content = options.opened?.content;
+  const pictures = usePicturesOf(entry, options.subject);
+  const { content, changed } = useWords(options);
+  const box = useRef<HTMLDivElement>(null);
+  useRevealChange(box, entry?.id ?? null, changed);
   const anchored = useMemo(() => anchoredIn(content ?? ""), [content]);
   const byId = useMemo(
     () => new Map(pictures.images.map((image) => [image.id, image])),
@@ -46,7 +70,11 @@ export default function EntryContent(options: EntryContentOptions) {
   );
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm">
+    <div
+      className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm"
+      ref={box}
+      style={{ "--changed-ms": `${HIGHLIGHT_MS}ms` } as React.CSSProperties}
+    >
       <PicturesBadge
         anchored={anchored}
         images={pictures.images}
@@ -56,6 +84,7 @@ export default function EntryContent(options: EntryContentOptions) {
       />
       <EntryBody
         body={content}
+        changed={changed ?? undefined}
         empty={options.t.entries.empty}
         renderImage={(url, alt) => (
           <InlinePicture
@@ -86,6 +115,7 @@ export default function EntryContent(options: EntryContentOptions) {
 
 interface EntryBodyOptions {
   body?: string;
+  changed?: TextRange[];
   empty: string;
   waiting: string;
   started: string;
@@ -111,7 +141,7 @@ function EntryBody(options: EntryBodyOptions) {
   }
 
   return (
-    <Markdown renderImage={options.renderImage} scheme={IMAGE_SCHEME}>
+    <Markdown changed={options.changed} renderImage={options.renderImage} scheme={IMAGE_SCHEME}>
       {options.body}
     </Markdown>
   );

@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkCallouts from "./callouts";
+import rehypeChanged from "./rehype_changed";
 import { isExternal } from "./links";
+import type { TextRange } from "@/features/entries/changes";
 
 export interface MarkdownOptions {
   children: string;
@@ -13,6 +15,8 @@ export interface MarkdownOptions {
    */
   renderImage?: (url: string, alt: string) => ReactNode;
   scheme?: string;
+  /** Stretches of `children`, by offset, whose blocks are marked `data-changed`. */
+  changed?: TextRange[];
 }
 
 // A link out of the app opens beside it rather than in place of it, and the
@@ -60,6 +64,7 @@ export default function Markdown(options: MarkdownOptions) {
     <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:my-2">
       <ReactMarkdown
         components={componentsFor(options, own)}
+        rehypePlugins={options.changed ? [[rehypeChanged, options.changed]] : []}
         remarkPlugins={[remarkGfm, remarkCallouts]}
         urlTransform={(url) => (own(url) ? url : defaultUrlTransform(url))}
       >
