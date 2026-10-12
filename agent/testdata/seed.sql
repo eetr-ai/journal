@@ -234,3 +234,30 @@ VALUES
   -- For the delete suite only: one to throw away, and one somebody else tries to.
   (UUID 'f2f2f2f2-0000-4000-8000-000000000003', UUID 'f1f1f1f1-0000-4000-8000-000000000002', 'dolphin-images', 100, 'image/png', 'enc1:gone', 'enc1:gone'),
   (UUID 'f2f2f2f2-0000-4000-8000-000000000004', UUID 'f1f1f1f1-0000-4000-8000-000000000002', 'dolphin-images', 101, 'image/png', 'enc1:stays', 'enc1:stays');
+
+-- Entries to change a passage at a time. `dolphin-edit` owns this fixture,
+-- and each case changes an entry of its own, so the cases can run concurrently.
+-- Sealed under the same fixture key as the other entries.
+INSERT INTO user_profile (oidc_subject, email, name, config)
+VALUES ('dolphin-edit', 'edit@example.com', 'Edit', '{}'::jsonb)
+ON CONFLICT (oidc_subject) DO NOTHING;
+
+DELETE FROM journal_entry WHERE oidc_subject = 'dolphin-edit';
+
+INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, content)
+VALUES
+  (UUID 'e7e7e7e7-0000-4000-8000-000000000001', 'dolphin-edit', 'dolphin-edit-named', DATE '2026-09-15',
+   'enc1:Yw404mBt53r6Ub8Yiqb4pP8VQiC3ZLDBFTeq7YBA7jT4nUZY6t8=',
+   'enc1:PAbWaQl1BLl7RPa/tsz5urFEOCzZYX+x3/JbZTSHO66dF/PiHcoDbnVvJTVx8G4xmH5dlsHQEDNwi47CU1j88LmNPs4f/cXi/qPyPOCMIiIZ3xGESoux6s7OvQJqdREdABbCbROql2Oy7/LBNNfy2obH8o7zd96aJYTYesDFy0NJ8o7oSLh6JBDv2HlHJtYKIrubo2C8Ca+WoOP9z//NFsIKezc='),
+  (UUID 'e7e7e7e7-0000-4000-8000-000000000002', 'dolphin-edit', 'dolphin-edit-open', DATE '2026-09-15',
+   'enc1:KwFgrz+sOJVNsiaPqxmy5+ifYc4wfFK+3CZZOrY35YdXjRSclbU=',
+   'enc1:rG2m44OWJJfd4+vzlk/lYyxpPaW+5Bk/YXja9NProL9yGld3E7o2hvZ/WZnrS6GOZJVxFTmwpd7k5A+HnAFWoY9jVi3FFC9pKVVA1393Rr3R9yd3M9L2NVivqX0CdfZozXQ7DgBcjHxyYs7Yddsji6Q44PbJgU+cV3nd2nttt19cbh7+m+9DJRtTcW2qlftdSlq8MO5FL/0AgtsR+60Q6cS3OX4='),
+  (UUID 'e7e7e7e7-0000-4000-8000-000000000003', 'dolphin-edit', 'dolphin-edit-thread', DATE '2026-09-15',
+   'enc1:lTTF0nbB3+2etl0zQpzX/VFKTolQiPbvgEZYjY6hq4iGVXyPVpQ=',
+   'enc1:bhvw9l8Xswar9lLeOyf2x79nSPl+I9gB08HuYMrhAVXMeTGz6L/lDAL1HjYYbl2x3cBBtxr8IRC1n9Ey6rbTE3LKG5NNeta9giOYwxzb5d2WJVlmPY08p7fg7Er4L6TNxHQ0/d/6a24D4IfsGsQdlSatAJcW/Jhwtdj/yeR1SWIAuISGA9OxiuOwYn4vWZBfVTeHWC3aOZxanQ3u4i4x3VCTBSo='),
+  (UUID 'e7e7e7e7-0000-4000-8000-000000000004', 'dolphin-edit', 'dolphin-edit-title', DATE '2026-09-15',
+   'enc1:YgFv6W7THBmyJQaEK2ctRsdFVYjuq8rm4YhJ3NDRV/sQ39RX944=',
+   'enc1:SZM7VActyxaeZm11YygDarYrGhQXDtIpZVBxzoLbzSU5VI3xLXZnCGxA3sXcDo4pgKbzUySXgW3047Hzj/hZWrZcheoBoDLjeL8uveimJgUSx/62fDqyJJlKKJsrRFqZ+iSh9jew9FeKCjUrrA2+i0NZQCtZTwLq7amrhJHQ2aoKLcdyKs860ZduAtg1lqX7dUr1CnEASR0OgTOH4FKysyjIujM='),
+  (UUID 'e7e7e7e7-0000-4000-8000-000000000005', 'dolphin-edit', 'dolphin-edit-refused', DATE '2026-09-15',
+   'enc1:1qRkQUjDocKCen1FNlSKKTfZ62Q77/raLL8AFDKLPTyuxBawHzM=',
+   'enc1:qOffOSjtgd7Oy6X5Y5+oxWCrP52jMxyNZ9SM3vpiFDMBC5gr2qYIuMMc82BaearF5gf0wHClSkRAYAfM+Zx55ZySzbY4jF9EsA4+tFSv+pz6QSyqWVY/gy+DhdHySbJ7pZwJpgU5XuBXnmxK3kpcQ/UFwpg9lsPx192aCuAr8qEEiPp8/rzVt6IfX73xFNFzwJQiMvVjB5dkeidE62lnO+jXzgc=');

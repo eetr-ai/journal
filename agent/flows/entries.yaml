@@ -730,21 +730,64 @@ flows:
               "content": r.content.startsWith("enc1:") ? string(fromAes(base64.decode(r.content.substring(5)), base64.decode(vars.dataKey))) : r.content
             })}
 
-  # One entry, opened for the model to read before it adds to it.
+  # The entry the model means: one it names, else the one open on the reader's
+  # page, else this conversation's note. Each is scoped by subject, and nothing
+  # is created here. The row comes back still sealed, or null.
+  - name: entry-target
+    process:
+      - type: switch
+        name: which-entry
+        cases:
+          - when: 'has(body.id) && body.id != ""'
+            process:
+              - type: sql
+                name: named-entry
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, entry_date, title, content
+                    FROM journal_entry
+                    WHERE oidc_subject = $1 AND id = $2::uuid
+                  args:
+                    - vars.subject
+                    - body.id
+                  single: true
+          - when: 'has(vars.entryId) && vars.entryId != ""'
+            process:
+              - type: sql
+                name: open-entry
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, entry_date, title, content
+                    FROM journal_entry
+                    WHERE oidc_subject = $1 AND id = $2::uuid
+                  args:
+                    - vars.subject
+                    - vars.entryId
+                  single: true
+          - when: "true"
+            process:
+              - type: sql
+                name: conversation-entry
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, entry_date, title, content
+                    FROM journal_entry
+                    WHERE oidc_subject = $1 AND thread_key = $2 AND thread_key <> ''
+                  args:
+                    - vars.subject
+                    - vars.threadId
+                  single: true
+
+  # One entry, opened for the model to read before it changes it. Without an id
+  # it is the entry the model would be writing into.
   - name: entry-read
     process:
-      - type: sql
-        name: select-entry
-        settings:
-          connector: db
-          query: |
-            SELECT id, entry_date, title, content, created_at, updated_at
-            FROM journal_entry
-            WHERE oidc_subject = $1 AND id = $2::uuid
-          args:
-            - vars.subject
-            - body.id
-          single: true
+      - type: flow-ref
+        name: find-entry
+        settings: { flow: entry-target }
       - type: if
         name: check-found
         condition: 'body == null'
@@ -760,6 +803,102 @@ flows:
                   {"found": true, "id": body.id, "date": body.entry_date.substring(0, 10),
                    "title": body.title.startsWith("enc1:") ? string(fromAes(base64.decode(body.title.substring(5)), base64.decode(vars.dataKey))) : body.title,
                    "content": body.content.startsWith("enc1:") ? string(fromAes(base64.decode(body.content.substring(5)), base64.decode(vars.dataKey))) : body.content}
+
+  # Changes part of an entry rather than all of it: one passage swapped for
+  # another, or a paragraph added at the end. The passage has to appear exactly
+  # once, so an edit never lands somewhere the model did not mean. Saved through
+  # entry-write, so sealing, embedding and the frame to the reader are the same
+  # as for a whole note.
+  - name: entry-edit
+    process:
+      - type: set-variable
+        name: hold-ask
+        settings: { name: ask, value: body }
+      - type: flow-ref
+        name: find-entry
+        settings: { flow: entry-target }
+      - type: set-variable
+        name: hold-entry
+        settings: { name: target, value: body }
+      - type: set-variable
+        name: open-title
+        settings:
+          name: oldTitle
+          value: >
+            vars.target == null ? "" :
+            vars.target.title.startsWith("enc1:") ? string(fromAes(base64.decode(vars.target.title.substring(5)), base64.decode(vars.dataKey))) : vars.target.title
+      - type: set-variable
+        name: open-content
+        settings:
+          name: oldContent
+          value: >
+            vars.target == null ? "" :
+            vars.target.content.startsWith("enc1:") ? string(fromAes(base64.decode(vars.target.content.substring(5)), base64.decode(vars.dataKey))) : vars.target.content
+      - type: set-variable
+        name: hold-find
+        settings:
+          name: find
+          value: 'has(vars.ask.find) ? vars.ask.find : ""'
+      - type: set-variable
+        name: hold-text
+        settings:
+          name: text
+          value: 'has(vars.ask.text) ? vars.ask.text : ""'
+      # How many times the passage stands in the entry. An append has no
+      # passage, and counts as the one place it goes.
+      - type: set-variable
+        name: count-matches
+        settings:
+          name: matches
+          value: 'vars.find == "" ? 1 : size(vars.oldContent.split(vars.find)) - 1'
+      # The only judgements this flow makes, so the model is told plainly what
+      # to do differently rather than the tool failing under it.
+      - type: switch
+        name: can-edit
+        cases:
+          - when: 'vars.target == null'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"edited": false, "reason": "no entry to change; write the entry first"}'
+          - when: 'vars.matches == 0'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"edited": false, "reason": "that passage is not in the entry; read it with read_entry and copy the passage exactly"}'
+          - when: 'vars.matches > 1'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"edited": false, "reason": "that passage appears more than once; include more of the words around it"}'
+          - when: "true"
+            process:
+              - type: set-payload
+                name: changed-entry
+                settings:
+                  value: >
+                    {"id": vars.target.id,
+                     "title": has(vars.ask.title) && vars.ask.title != "" ? vars.ask.title : vars.oldTitle,
+                     "content": vars.find != "" ? vars.oldContent.replace(vars.find, vars.text, 1)
+                       : vars.text == "" ? vars.oldContent
+                       : vars.oldContent.trim() == "" ? vars.text
+                       : vars.oldContent.trim() + "\n\n" + vars.text}
+              - type: flow-ref
+                name: save
+                settings: { flow: entry-write }
+              - type: if
+                name: check-saved
+                condition: 'body.saved'
+                then:
+                  process:
+                    - type: set-payload
+                      settings:
+                        value: '{"edited": true, "id": body.id, "date": body.date}'
+                else:
+                  process:
+                    - type: set-payload
+                      settings:
+                        value: '{"edited": false, "reason": "the entry could not be saved"}'
 
   # Something from around this day some months ago.
   #

@@ -1,0 +1,138 @@
+# See entries_test.yaml. This suite owns the tool that changes part of an entry,
+# and the `dolphin-edit` subject: each case changes an entry nothing else reads.
+#
+# What reaches entry-write is spied on rather than read back, because that flow
+# is proven by its own suite; what is worth proving here is the new text.
+flow: entry-edit
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+mocks:
+  entry-write.embed-if-we-can[process].embed-chunks:
+    default:
+      error: no embedding provider here
+
+cases:
+  # The picture's anchor sits between the two paragraphs; a flow that rebuilt
+  # the entry rather than patching it would be the way to lose it.
+  - name: one passage of a named entry is replaced and the rest stands as it was
+    input:
+      data:
+        id: e7e7e7e7-0000-4000-8000-000000000001
+        find: Went to the market early.
+        text: Went to the market at seven.
+      vars: { subject: dolphin-edit, threadId: dolphin-edit-other, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        edited: true
+        id: e7e7e7e7-0000-4000-8000-000000000001
+        date: "2026-09-15"
+    spies:
+      entry-edit.can-edit[3].save:
+        records:
+          - input:
+              that:
+                - body.title == "Market day"
+                - 'body.content == "Went to the market at seven.\n\n![The fig stall](image:f2f2f2f2-0000-4000-8000-000000000001)\n\nBought figs, and again bread, and again cheese."'
+
+  - name: without an id the entry open on the page is the one changed
+    input:
+      data:
+        find: Bought figs
+        text: Bought ripe figs
+      vars:
+        subject: dolphin-edit
+        threadId: dolphin-edit-other
+        entryId: e7e7e7e7-0000-4000-8000-000000000002
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        edited: true
+        id: e7e7e7e7-0000-4000-8000-000000000002
+        date: "2026-09-15"
+    spies:
+      entry-edit.can-edit[3].save:
+        records:
+          - input:
+              that:
+                - body.content.endsWith("Bought ripe figs, and again bread, and again cheese.")
+
+  - name: with no passage the words are added as a paragraph at the end of the conversation's note
+    input:
+      data:
+        text: Then rain.
+      vars: { subject: dolphin-edit, threadId: dolphin-edit-thread, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.edited == true
+        - body.id == "e7e7e7e7-0000-4000-8000-000000000003"
+    spies:
+      entry-edit.can-edit[3].save:
+        records:
+          - input:
+              that:
+                - body.content.endsWith("and again cheese.\n\nThen rain.")
+                - body.content.startsWith("Went to the market early.")
+
+  - name: a title alone can be changed
+    input:
+      data:
+        id: e7e7e7e7-0000-4000-8000-000000000004
+        title: Figs at seven
+      vars: { subject: dolphin-edit, threadId: dolphin-edit-other, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.edited == true
+    spies:
+      entry-edit.can-edit[3].save:
+        records:
+          - input:
+              that:
+                - body.title == "Figs at seven"
+                - body.content.endsWith("and again cheese.")
+
+  - name: a passage that is not in the entry is refused, and nothing is written
+    input:
+      data:
+        id: e7e7e7e7-0000-4000-8000-000000000005
+        find: Went to the beach.
+        text: Went to the sea.
+      vars: { subject: dolphin-edit, threadId: dolphin-edit-other, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.edited == false
+        - body.reason.contains("not in the entry")
+    spies:
+      entry-edit.can-edit[3].save:
+        count: 0
+
+  - name: a passage that appears twice is refused rather than guessed at
+    input:
+      data:
+        id: e7e7e7e7-0000-4000-8000-000000000005
+        find: and again
+        text: and also
+      vars: { subject: dolphin-edit, threadId: dolphin-edit-other, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.edited == false
+        - body.reason.contains("more than once")
+    spies:
+      entry-edit.can-edit[3].save:
+        count: 0
+
+  - name: another person's entry cannot be changed with its id alone
+    input:
+      data:
+        id: aaaaaaaa-0000-4000-8000-000000000001
+        text: Not mine to add.
+      vars: { subject: dolphin-edit, threadId: dolphin-edit-other, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.edited == false
+    spies:
+      entry-edit.can-edit[3].save:
+        count: 0
