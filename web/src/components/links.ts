@@ -1,4 +1,5 @@
-const ABSOLUTE_WEB = /^https?:\/\//i;
+// A scheme-relative `//host` address leaves the app as surely as a full one.
+const ABSOLUTE_WEB = /^(?:https?:)?\/\//i;
 
 /**
  * Whether a link leads off the app. Any absolute web address counts, ours

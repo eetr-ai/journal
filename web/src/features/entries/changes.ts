@@ -8,8 +8,9 @@ interface Block extends TextRange {
   text: string;
 }
 
-// A block is what markdown treats as one: the text between blank lines.
-const BLOCK_BREAK = /\n[ \t]*\n/g;
+// A block is what markdown treats as one: the text between blank lines, with
+// either line ending.
+const BLOCK_BREAK = /\r?\n[ \t]*\r?\n/g;
 
 function blocksOf(content: string): Block[] {
   const ret: Block[] = [];

@@ -147,7 +147,9 @@ const handlers: Record<
   // the old words while the new ones open and then point at what changed.
   [EntriesActionType.Arrived]: (state, action) => {
     const entry = action.data as Entry;
-    const before = state.opened[entry.id];
+    // A second write before the first has opened keeps the words still on
+    // screen, which are the ones the reader last saw.
+    const before = state.opened[entry.id] ?? state.previous[entry.id];
     const after = arrived(state, entry);
 
     return before && after !== state

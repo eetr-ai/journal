@@ -471,6 +471,10 @@ flows:
             process:
             # An older entry, named. Scoped by subject as well as id, so holding
             # an id is not enough to write into somebody else's journal.
+            #
+            # `expected`, when given, is the sealed content the writer read. A
+            # seal carries a fresh nonce, so it names one version exactly: if
+            # anything wrote in between, nothing is updated and nothing is lost.
             - type: sql
               name: update-entry
               settings:
@@ -481,12 +485,14 @@ flows:
                       content = $4,
                       updated_at = now()
                   WHERE oidc_subject = $1 AND id = $2::uuid
+                    AND ($5 = '' OR content = $5)
                   RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
                 args:
                   - vars.subject
                   - body.id
                   - vars.sealedTitle
                   - vars.sealedContent
+                  - 'has(body.expected) ? body.expected : ""'
                 single: true
 
           # The entry the reader has open, which they may have started
@@ -879,10 +885,11 @@ flows:
                   value: >
                     {"id": vars.target.id,
                      "title": has(vars.ask.title) && vars.ask.title != "" ? vars.ask.title : vars.oldTitle,
+                     "expected": vars.target.content,
                      "content": vars.find != "" ? vars.oldContent.replace(vars.find, vars.text, 1)
                        : vars.text == "" ? vars.oldContent
                        : vars.oldContent.trim() == "" ? vars.text
-                       : vars.oldContent.trim() + "\n\n" + vars.text}
+                       : vars.oldContent + "\n\n" + vars.text}
               - type: flow-ref
                 name: save
                 settings: { flow: entry-write }
@@ -898,7 +905,7 @@ flows:
                   process:
                     - type: set-payload
                       settings:
-                        value: '{"edited": false, "reason": "the entry could not be saved"}'
+                        value: '{"edited": false, "reason": "the entry changed while you were editing it; read it again and redo the edit"}'
 
   # Something from around this day some months ago.
   #
