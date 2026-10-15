@@ -1,0 +1,48 @@
+"use client";
+
+import AddButton from "./add_button";
+import { startOf } from "../taps";
+import WidgetFrame, { SourceLink } from "./widget_frame";
+import type { Widget } from "../rules";
+import type { Dictionary } from "@/i18n/en";
+
+export interface QuoteWidgetOptions {
+  quote: Extract<Widget, { name: "quote" }>;
+  t: Dictionary;
+}
+
+/** A line worth keeping, who said it, and where. */
+export default function QuoteWidget(options: QuoteWidgetOptions) {
+  const { quote } = options;
+  const t = options.t.widgets.quote;
+
+  return (
+    <WidgetFrame
+      actions={
+        <>
+          <AddButton
+            label={t.add}
+            sent={t.sent}
+            tap={{
+              widget: "quote",
+              act: "add",
+              title: quote.source,
+              by: quote.by,
+              start: startOf(quote.text),
+            }}
+          />
+          <SourceLink href={quote.href}>{t.source}</SourceLink>
+        </>
+      }
+      label={<span className="font-semibold text-brand-strong">{t.label}</span>}
+    >
+      <figure className="flex flex-col gap-2">
+        <blockquote className="font-serif text-base leading-relaxed">“{quote.text}”</blockquote>
+        <figcaption className="text-xs text-muted">
+          {quote.by}
+          {quote.source === "" ? null : <cite className="not-italic">{` · ${quote.source}`}</cite>}
+        </figcaption>
+      </figure>
+    </WidgetFrame>
+  );
+}

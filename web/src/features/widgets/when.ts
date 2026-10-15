@@ -54,13 +54,17 @@ export function dayText(day: string, locale: string, style: "full" | "long" = "f
 
 // About four lines of a card.
 const EXCERPT_CHARS = 280;
+// Either side of a search match: enough to read the sentence it sits in.
+const AROUND_CHARS = 90;
+// Words shorter than this match everywhere and say nothing about the search.
+const MIN_TERM_CHARS = 3;
 
 /**
- * The opening of an entry as plain text. A card is a glimpse, not a rendering:
- * headings, pictures and markup are dropped, and links keep only their words.
+ * An entry as plain text. A card is a glimpse, not a rendering: headings,
+ * pictures and markup are dropped, and links keep only their words.
  */
-export function excerptOf(markdown: string): string {
-  const plain = markdown
+function plainOf(markdown: string): string {
+  return markdown
     .split("\n")
     .filter((line) => !/^\s*#/u.test(line))
     .join(" ")
@@ -69,12 +73,64 @@ export function excerptOf(markdown: string): string {
     .replaceAll(/[*_>`~]/gu, "")
     .replaceAll(/\s+/gu, " ")
     .trim();
+}
 
-  if (plain.length <= EXCERPT_CHARS) {
-    return plain;
+function cutAt(text: string, chars: number): string {
+  if (text.length <= chars) {
+    return text;
   }
 
-  const cut = plain.slice(0, EXCERPT_CHARS);
+  const cut = text.slice(0, chars);
+  const space = cut.lastIndexOf(" ");
 
-  return `${cut.slice(0, cut.lastIndexOf(" "))}…`;
+  // Text with no space to break at is cut where it stands rather than lost.
+  return `${space > 0 ? cut.slice(0, space) : cut}…`;
+}
+
+/** The opening of an entry, as plain text. */
+export function excerptOf(markdown: string): string {
+  return cutAt(plainOf(markdown), EXCERPT_CHARS);
+}
+
+export interface Snippet {
+  before: string;
+  match: string;
+  after: string;
+}
+
+// Case and accents aside, so "dia" finds "Día".
+function folded(text: string): string {
+  return text
+    .normalize("NFD")
+    .replaceAll(/\p{Mn}/gu, "")
+    .toLowerCase();
+}
+
+/**
+ * Where a search landed in an entry: the first word of the query found in it,
+ * with a little either side. An entry the agent matched on meaning rather than
+ * words has none, and shows its opening instead.
+ */
+export function snippetOf(markdown: string, query: string): Snippet {
+  const plain = plainOf(markdown);
+  // Folding keeps one character per character for the text a journal holds,
+  // so a position in the folded text is a position in the plain one.
+  const haystack = folded(plain);
+  const terms = folded(query)
+    .split(/\s+/u)
+    .filter((term) => term.length >= MIN_TERM_CHARS);
+  const at = terms.map((term) => haystack.indexOf(term)).find((index) => index >= 0);
+
+  if (at === undefined || haystack.length !== plain.length) {
+    return { before: cutAt(plain, EXCERPT_CHARS), match: "", after: "" };
+  }
+
+  const length = terms.find((term) => haystack.indexOf(term) === at)?.length ?? 0;
+  const from = Math.max(0, at - AROUND_CHARS);
+
+  return {
+    before: `${from > 0 ? "…" : ""}${plain.slice(from, at)}`,
+    match: plain.slice(at, at + length),
+    after: cutAt(plain.slice(at + length), AROUND_CHARS),
+  };
 }

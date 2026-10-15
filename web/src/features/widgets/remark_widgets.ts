@@ -1,8 +1,8 @@
 import { widgetFrom } from "./rules";
 
 /**
- * Turns `::name{…}` lines from `remark-directive` into widgets, and every
- * other directive back into the text it was parsed from.
+ * Turns `::name{…}` lines and `:::name{…}` blocks from `remark-directive` into
+ * widgets, and every other directive back into the text it was parsed from.
  *
  * The second half matters as much as the first: the directive syntax claims
  * ordinary prose too (`:word` mid-sentence parses as one), and a reply must
@@ -39,10 +39,46 @@ function asWritten(node: Node, source: string): Node {
   return node.type === "textDirective" ? text : { type: "paragraph", children: [text] };
 }
 
-function drawn(node: Node, source: string): Node {
+// A line that is only colons: a closing fence, or one still being written.
+const FENCE = /^\s*:+\s*$/u;
+
+/**
+ * A container's body as it was written, line breaks and all, rather than as
+ * the markdown it was parsed into: a song is its lines.
+ */
+function bodyOf(node: Node, source: string): string {
+  const start = node.position?.start.offset;
+  const end = node.position?.end.offset;
+
+  if (start === undefined || end === undefined) {
+    return "";
+  }
+
+  const lines = source.slice(start, end).split("\n").slice(1);
+
+  while (lines.length > 0 && FENCE.test(lines.at(-1) ?? "")) {
+    lines.pop();
+  }
+
+  return lines.join("\n");
+}
+
+function widgetIn(node: Node, source: string) {
+  const name = node.name ?? "";
+
   // Block-level only: a widget is a card, not something mid-sentence.
-  const widget =
-    node.type === "leafDirective" ? widgetFrom(node.name ?? "", node.attributes) : null;
+  switch (node.type) {
+    case "leafDirective":
+      return widgetFrom(name, "leaf", node.attributes);
+    case "containerDirective":
+      return widgetFrom(name, "container", node.attributes, bodyOf(node, source));
+    default:
+      return null;
+  }
+}
+
+function drawn(node: Node, source: string): Node {
+  const widget = widgetIn(node, source);
 
   if (!widget) {
     return asWritten(node, source);

@@ -33,6 +33,8 @@ resources:
   templates:
     - resource: skills/counselling.md
       as: counselling
+    - resource: skills/widgets.md
+      as: widgets
 
 connectors:
   - name: api
