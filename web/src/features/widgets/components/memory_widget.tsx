@@ -5,7 +5,7 @@ import { useShowEntry } from "@/features/entries/use_show_entry";
 import type { Entry } from "@/features/entries/types";
 import { useChatSender } from "@/features/chat/chat_sender";
 import { useHeldEntry } from "../use_held_entry";
-import type { TapAct } from "../taps";
+import type { MemoryAct } from "../taps";
 import { agoText, dayText, excerptOf } from "../when";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -93,7 +93,7 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
 
 interface MemoryActionsOptions {
   t: Dictionary;
-  onTap: (act: TapAct) => void;
+  onTap: (act: MemoryAct) => void;
   onOpen: () => void;
 }
 

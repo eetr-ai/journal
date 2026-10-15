@@ -1,6 +1,9 @@
 "use client";
 
+import LyricsWidget from "./lyrics_widget";
 import MemoryWidget from "./memory_widget";
+import QuoteWidget from "./quote_widget";
+import SearchWidget from "./search_widget";
 import type { Widget } from "../rules";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -27,6 +30,12 @@ export default function ChatWidget(options: ChatWidgetOptions) {
   switch (widget?.name) {
     case "memory":
       return <MemoryWidget id={widget.id} locale={options.locale} t={options.t} />;
+    case "search":
+      return <SearchWidget locale={options.locale} search={widget} t={options.t} />;
+    case "quote":
+      return <QuoteWidget quote={widget} t={options.t} />;
+    case "lyrics":
+      return <LyricsWidget lyrics={widget} t={options.t} />;
     default:
       return null;
   }

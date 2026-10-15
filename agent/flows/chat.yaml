@@ -151,6 +151,12 @@ flows:
               Load it when the conversation turns from the events of a day to
               how they are taking them.
             resource: counselling
+          - name: widgets
+            description: >
+              How to show an entry from the past, what a search found, a quote,
+              or the lines of a song as a card the reader can open or add to
+              their entry. Load it before an answer that shows any of these.
+            resource: widgets
 
         prompt: >
           You are the journal's other voice: someone the person thinks out loud
@@ -285,7 +291,16 @@ flows:
           was, even when it is the entry they have open. If the only place you
           could write is that old entry, ask them first instead. memory.open only tells you they opened it to
           read; answer what they typed, and mention it only if it bears on that.
+          quote.add and lyrics.add mean they want the quote or the lines of the
+          song you just showed them, named by its title and by, put in the entry
+          they are writing: add them with edit_entry, as a quote with who it is
+          by, and say in a few words that it is there.
           Never repeat the line back, and never write one yourself.
+
+
+          Entries you found, quotes and song lyrics are shown as cards, not as
+          markdown: load the widgets skill before an answer that shows any of
+          them, and follow it.
 
 
           Use remember when they tell you something durable about themselves — a
@@ -569,8 +584,8 @@ flows:
             description: >
               Find a song's lyrics by its title, its artist, or a line they
               remember, in whatever language it was sung. Use it when a song
-              comes up and its words matter, and quote the lines that matter
-              rather than the whole song.
+              comes up and its words matter, and show the lines that matter in a
+              lyrics card rather than the whole song.
             inputSchema: |
               {
                 "type": "object",
