@@ -28,9 +28,6 @@ export interface Tap {
 
 const LINE = /^\[tap memory\.(talk|write|open) id=([0-9a-f-]{36}) date=(\d{4}-\d{2}-\d{2})\]$/u;
 
-/** Opens a tap line, whole or cut short, so a title made from one is still known for one. */
-const OPENING = "[tap ";
-
 export function tapLine(tap: Tap): string {
   return `[tap ${tap.widget}.${tap.act} id=${tap.id} date=${tap.date}]`;
 }
@@ -43,10 +40,6 @@ export function tapFrom(line: string): Tap | null {
   }
 
   return { widget: "memory", act: found[1] as TapAct, id: found[2], date: found[3] };
-}
-
-export function looksLikeTap(text: string): boolean {
-  return text.trimStart().startsWith(OPENING);
 }
 
 /** A message as it is sent: the taps first, one per line, then what was typed. */
@@ -88,14 +81,12 @@ export function tapText(tap: Tap, t: WidgetsDictionary["taps"], locale: string):
 
 /**
  * A conversation's title, read back when it was made from a tap: a title is the
- * opening of the first message, and a conversation can open on one.
+ * first line of the first message, and a conversation can open on one. A tap
+ * line is shorter than any title is cut to, so it is either whole or not a tap,
+ * and anything that is not one is shown as written.
  */
 export function titleText(title: string, t: WidgetsDictionary["taps"], locale: string): string {
-  if (!looksLikeTap(title)) {
-    return title;
-  }
+  const tap = tapFrom(title);
 
-  const tap = tapFrom(title.split("\n")[0]);
-
-  return tap ? tapText(tap, t, locale) : t.untitled;
+  return tap ? tapText(tap, t, locale) : title;
 }

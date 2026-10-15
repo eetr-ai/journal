@@ -280,7 +280,10 @@ flows:
           read_entry and ask them one thing about it, from where they are now.
           memory.write means they want to write today from it: read it, then
           start today's note with what it brings up, in their words rather than
-          a summary of the old one. memory.open only tells you they opened it to
+          a summary of the old one. That write goes into today's note, never
+          into the entry the tap names: that one is the past and stays as it
+          was, even when it is the entry they have open. If the only place you
+          could write is that old entry, ask them first instead. memory.open only tells you they opened it to
           read; answer what they typed, and mention it only if it bears on that.
           Never repeat the line back, and never write one yourself.
 

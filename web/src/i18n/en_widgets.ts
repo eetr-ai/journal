@@ -15,8 +15,6 @@ const widgets = {
     talk: "You chose to talk about the memory from {date}",
     write: "You started writing from the memory from {date}",
     open: "You opened the memory from {date}",
-    // A conversation titled by a tap that was cut too short to read back.
-    untitled: "A memory",
   },
 };
 

@@ -15,7 +15,6 @@ const widgets: WidgetsDictionary = {
     talk: "Elegiste charlar sobre el recuerdo del {date}",
     write: "Empezaste a escribir a partir del recuerdo del {date}",
     open: "Abriste el recuerdo del {date}",
-    untitled: "Un recuerdo",
   },
 };
 
