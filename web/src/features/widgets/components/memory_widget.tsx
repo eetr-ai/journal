@@ -106,11 +106,7 @@ function MemoryActions(options: MemoryActionsOptions) {
 
   return (
     <>
-      <button
-        className={PRIMARY}
-        onClick={() => options.onTap("talk")}
-        type="button"
-      >
+      <button className={PRIMARY} onClick={() => options.onTap("talk")} type="button">
         {t.talk}
       </button>
       <button className={BUTTON} onClick={() => options.onTap("write")} type="button">
