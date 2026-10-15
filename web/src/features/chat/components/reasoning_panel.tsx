@@ -30,13 +30,18 @@ export interface ReasoningPanelOptions {
  */
 export default function ReasoningPanel(options: ReasoningPanelOptions) {
   const [chosen, setChosen] = useState<boolean | null>(null);
-  const { region, onScroll } = useStickToBottom(options.reasoning.length);
+  const open = chosen ?? options.live;
+  // Followed only while it is being written, and counted from when it opened:
+  // a window reopened mid-thought lands on the newest line rather than waiting
+  // for the next token, and one reopened afterwards starts at the top to be
+  // read through.
+  const { region, onScroll } = useStickToBottom(
+    open && options.live ? options.reasoning.length : 0,
+  );
 
   if (options.reasoning === "") {
     return null;
   }
-
-  const open = chosen ?? options.live;
 
   return (
     <div className="mb-2 rounded-lg border border-border bg-surface-muted">
