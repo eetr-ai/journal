@@ -12,8 +12,9 @@ const QUARTER = 3;
 const HALF_YEAR = 6;
 const YEAR = 12;
 const YEARS_BACK = 5;
-/** How far back a memory may sit: a season, half a year, then each year for five. */
+/** How far back a memory may sit: a month, a season, half a year, then each year for five. */
 const MONTHS_BACK = [
+  1,
   QUARTER,
   HALF_YEAR,
   ...Array.from({ length: YEARS_BACK }, (_, at) => (at + 1) * YEAR),
@@ -21,8 +22,9 @@ const MONTHS_BACK = [
 // Either side of the anniversary, so a memory is "around then" rather than
 // only ever the exact date, which most days are not.
 const SPREAD_DAYS = 15;
-// Younger than this is last week, not a memory.
-const OLDEST_RECENT_DAYS = 60;
+// Younger than this is this week, not a memory. Low on purpose: a journal a few
+// weeks old has nothing near an anniversary yet, and still has a past.
+const OLDEST_RECENT_DAYS = 7;
 const MS_PER_DAY = 86_400_000;
 
 function dayNumber(day: string): number {

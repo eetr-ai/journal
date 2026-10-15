@@ -6,6 +6,7 @@
 
 const MONTHS_PER_YEAR = 12;
 const MS_PER_DAY = 86_400_000;
+const DAYS_PER_WEEK = 7;
 
 function parts(day: string): [number, number, number] {
   const [year, month, date] = day.split("-").map(Number);
@@ -36,7 +37,10 @@ export function agoText(then: string, today: string, locale: string): string {
 
   const days = Math.round((Date.parse(today) - Date.parse(then)) / MS_PER_DAY);
 
-  return relative.format(-days, "day");
+  // "4 weeks ago" reads as a memory; "29 days ago" reads as a count.
+  return days >= DAYS_PER_WEEK
+    ? relative.format(-Math.floor(days / DAYS_PER_WEEK), "week")
+    : relative.format(-days, "day");
 }
 
 export function dayText(day: string, locale: string): string {
