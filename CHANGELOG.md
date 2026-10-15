@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.13](https://github.com/eetr-ai/journal/compare/v0.0.12...v0.0.13) (2026-10-15)
+
+
+### Features
+
+* **web:** quote, lyrics and search widgets, and a widgets skill ([#52](https://github.com/eetr-ai/journal/issues/52)) ([a6bd5b5](https://github.com/eetr-ai/journal/commit/a6bd5b594da2be07732ab4bda96cbf0d5aab6f11))
+* **web:** widget taps reach the agent as part of the conversation ([#48](https://github.com/eetr-ai/journal/issues/48)) ([ff0d4b9](https://github.com/eetr-ai/journal/commit/ff0d4b9852d2847af828d5a49d6817a583bead70))
+* **web:** widgets in the conversation, starting with a memory ([#47](https://github.com/eetr-ai/journal/issues/47)) ([22602d5](https://github.com/eetr-ai/journal/commit/22602d567dd4ad09e6dcfda95a9773aa6f35885d))
+
+
+### Bug Fixes
+
+* **web:** calmer user bubble in dark mode ([#45](https://github.com/eetr-ai/journal/issues/45)) ([028dd6f](https://github.com/eetr-ai/journal/commit/028dd6f0808b32ac6e8fcf5526cab654446e3827))
+* **web:** keep the thinking panel to about five lines ([#51](https://github.com/eetr-ai/journal/issues/51)) ([e822f08](https://github.com/eetr-ai/journal/commit/e822f088528a8eed32491c0dad1bb74692da5d4c))
+
 ## [0.0.12](https://github.com/eetr-ai/journal/compare/v0.0.11...v0.0.12) (2026-10-12)
 
 
