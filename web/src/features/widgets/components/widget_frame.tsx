@@ -2,8 +2,16 @@
 
 import type { ReactNode } from "react";
 
-export const WIDGET_BUTTON =
-  "tap-target rounded-full border border-border px-3 py-1 text-xs hover:bg-surface-muted disabled:cursor-default disabled:opacity-70";
+// Shape only. The two looks below each own their colours, hover included:
+// Tailwind orders utilities by its own rules rather than by class order, so two
+// hover backgrounds on one element leave which wins to chance.
+const SHAPE =
+  "tap-target rounded-full border px-3 py-1 text-xs disabled:cursor-default disabled:opacity-70";
+
+export const WIDGET_BUTTON = `${SHAPE} border-border hover:bg-surface-muted disabled:hover:bg-transparent`;
+
+/** The one thing a card is for. */
+export const WIDGET_PRIMARY = `${SHAPE} border-brand bg-brand text-on-brand hover:border-brand-strong hover:bg-brand-strong disabled:hover:border-brand disabled:hover:bg-brand`;
 
 export interface WidgetFrameOptions {
   /** What kind of card this is, and anything said about it after a dot. */

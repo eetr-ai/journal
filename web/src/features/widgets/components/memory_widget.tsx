@@ -4,6 +4,7 @@ import { useEntries } from "@/features/entries/entries_state";
 import { useShowEntry } from "@/features/entries/use_show_entry";
 import type { Entry } from "@/features/entries/types";
 import { useChatSender } from "@/features/chat/chat_sender";
+import { WIDGET_BUTTON, WIDGET_PRIMARY } from "./widget_frame";
 import { useHeldEntry } from "../use_held_entry";
 import type { MemoryAct } from "../taps";
 import { agoText, dayText, excerptOf } from "../when";
@@ -19,13 +20,6 @@ export interface MemoryWidgetOptions {
   /** Offered only where there is another to give. */
   onAnother?: () => void;
 }
-
-// Shape only. The two looks below each own their colours, hover included:
-// Tailwind orders utilities by its own rules rather than by class order, so two
-// hover backgrounds on one element leave which wins to chance.
-const SHAPE = "tap-target rounded-full border px-3 py-1 text-xs";
-const BUTTON = `${SHAPE} border-border hover:bg-surface-muted`;
-const PRIMARY = `${SHAPE} border-brand bg-brand text-on-brand hover:border-brand-strong hover:bg-brand-strong`;
 
 /**
  * A past entry as a card: when, what it was called, and how it began.
@@ -82,7 +76,11 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
           />
         ) : null}
         {options.onAnother ? (
-          <button className={`${BUTTON} text-muted`} onClick={options.onAnother} type="button">
+          <button
+            className={`${WIDGET_BUTTON} text-muted`}
+            onClick={options.onAnother}
+            type="button"
+          >
             {t.another}
           </button>
         ) : null}
@@ -106,14 +104,14 @@ function MemoryActions(options: MemoryActionsOptions) {
 
   return (
     <>
-      <button className={PRIMARY} onClick={() => options.onTap("talk")} type="button">
+      <button className={WIDGET_PRIMARY} onClick={() => options.onTap("talk")} type="button">
         {t.talk}
       </button>
-      <button className={BUTTON} onClick={() => options.onTap("write")} type="button">
+      <button className={WIDGET_BUTTON} onClick={() => options.onTap("write")} type="button">
         {t.write}
       </button>
       <button
-        className={BUTTON}
+        className={WIDGET_BUTTON}
         onClick={() => {
           options.onOpen();
           options.onTap("open");

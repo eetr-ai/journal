@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useChatSender } from "@/features/chat/chat_sender";
-import { WIDGET_BUTTON } from "./widget_frame";
+import { WIDGET_PRIMARY } from "./widget_frame";
 import type { Tap } from "../taps";
 
 export interface AddButtonOptions {
@@ -24,7 +24,7 @@ export default function AddButton(options: AddButtonOptions) {
 
   return (
     <button
-      className={`${WIDGET_BUTTON} border-brand bg-brand text-on-brand hover:bg-brand-strong`}
+      className={WIDGET_PRIMARY}
       disabled={asked}
       onClick={() => {
         setAsked(true);
