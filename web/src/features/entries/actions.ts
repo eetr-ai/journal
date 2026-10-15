@@ -3,6 +3,8 @@
 import {
   deleteEntry,
   entriesOnDay,
+  memory,
+  readEntry,
   searchEntries,
   setBookmark,
   writtenDays,
@@ -58,4 +60,14 @@ export async function writtenDaysAction(): Promise<string[]> {
 /** A day the calendar picked, which the drawer's capped list may not hold. */
 export async function entriesOnDayAction(date: string): Promise<Entry[]> {
   return await entriesOnDay(date);
+}
+
+/** One entry by id, sealed. Null when it is not this person's, or gone. */
+export async function readEntryAction(id: string): Promise<Entry | null> {
+  return await readEntry(id);
+}
+
+/** A memory to start from, other than the one on screen. Null when there is none. */
+export async function memoryAction(shown?: string): Promise<Entry | null> {
+  return await memory(shown);
 }

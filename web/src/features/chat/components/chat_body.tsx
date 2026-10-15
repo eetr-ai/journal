@@ -5,6 +5,7 @@ import ChatNotice from "./chat_notice";
 import ConfirmDialog from "@/components/confirm_dialog";
 import Composer from "./composer";
 import TurnList from "./turn_list";
+import MemoryLanding from "@/features/widgets/components/memory_landing";
 import { useChat } from "../chat_state";
 import { useStickToBottom } from "../use_stick_to_bottom";
 import { useOpenedTurns } from "../use_opened_turns";
@@ -65,7 +66,7 @@ export default function ChatBody(options: ChatBodyOptions) {
         ref={region}
       >
         {state.turns.length === 0 ? (
-          <Nothing t={options.t} unavailable={options.unavailable} />
+          <Nothing locale={options.locale} t={options.t} unavailable={options.unavailable} />
         ) : (
           <TurnList locale={options.locale} t={options.t} timezone={options.timezone} />
         )}
@@ -82,18 +83,24 @@ export default function ChatBody(options: ChatBodyOptions) {
   );
 }
 
-/** Before anything has been said, and when what was said will not load. */
-function Nothing(options: { t: Dictionary; unavailable: boolean }) {
+/**
+ * Before anything has been said, and when what was said will not load. A new
+ * conversation also offers something from the past to start from.
+ */
+function Nothing(options: { t: Dictionary; locale: Locale; unavailable: boolean }) {
   const t = options.t.chat;
 
   return (
-    <div className="m-auto max-w-sm text-center">
-      <p className="text-sm font-medium">
-        {options.unavailable ? t.unavailableTitle : t.emptyTitle}
-      </p>
-      <p className="mt-1 text-sm text-muted">
-        {options.unavailable ? t.unavailablePrompt : t.emptyPrompt}
-      </p>
+    <div className="m-auto flex w-full max-w-lg flex-col gap-4">
+      <div className="mx-auto max-w-sm text-center">
+        <p className="text-sm font-medium">
+          {options.unavailable ? t.unavailableTitle : t.emptyTitle}
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          {options.unavailable ? t.unavailablePrompt : t.emptyPrompt}
+        </p>
+      </div>
+      {options.unavailable ? null : <MemoryLanding locale={options.locale} t={options.t} />}
     </div>
   );
 }

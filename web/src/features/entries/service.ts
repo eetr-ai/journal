@@ -2,7 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { auth } from "@/auth";
 import { entriesClient } from "./client";
-import { isDay, searchFrom } from "./rules";
+import { isDay, isEntryId, searchFrom } from "./rules";
+import { memoryDays, pickOne } from "./memory";
 import { momentFor } from "@/features/chat/now";
 import { currentProfile } from "@/features/profile/service";
 import type { Entry, SearchHit } from "./types";
@@ -186,4 +187,27 @@ export async function journalView(requested?: string): Promise<JournalView> {
     showing: older ? requested : null,
     today,
   };
+}
+
+/** One entry by id, for a widget naming one the drawer may not hold. */
+export async function readEntry(id: string): Promise<Entry | null> {
+  return isEntryId(id) ? await reachFor(id) : null;
+}
+
+/**
+ * Something written around this time some months or years ago, or null when
+ * the journal has nothing that old. `shown` is the one on screen, which another
+ * ask skips while there is anything else to give.
+ */
+export async function memory(shown?: string): Promise<Entry | null> {
+  const profile = await currentProfile();
+  const today = momentFor(profile?.config.timezone ?? "").date;
+  const showing = shown && isEntryId(shown) ? await reachFor(shown) : null;
+  const day = pickOne(memoryDays(await writtenDays(), today), (d) => d === showing?.date);
+
+  if (!day) {
+    return null;
+  }
+
+  return pickOne(await entriesOnDay(day), (entry) => entry.id === shown);
 }
