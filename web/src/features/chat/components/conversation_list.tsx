@@ -3,6 +3,7 @@
 import Moment from "./moment";
 import { useViewHref } from "@/features/shell/use_view_href";
 import { useOpenedTitles } from "../use_opened_titles";
+import { titleText } from "@/features/widgets/taps";
 import type { Conversation } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -42,7 +43,9 @@ export default function ConversationList(options: ConversationListOptions) {
             className="block rounded-lg px-2 py-2 hover:bg-surface-muted aria-[current]:bg-surface-muted"
             href={href(`/${options.locale}`, { chat: conversation.id })}
           >
-            <p className="truncate text-sm">{titles[conversation.id] ?? ""}</p>
+            <p className="truncate text-sm">
+              {titleText(titles[conversation.id] ?? "", options.t.widgets.taps, options.locale)}
+            </p>
             <Moment
               className="text-xs text-muted"
               fallbackLocale={options.locale}

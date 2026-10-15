@@ -2,6 +2,7 @@
 
 import { SimpleProvider } from "@eetr/react-reducer-utils";
 import ChatBody from "./chat_body";
+import ChatSenderProvider from "./chat_sender_provider";
 import {
   ChatDispatchContext,
   ChatStateContext,
@@ -38,13 +39,15 @@ export default function ChatPanel(options: ChatPanelOptions) {
       reducer={chatReducer}
       stateContext={ChatStateContext}
     >
-      <ChatBody
-        locale={options.locale}
-        subject={options.subject}
-        t={options.t}
-        timezone={options.timezone}
-        unavailable={options.unavailable}
-      />
+      <ChatSenderProvider locale={options.locale} subject={options.subject}>
+        <ChatBody
+          locale={options.locale}
+          subject={options.subject}
+          t={options.t}
+          timezone={options.timezone}
+          unavailable={options.unavailable}
+        />
+      </ChatSenderProvider>
     </SimpleProvider>
   );
 }

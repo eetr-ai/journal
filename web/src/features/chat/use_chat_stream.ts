@@ -12,6 +12,7 @@ import { useOpenEntry } from "@/features/entries/use_open_entry";
 import { viewHref } from "@/features/shell/view_url";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Attachment } from "@/features/images/types";
+import { asksForAnswer, tapLine, withTaps, type Tap } from "@/features/widgets/taps";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -185,41 +186,45 @@ async function runToEnd(
 function useAsk(threadId: string, locale: Locale, agentKey: string | null) {
   const open = useOpenEntry();
 
+  // `toToday` sends without the open entry, so a write lands in this
+  // conversation's own note whatever the panel happens to be showing.
   return useCallback(
-    (message: string, intent: ChatAsk["intent"], images: Attachment[] = []): ChatAsk => ({
+    (
+      message: string,
+      intent: ChatAsk["intent"],
+      images: Attachment[] = [],
+      toToday = false,
+    ): ChatAsk => ({
       threadId,
       message,
       locale,
       key: agentKey ?? "",
       intent,
-      ...(open ? { working: { id: open.id, date: open.date } } : {}),
+      ...(open && !toToday ? { working: { id: open.id, date: open.date } } : {}),
       ...(images.length > 0 ? { images } : {}),
     }),
     [agentKey, locale, open, threadId],
   );
 }
 
-export function useChatStream(options: ChatStreamOptions) {
-  const { state, dispatch } = useChat();
+type Ask = ReturnType<typeof useAsk>;
+
+/**
+ * The run this conversation has, if any: saying something onto it, new or in
+ * flight, and stopping it. Both live here because both turn on whether one is
+ * going, and that is held nowhere else.
+ */
+function useRun(ask: Ask) {
+  const { dispatch } = useChat();
+  const running = useRef<AbortController | null>(null);
   // The journal beside the conversation. The agent writes into it mid-run, so
   // the stream that carries the answer carries those frames too.
   const { dispatch: panel } = useEntries();
   const router = useRouter();
-  const running = useRef<AbortController | null>(null);
-  const agentKey = useAgentKey(options.subject);
 
-  const ask = useAsk(state.threadId, options.locale, agentKey);
-
-  const send = useCallback(
-    async (message: string, images: Attachment[] = []): Promise<void> => {
-      const problem = refuse(message, agentKey, images.length > 0);
-
-      if (problem) {
-        dispatch({ type: ChatActionType.Failed, data: problem });
-
-        return;
-      }
-
+  /** A message already judged sendable, taps and all. */
+  const say = useCallback(
+    async (message: string, images: Attachment[], toToday = false): Promise<void> => {
       // A run already holds this conversation, so this joins it. The answer
       // keeps arriving where it already was. Pictures cannot join a run in
       // flight, so the composer never offers them here.
@@ -227,11 +232,11 @@ export function useChatStream(options: ChatStreamOptions) {
       // Shown only once it has landed: a follow-up the BFF refused never
       // reached the conversation, and leaving it on screen would say it had.
       if (running.current) {
-        const joined = await steerChat(ask(message.trim(), "say"));
+        const joined = await steerChat(ask(message, "say", [], toToday));
 
         dispatch(
           joined
-            ? { type: ChatActionType.FollowUp, data: message.trim() }
+            ? { type: ChatActionType.FollowUp, data: message }
             : {
                 type: ChatActionType.Failed,
                 data: "failed" satisfies ChatError,
@@ -243,12 +248,12 @@ export function useChatStream(options: ChatStreamOptions) {
 
       dispatch({
         type: ChatActionType.Sent,
-        data: { text: message.trim(), images: images.map(dataUrl) } satisfies SentMessage,
+        data: { text: message, images: images.map(dataUrl) } satisfies SentMessage,
       });
       running.current = new AbortController();
 
       try {
-        await runToEnd(ask(message.trim(), "say", images), running.current, dispatch, panel);
+        await runToEnd(ask(message, "say", images, toToday), running.current, dispatch, panel);
       } finally {
         running.current = null;
         // The conversation may be new, and the drawer beside this panel was
@@ -256,7 +261,7 @@ export function useChatStream(options: ChatStreamOptions) {
         router.refresh();
       }
     },
-    [agentKey, ask, dispatch, panel, router],
+    [ask, dispatch, panel, router],
   );
 
   /**
@@ -279,5 +284,74 @@ export function useChatStream(options: ChatStreamOptions) {
     }
   }, [ask, dispatch]);
 
-  return { send, stop };
+  return { say, stop };
+}
+
+export function useChatStream(options: ChatStreamOptions) {
+  const { state, dispatch } = useChat();
+  const { dispatch: entries } = useEntries();
+  // Taps the agent should know about but need no answer of their own. They go
+  // with the next thing sent, ahead of it.
+  const noted = useRef<Tap[]>([]);
+  const agentKey = useAgentKey(options.subject);
+
+  const ask = useAsk(state.threadId, options.locale, agentKey);
+  const { say, stop } = useRun(ask);
+
+  const send = useCallback(
+    async (typed: string, images: Attachment[] = []): Promise<void> => {
+      const problem = refuse(typed, agentKey, images.length > 0);
+
+      if (problem) {
+        dispatch({ type: ChatActionType.Failed, data: problem });
+
+        return;
+      }
+
+      const message = withTaps(noted.current, typed.trim());
+
+      noted.current = [];
+      await say(message, images);
+    },
+    [agentKey, dispatch, say],
+  );
+
+  /**
+   * A tap on a widget. One that asks for an answer is sent now, by the same
+   * path as anything typed, so mid-answer it joins the run like a follow-up.
+   * One that does not is held for whatever is sent next.
+   */
+  const tap = useCallback(
+    async (tapped: Tap): Promise<void> => {
+      const others = noted.current.filter((held) => tapLine(held) !== tapLine(tapped));
+
+      if (!asksForAnswer(tapped)) {
+        noted.current = [...others, tapped];
+
+        return;
+      }
+
+      if (!agentKey) {
+        dispatch({ type: ChatActionType.Failed, data: "locked" satisfies ChatError });
+
+        return;
+      }
+
+      noted.current = [];
+
+      // Writing from a memory starts today's note. The memory may be the entry
+      // the panel is showing, and a write with it open would go over it, so
+      // the panel goes back to today and the write is sent without it.
+      const writing = tapped.act === "write";
+
+      if (writing) {
+        entries({ type: EntriesActionType.Closed });
+      }
+
+      await say(withTaps([...others, tapped], ""), [], writing);
+    },
+    [agentKey, dispatch, entries, say],
+  );
+
+  return { send, stop, tap };
 }

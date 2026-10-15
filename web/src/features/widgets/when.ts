@@ -43,10 +43,11 @@ export function agoText(then: string, today: string, locale: string): string {
     : relative.format(-days, "day");
 }
 
-export function dayText(day: string, locale: string): string {
+/** The day in words: "Monday, October 13, 2025", or without the weekday when `long`. */
+export function dayText(day: string, locale: string, style: "full" | "long" = "full"): string {
   const [year, month, date] = parts(day);
 
-  return new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: "UTC" }).format(
+  return new Intl.DateTimeFormat(locale, { dateStyle: style, timeZone: "UTC" }).format(
     Date.UTC(year, month - 1, date),
   );
 }
