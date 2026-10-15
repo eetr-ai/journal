@@ -20,8 +20,12 @@ export interface MemoryWidgetOptions {
   onAnother?: () => void;
 }
 
-const BUTTON =
-  "tap-target rounded-full border border-border px-3 py-1 text-xs hover:bg-surface-muted";
+// Shape only. The two looks below each own their colours, hover included:
+// Tailwind orders utilities by its own rules rather than by class order, so two
+// hover backgrounds on one element leave which wins to chance.
+const SHAPE = "tap-target rounded-full border px-3 py-1 text-xs";
+const BUTTON = `${SHAPE} border-border hover:bg-surface-muted`;
+const PRIMARY = `${SHAPE} border-brand bg-brand text-on-brand hover:border-brand-strong hover:bg-brand-strong`;
 
 /**
  * A past entry as a card: when, what it was called, and how it began.
@@ -103,7 +107,7 @@ function MemoryActions(options: MemoryActionsOptions) {
   return (
     <>
       <button
-        className={`${BUTTON} border-brand bg-brand text-on-brand hover:bg-brand-strong`}
+        className={PRIMARY}
         onClick={() => options.onTap("talk")}
         type="button"
       >
