@@ -81,8 +81,10 @@ function cutAt(text: string, chars: number): string {
   }
 
   const cut = text.slice(0, chars);
+  const space = cut.lastIndexOf(" ");
 
-  return `${cut.slice(0, cut.lastIndexOf(" "))}…`;
+  // Text with no space to break at is cut where it stands rather than lost.
+  return `${space > 0 ? cut.slice(0, space) : cut}…`;
 }
 
 /** The opening of an entry, as plain text. */

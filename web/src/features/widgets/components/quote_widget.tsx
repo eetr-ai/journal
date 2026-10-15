@@ -1,6 +1,7 @@
 "use client";
 
 import AddButton from "./add_button";
+import { startOf } from "../taps";
 import WidgetFrame, { SourceLink } from "./widget_frame";
 import type { Widget } from "../rules";
 import type { Dictionary } from "@/i18n/en";
@@ -22,7 +23,13 @@ export default function QuoteWidget(options: QuoteWidgetOptions) {
           <AddButton
             label={t.add}
             sent={t.sent}
-            tap={{ widget: "quote", act: "add", title: quote.source, by: quote.by }}
+            tap={{
+              widget: "quote",
+              act: "add",
+              title: quote.source,
+              by: quote.by,
+              start: startOf(quote.text),
+            }}
           />
           <SourceLink href={quote.href}>{t.source}</SourceLink>
         </>

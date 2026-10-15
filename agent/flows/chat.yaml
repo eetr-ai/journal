@@ -292,7 +292,8 @@ flows:
           could write is that old entry, ask them first instead. memory.open only tells you they opened it to
           read; answer what they typed, and mention it only if it bears on that.
           quote.add and lyrics.add mean they want the quote or the lines of the
-          song you just showed them, named by its title and by, put in the entry
+          song you showed them, named by its title, by and the words it starts
+          with (start), put in the entry
           they are writing: add them with edit_entry, as a quote with who it is
           by, and say in a few words that it is there.
           Never repeat the line back, and never write one yourself.

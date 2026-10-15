@@ -1,6 +1,7 @@
 "use client";
 
 import AddButton from "./add_button";
+import { startOf } from "../taps";
 import WidgetFrame, { SourceLink } from "./widget_frame";
 import type { Widget } from "../rules";
 import type { Dictionary } from "@/i18n/en";
@@ -25,7 +26,13 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
           <AddButton
             label={t.add}
             sent={t.sent}
-            tap={{ widget: "lyrics", act: "add", title: lyrics.title, by: lyrics.by }}
+            tap={{
+              widget: "lyrics",
+              act: "add",
+              title: lyrics.title,
+              by: lyrics.by,
+              start: startOf(lyrics.lines.join(" ")),
+            }}
           />
           <SourceLink href={lyrics.href}>{t.source}</SourceLink>
         </>

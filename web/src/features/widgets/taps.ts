@@ -15,8 +15,9 @@ import type { WidgetsDictionary } from "@/i18n/en_widgets";
  * `talk`, `write` and `add` ask for an answer. `open` is only something the
  * agent should know, and waits for the next thing the reader says.
  *
- * A memory tap names its entry. An add tap names what it adds by its title and
- * who it is by, which is enough for the agent to find it in what it just said.
+ * A memory tap names its entry. An add tap names what it adds by its title, who
+ * it is by and how it begins: enough for the agent to find that one card in
+ * what it said, even beside another from the same author or song.
  */
 
 export type MemoryAct = "talk" | "write" | "open";
@@ -29,11 +30,19 @@ export type Tap =
       /** The entry's day, so the line can be read back without fetching it. */
       date: string;
     }
-  | { widget: "quote" | "lyrics"; act: "add"; title: string; by: string };
+  | {
+      widget: "quote" | "lyrics";
+      act: "add";
+      title: string;
+      by: string;
+      /** How the excerpt begins: what tells this card from another by the same hand. */
+      start: string;
+    };
 
 const MEMORY_LINE =
   /^\[tap memory\.(talk|write|open) id=([0-9a-f-]{36}) date=(\d{4}-\d{2}-\d{2})\]$/u;
-const ADD_LINE = /^\[tap (quote|lyrics)\.add title="([^"\]\n]*)" by="([^"\]\n]*)"\]$/u;
+const ADD_LINE =
+  /^\[tap (quote|lyrics)\.add title="([^"\]\n]*)" by="([^"\]\n]*)" start="([^"\]\n]*)"\]$/u;
 
 // A value inside a tap line cannot close its quotes or the line.
 function quoted(value: string): string {
@@ -43,7 +52,7 @@ function quoted(value: string): string {
 export function tapLine(tap: Tap): string {
   return tap.widget === "memory"
     ? `[tap memory.${tap.act} id=${tap.id} date=${tap.date}]`
-    : `[tap ${tap.widget}.add title="${quoted(tap.title)}" by="${quoted(tap.by)}"]`;
+    : `[tap ${tap.widget}.add title="${quoted(tap.title)}" by="${quoted(tap.by)}" start="${quoted(tap.start)}"]`;
 }
 
 /** A day that is on the calendar: 2025-02-31 has the shape of one and is not. */
@@ -68,7 +77,13 @@ export function tapFrom(line: string): Tap | null {
   const added = ADD_LINE.exec(line);
 
   return added
-    ? { widget: added[1] as "quote" | "lyrics", act: "add", title: added[2], by: added[3] }
+    ? {
+        widget: added[1] as "quote" | "lyrics",
+        act: "add",
+        title: added[2],
+        by: added[3],
+        start: added[4],
+      }
     : null;
 }
 
@@ -126,4 +141,21 @@ export function titleText(title: string, t: WidgetsDictionary["taps"], locale: s
   const tap = tapFrom(title);
 
   return tap ? tapText(tap, t, locale) : title;
+}
+
+// Long enough to tell two excerpts apart, short enough to stay one line.
+const START_CHARS = 60;
+
+/** The opening words of an excerpt, cut at a word, for an add tap to name it by. */
+export function startOf(text: string): string {
+  const flat = text.replaceAll(/\s+/gu, " ").trim();
+
+  if (flat.length <= START_CHARS) {
+    return flat;
+  }
+
+  const cut = flat.slice(0, START_CHARS);
+  const space = cut.lastIndexOf(" ");
+
+  return space > 0 ? cut.slice(0, space) : cut;
 }
