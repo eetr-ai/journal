@@ -9,6 +9,7 @@ import ToolSteps from "./tool_steps";
 import TypingDots from "./typing_dots";
 import ChatWidget from "@/features/widgets/components/chat_widget";
 import { withoutUnfinished } from "@/features/widgets/rules";
+import { splitTaps, tapLine, tapText } from "@/features/widgets/taps";
 import { useChat, type ChatTurn } from "../chat_state";
 import { endsARun } from "../moments";
 import type { Dictionary } from "@/i18n/en";
@@ -78,16 +79,23 @@ interface YourTurnOptions {
 function YourTurn(options: YourTurnOptions) {
   const turn = options.turn;
   const t = options.t.chat;
+  // A tap is shown as what it meant, not as the line the agent reads.
+  const { taps, typed } = splitTaps(turn.text);
 
   return (
     <div className="flex flex-col items-end gap-1 motion-safe:animate-rise-in">
+      {taps.map((tap) => (
+        <p className="px-1 text-xs text-muted italic" key={tapLine(tap)}>
+          {tapText(tap, options.t.widgets.taps, options.locale)}
+        </p>
+      ))}
       {turn.images ? <SentPictures alt={options.t.images.attached} images={turn.images} /> : null}
-      {turn.text === "" ? null : (
+      {typed === "" ? null : (
         <div
           aria-label={t.you}
           className="max-w-lg rounded-2xl rounded-br-sm border border-user-bubble-border bg-user-bubble px-4 py-2.5 text-sm text-on-user-bubble"
         >
-          {turn.text}
+          {typed}
         </div>
       )}
       {endsARun(turn.at, options.next, turn.from) ? (

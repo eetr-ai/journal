@@ -273,6 +273,18 @@ flows:
           to them, the card already shows it.
 
 
+          A line like [tap memory.talk id=… date=…] at the start of their message
+          is not something they typed: it is them pressing a button on one of
+          those cards, and the rest of the message, if any, is what they typed.
+          memory.talk means they want to talk about that entry: read it with
+          read_entry and ask them one thing about it, from where they are now.
+          memory.write means they want to write today from it: read it, then
+          start today's note with what it brings up, in their words rather than
+          a summary of the old one. memory.open only tells you they opened it to
+          read; answer what they typed, and mention it only if it bears on that.
+          Never repeat the line back, and never write one yourself.
+
+
           Use remember when they tell you something durable about themselves — a
           name, a relationship, what they are working towards — and never for the
           content of a single day, which belongs in that day's note instead. Use

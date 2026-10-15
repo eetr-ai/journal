@@ -8,7 +8,7 @@ import { picturesIn, useAttachments } from "@/features/images/use_attachments";
 import { useImagesConfig } from "@/features/images/images_config";
 import { useChat } from "../chat_state";
 import { messageProblem } from "../rules";
-import { useChatStream } from "../use_chat_stream";
+import { useChatSender } from "../chat_sender";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -53,10 +53,7 @@ function fit(box: HTMLTextAreaElement | null): void {
 function useComposer(options: ComposerOptions, box: RefObject<HTMLTextAreaElement | null>) {
   const [draft, setDraft] = useState("");
   const { state } = useChat();
-  const { send, stop } = useChatStream({
-    locale: options.locale,
-    subject: options.subject,
-  });
+  const { send, stop } = useChatSender();
   const images = useImagesConfig();
   const pictures = useAttachments(images.maxImages);
 

@@ -3,7 +3,9 @@
 import { useEntries } from "@/features/entries/entries_state";
 import { useShowEntry } from "@/features/entries/use_show_entry";
 import type { Entry } from "@/features/entries/types";
+import { useChatSender } from "@/features/chat/chat_sender";
 import { useHeldEntry } from "../use_held_entry";
+import type { TapAct } from "../taps";
 import { agoText, dayText, excerptOf } from "../when";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -31,6 +33,7 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
   const held = useHeldEntry(options.id, options.known);
   const { state } = useEntries();
   const show = useShowEntry();
+  const { tap } = useChatSender();
   const t = options.t.widgets.memory;
 
   if (held.missing) {
@@ -68,9 +71,11 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
 
       <div className="flex flex-wrap gap-2 pt-1">
         {entry ? (
-          <button className={BUTTON} onClick={() => show(entry)} type="button">
-            {t.open}
-          </button>
+          <MemoryActions
+            onTap={(act) => void tap({ widget: "memory", act, id: entry.id, date: entry.date })}
+            onOpen={() => show(entry)}
+            t={options.t}
+          />
         ) : null}
         {options.onAnother ? (
           <button className={`${BUTTON} text-muted`} onClick={options.onAnother} type="button">
@@ -79,5 +84,44 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
         ) : null}
       </div>
     </article>
+  );
+}
+
+interface MemoryActionsOptions {
+  t: Dictionary;
+  onTap: (act: TapAct) => void;
+  onOpen: () => void;
+}
+
+/**
+ * Talking and writing ask the journal for an answer. Opening is the reader's
+ * own move, and the journal is only told, with whatever they say next.
+ */
+function MemoryActions(options: MemoryActionsOptions) {
+  const t = options.t.widgets.memory;
+
+  return (
+    <>
+      <button
+        className={`${BUTTON} border-brand bg-brand text-on-brand hover:bg-brand-strong`}
+        onClick={() => options.onTap("talk")}
+        type="button"
+      >
+        {t.talk}
+      </button>
+      <button className={BUTTON} onClick={() => options.onTap("write")} type="button">
+        {t.write}
+      </button>
+      <button
+        className={BUTTON}
+        onClick={() => {
+          options.onOpen();
+          options.onTap("open");
+        }}
+        type="button"
+      >
+        {t.open}
+      </button>
+    </>
   );
 }
