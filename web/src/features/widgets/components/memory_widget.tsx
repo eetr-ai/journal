@@ -37,6 +37,10 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
     return <p className="not-prose my-3 text-xs text-muted">{t.missing}</p>;
   }
 
+  if (held.failed) {
+    return <p className="not-prose my-3 text-xs text-accent">{t.failed}</p>;
+  }
+
   const entry = held.entry;
 
   return (

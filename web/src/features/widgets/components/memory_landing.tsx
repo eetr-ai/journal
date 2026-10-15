@@ -24,19 +24,25 @@ export default function MemoryLanding(options: MemoryLandingOptions) {
   useEffect(() => {
     let abandoned = false;
 
-    void memoryAction().then((first) => {
-      if (!abandoned && first) {
-        setMemory(first);
-      }
-    });
+    // A memory that could not be fetched is no memory: the landing is an
+    // invitation, and the conversation works without it.
+    void memoryAction().then(
+      (first) => {
+        if (!abandoned && first) {
+          setMemory(first);
+        }
+      },
+      () => {},
+    );
 
     return () => {
       abandoned = true;
     };
   }, []);
 
+  // A failed ask leaves the memory on screen where it was.
   async function another(shown: string) {
-    const next = await memoryAction(shown);
+    const next = await memoryAction(shown).catch(() => null);
 
     if (next) {
       setMemory(next);

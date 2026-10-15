@@ -6,6 +6,7 @@ const widgets = {
     another: "Another memory",
     opening: "Opening...",
     missing: "That entry isn't in your journal any more.",
+    failed: "This memory could not be opened. Try again in a moment.",
   },
 };
 

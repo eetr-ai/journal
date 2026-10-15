@@ -26,14 +26,27 @@ export function widgetFrom(name: string, attributes: Attributes | null | undefin
   return read ? read(attributes ?? {}) : null;
 }
 
-// A tag still arriving: a line that opens one and has not closed its braces.
-const UNFINISHED = /(?:^|\n):{2,3}[a-z][\w-]*(?:\{[^}\n]*)?$/u;
+// The last line, when it could be a tag still arriving: colons, a name, and
+// braces not yet closed.
+const TRAILING_TAG = /(?:^|\n):{2,3}([a-z][\w-]*)(\{[^}\n]*)?$/u;
 
 /**
- * A reply as far as it can be drawn mid-stream. A tag half-written is left
+ * A reply as far as it can be drawn mid-stream. A widget half-written is left
  * off until it is whole, rather than flashing up as source and then turning
- * into a card.
+ * into a card. Only one that can still become a widget: a name the catalog
+ * does not start with is text, and text is never held back.
  */
 export function withoutUnfinished(text: string): string {
-  return text.replace(UNFINISHED, "");
+  const found = TRAILING_TAG.exec(text);
+
+  if (!found) {
+    return text;
+  }
+
+  const [, name, braces] = found;
+  const coming = Object.keys(CATALOG).some((known) =>
+    braces === undefined ? known.startsWith(name) : known === name,
+  );
+
+  return coming ? text.slice(0, found.index) : text;
 }

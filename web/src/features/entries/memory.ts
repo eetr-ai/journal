@@ -29,12 +29,14 @@ function dayNumber(day: string): number {
   return Math.floor(Date.parse(`${day}T00:00:00Z`) / MS_PER_DAY);
 }
 
+// Clamped to the target month's last day: three months before May 31 is the end
+// of February, not the March 3rd that rolling the month alone would give.
 function monthsBefore(day: string, months: number): number {
-  const at = new Date(`${day}T00:00:00Z`);
+  const [year, month, date] = day.split("-").map(Number);
+  // Day 0 of the month after is the last day of the target month.
+  const last = new Date(Date.UTC(year, month - months, 0)).getUTCDate();
 
-  at.setUTCMonth(at.getUTCMonth() - months);
-
-  return Math.floor(at.getTime() / MS_PER_DAY);
+  return Math.floor(Date.UTC(year, month - 1 - months, Math.min(date, last)) / MS_PER_DAY);
 }
 
 /** Days written near one of the anniversaries, oldest window last. */

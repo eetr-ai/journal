@@ -11,6 +11,8 @@ export interface HeldEntry {
   opened?: OpenedEntry;
   /** Not this person's, or thrown away: there is nothing to show. */
   missing: boolean;
+  /** The journal could not be reached. Not the same as gone: it may be there. */
+  failed: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export interface HeldEntry {
 export function useHeldEntry(id: string, known?: Entry): HeldEntry {
   const { state, dispatch } = useEntries();
   const [gone, setGone] = useState(false);
+  const [failed, setFailed] = useState(false);
   const entry = state.entries.find((held) => held.id === id);
   const held = entry !== undefined;
   const discarded = state.discarded.includes(id);
@@ -44,22 +47,29 @@ export function useHeldEntry(id: string, known?: Entry): HeldEntry {
 
     let abandoned = false;
 
-    void readEntryAction(id).then((read) => {
-      if (abandoned) {
-        return;
-      }
+    void readEntryAction(id).then(
+      (read) => {
+        if (abandoned) {
+          return;
+        }
 
-      if (read) {
-        dispatch({ type: EntriesActionType.Arrived, data: read });
-      } else {
-        setGone(true);
-      }
-    });
+        if (read) {
+          dispatch({ type: EntriesActionType.Arrived, data: read });
+        } else {
+          setGone(true);
+        }
+      },
+      () => {
+        if (!abandoned) {
+          setFailed(true);
+        }
+      },
+    );
 
     return () => {
       abandoned = true;
     };
   }, [discarded, dispatch, held, id, known]);
 
-  return { entry, opened: state.opened[id], missing: gone || discarded };
+  return { entry, opened: state.opened[id], missing: gone || discarded, failed };
 }

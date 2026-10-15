@@ -7,6 +7,7 @@ const widgets: WidgetsDictionary = {
     another: "Otro recuerdo",
     opening: "Abriendo...",
     missing: "Esa entrada ya no está en tu diario.",
+    failed: "Este recuerdo no se pudo abrir. Probá de nuevo en un momento.",
   },
 };
 
