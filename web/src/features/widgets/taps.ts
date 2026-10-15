@@ -32,10 +32,20 @@ export function tapLine(tap: Tap): string {
   return `[tap ${tap.widget}.${tap.act} id=${tap.id} date=${tap.date}]`;
 }
 
-export function tapFrom(line: string): Tap | null {
-  const found = LINE.exec(line.trim());
+/** A day that is on the calendar: 2025-02-31 has the shape of one and is not. */
+function isRealDay(day: string): boolean {
+  const [year, month, date] = day.split("-").map(Number);
+  const at = new Date(Date.UTC(year, month - 1, date));
 
-  if (!found || !isEntryId(found[2])) {
+  return at.getUTCFullYear() === year && at.getUTCMonth() === month - 1 && at.getUTCDate() === date;
+}
+
+// The line exactly as tapLine writes it. Not trimmed: an indented line is one
+// somebody typed, and what they typed is never mistaken for a tap.
+export function tapFrom(line: string): Tap | null {
+  const found = LINE.exec(line);
+
+  if (!found || !isEntryId(found[2]) || !isRealDay(found[3])) {
     return null;
   }
 
