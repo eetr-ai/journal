@@ -71,5 +71,12 @@ export function useHeldEntry(id: string, known?: Entry): HeldEntry {
     };
   }, [discarded, dispatch, held, id, known]);
 
-  return { entry, opened: state.opened[id], missing: gone || discarded, failed };
+  // A read that failed says nothing once the entry has arrived some other way,
+  // as the agent writing into it or the drawer loading it.
+  return {
+    entry,
+    opened: state.opened[id],
+    missing: gone || discarded,
+    failed: failed && !held,
+  };
 }
