@@ -25,6 +25,9 @@
   --color-on-brand: var(--on-brand);
   --color-accent: var(--accent);
   --color-on-accent: var(--on-accent);
+  --color-user-bubble: var(--user-bubble);
+  --color-user-bubble-border: var(--user-bubble-border);
+  --color-on-user-bubble: var(--on-user-bubble);
   --color-highlight: var(--highlight);
 
   --font-sans:
@@ -46,6 +49,9 @@
   --accent: #d6336c;
   --on-accent: #ffffff;
   --highlight: #fcb00a;
+  --user-bubble: #4f9e33;
+  --user-bubble-border: #4f9e33;
+  --on-user-bubble: #ffffff;
 }
 
 .dark {
@@ -61,6 +67,10 @@
   --accent: #ff7aa0;
   --on-accent: #10160d;
   --highlight: #fcb00a;
+  /* A tint, not the brand itself: a saturated block glares on a near-black page. */
+  --user-bubble: #273a1b;
+  --user-bubble-border: #3c5a2b;
+  --on-user-bubble: #eef2e6;
 }
 
 /*

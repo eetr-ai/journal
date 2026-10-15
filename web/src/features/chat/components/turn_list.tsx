@@ -82,7 +82,7 @@ function YourTurn(options: YourTurnOptions) {
       {turn.text === "" ? null : (
         <div
           aria-label={t.you}
-          className="max-w-lg rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand"
+          className="max-w-lg rounded-2xl rounded-br-sm border border-user-bubble-border bg-user-bubble px-4 py-2.5 text-sm text-on-user-bubble"
         >
           {turn.text}
         </div>
