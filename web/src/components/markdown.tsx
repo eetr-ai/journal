@@ -1,8 +1,10 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
+import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import remarkCallouts from "./callouts";
 import rehypeChanged from "./rehype_changed";
+import remarkWidgets, { WIDGET_PROPERTY } from "@/features/widgets/remark_widgets";
 import { isExternal } from "./links";
 import type { TextRange } from "@/features/entries/changes";
 
@@ -17,6 +19,11 @@ export interface MarkdownOptions {
   scheme?: string;
   /** Stretches of `children`, by offset, whose blocks are marked `data-changed`. */
   changed?: TextRange[];
+  /**
+   * Draws a widget from the catalog, handed the checked widget as JSON.
+   * Without it, `::name{…}` lines are just text.
+   */
+  widget?: (encoded: string) => ReactNode;
 }
 
 // A link out of the app opens beside it rather than in place of it, and the
@@ -33,15 +40,31 @@ const link: Components["a"] = (options) => {
   );
 };
 
+// How the reply being rendered draws a widget. A context rather than a closure
+// in the components map, so the div below is one component for the life of the
+// page: a new one each render would remount every card on every streamed token.
+const DrawWidget = createContext<((encoded: string) => ReactNode) | null>(null);
+
+// A div carrying a widget is one the widgets plugin made; any other is a div.
+const WidgetDiv: Components["div"] = (options) => {
+  const draw = useContext(DrawWidget);
+  const { node, ...div } = options;
+  const encoded = node?.properties?.[WIDGET_PROPERTY];
+
+  return draw && typeof encoded === "string" ? draw(encoded) : <div {...div} />;
+};
+
 function componentsFor(options: MarkdownOptions, own: (url: string) => boolean): Components {
   const renderImage = options.renderImage;
+  const div = options.widget ? { div: WidgetDiv } : {};
 
   if (!renderImage) {
-    return { a: link };
+    return { a: link, ...div };
   }
 
   return {
     a: link,
+    ...div,
     // Only our own pictures are drawn; any other image shows its alt text,
     // so words we render never make the browser fetch a stranger's URL.
     img: (image) =>
@@ -62,14 +85,20 @@ export default function Markdown(options: MarkdownOptions) {
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:my-2">
-      <ReactMarkdown
-        components={componentsFor(options, own)}
-        rehypePlugins={options.changed ? [[rehypeChanged, options.changed]] : []}
-        remarkPlugins={[remarkGfm, remarkCallouts]}
-        urlTransform={(url) => (own(url) ? url : defaultUrlTransform(url))}
-      >
-        {options.children}
-      </ReactMarkdown>
+      <DrawWidget value={options.widget ?? null}>
+        <ReactMarkdown
+          components={componentsFor(options, own)}
+          rehypePlugins={options.changed ? [[rehypeChanged, options.changed]] : []}
+          remarkPlugins={
+            options.widget
+              ? [remarkGfm, remarkCallouts, remarkDirective, remarkWidgets]
+              : [remarkGfm, remarkCallouts]
+          }
+          urlTransform={(url) => (own(url) ? url : defaultUrlTransform(url))}
+        >
+          {options.children}
+        </ReactMarkdown>
+      </DrawWidget>
     </div>
   );
 }

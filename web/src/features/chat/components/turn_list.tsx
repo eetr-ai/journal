@@ -1,11 +1,14 @@
 "use client";
 
+import { useCallback } from "react";
 import Image from "next/image";
 import Markdown from "@/components/markdown";
 import Moment from "./moment";
 import ReasoningPanel from "./reasoning_panel";
 import ToolSteps from "./tool_steps";
 import TypingDots from "./typing_dots";
+import ChatWidget from "@/features/widgets/components/chat_widget";
+import { withoutUnfinished } from "@/features/widgets/rules";
 import { useChat, type ChatTurn } from "../chat_state";
 import { endsARun } from "../moments";
 import type { Dictionary } from "@/i18n/en";
@@ -134,6 +137,11 @@ interface JournalTurnOptions {
 
 function JournalTurn(options: JournalTurnOptions) {
   const turn = options.turn;
+  const { locale, t } = options;
+  const drawWidget = useCallback(
+    (encoded: string) => <ChatWidget encoded={encoded} locale={locale} t={t} />,
+    [locale, t],
+  );
 
   return (
     <div aria-label={options.t.chat.journal} className="text-sm motion-safe:animate-rise-in">
@@ -144,7 +152,9 @@ function JournalTurn(options: JournalTurnOptions) {
       ) : (
         <>
           <div className={options.live ? "live-caret" : undefined}>
-            <Markdown>{turn.text}</Markdown>
+            <Markdown widget={drawWidget}>
+              {options.live ? withoutUnfinished(turn.text) : turn.text}
+            </Markdown>
           </div>
           {endsARun(turn.at, options.next, turn.from) ? (
             <Moment

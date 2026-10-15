@@ -1,6 +1,7 @@
 import type { Dictionary } from "./en";
 import tools from "./es_tools";
 import images from "./es_images";
+import widgets from "./es_widgets";
 
 // Typed as Dictionary rather than inferred, which is what makes a missing or
 // misspelled key fail the build instead of silently falling back to English.
@@ -277,6 +278,7 @@ const es: Dictionary = {
   },
 
   images,
+  widgets,
 
   validation: {
     required: "Esto no puede estar vacío",

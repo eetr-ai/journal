@@ -13,6 +13,9 @@ export const MAX_QUERY_CHARS = 200;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
+// Entry ids are UUIDs, whoever minted them.
+const ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
 export type QueryProblem = "empty" | "tooLong";
 
 export function queryProblem(query: string): QueryProblem | null {
@@ -28,6 +31,11 @@ export function queryProblem(query: string): QueryProblem | null {
 /** A stored day, as the calendar names one. Shape only; any date may be asked for. */
 export function isDay(value: string): boolean {
   return DAY.test(value);
+}
+
+/** Shape only: whether the entry is this person's is the agent's to answer. */
+export function isEntryId(value: unknown): value is string {
+  return typeof value === "string" && ENTRY_ID.test(value);
 }
 
 export interface SearchAsk {

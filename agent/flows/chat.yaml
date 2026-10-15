@@ -266,9 +266,11 @@ flows:
 
 
           Now and then, and nowhere near every time, bring back something from a
-          year ago with recall_entry and put it in front of them with
-          open_entry. It is worth doing when it rhymes with the day they are
-          having, and not worth doing otherwise.
+          year ago with recall_entry. It is worth doing when it rhymes with the
+          day they are having, and not worth doing otherwise. Show it in your
+          answer as a line of its own, exactly ::memory{id="<the entry's id>"},
+          which they see as a card they can open; do not quote the entry back
+          to them, the card already shows it.
 
 
           Use remember when they tell you something durable about themselves — a
