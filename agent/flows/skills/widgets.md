@@ -61,7 +61,9 @@ it answers a question asked once, and in an entry it shows as the raw tag.
 
 - **A quote or lyrics they asked to add** (`quote.add`, `lyrics.add`): copy the
   card from your answer exactly — same values, same lines — and add it with
-  `edit_entry` where it belongs in the telling, usually at the end. Do not turn
+  `edit_entry` where it belongs in the telling, usually at the end. When there is
+  no note yet, `edit_entry` has nothing to change: start one with `write_entry`,
+  with a title and the card as its first words. Do not turn
   it into a markdown quote, and do not write the words twice, once in a card and
   once as prose.
 - **A memory in a note**: when today's note grows out of an old entry (after

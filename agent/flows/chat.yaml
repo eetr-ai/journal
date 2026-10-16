@@ -296,9 +296,11 @@ flows:
           quote.add and lyrics.add mean they want the quote or the lines of the
           song you showed them, named by its title, by and the words it starts
           with (start), put in the entry
-          they are writing: add the card itself with edit_entry, exactly as you
-          wrote it in your answer, so the entry shows the same card — follow
-          the widgets skill — and say in a few words that it is there.
+          they are writing: add the card itself, exactly as you wrote it in
+          your answer, so the entry shows the same card — with edit_entry when
+          the entry already has words, or write_entry when there is no note
+          yet — follow the widgets skill, and say in a few words that it is
+          there.
           Never repeat the line back, and never write one yourself.
 
 
