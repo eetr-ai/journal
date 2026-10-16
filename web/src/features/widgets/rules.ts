@@ -25,6 +25,12 @@ type Attributes = Record<string, string | null | undefined>;
 /** A leaf is one line, `::name{…}`; a container has a body, `:::name{…}` to `:::`. */
 export type Shape = "leaf" | "container";
 
+/**
+ * Where the words being drawn live. An entry is kept, so it holds only cards
+ * that still mean something when reread: a search is a question asked once.
+ */
+export type Place = "chat" | "entry";
+
 interface Written {
   attributes: Attributes;
   /** The lines between the fences, for a container. */
@@ -127,27 +133,43 @@ function trimBlank(lines: string[]): string[] {
   return lines.slice(first, last + 1);
 }
 
-const CATALOG: Record<string, { shape: Shape; read: (written: Written) => Widget | null }> = {
+interface Listing {
+  shape: Shape;
+  places: Place[];
+  read: (written: Written) => Widget | null;
+}
+
+const ANYWHERE: Place[] = ["chat", "entry"];
+
+const CATALOG: Record<string, Listing> = {
   memory: {
     shape: "leaf",
+    places: ANYWHERE,
     read: ({ attributes }) =>
       isEntryId(attributes.id) ? { name: "memory", id: attributes.id } : null,
   },
-  search: { shape: "leaf", read: searchFrom },
-  quote: { shape: "container", read: quoteFrom },
-  lyrics: { shape: "container", read: lyricsFrom },
+  search: { shape: "leaf", places: ["chat"], read: searchFrom },
+  quote: { shape: "container", places: ANYWHERE, read: quoteFrom },
+  lyrics: { shape: "container", places: ANYWHERE, read: lyricsFrom },
 };
 
-/** A widget, if `name` is in the catalog in this shape and its values hold. */
-export function widgetFrom(
-  name: string,
-  shape: Shape,
-  attributes: Attributes | null | undefined,
-  body = "",
-): Widget | null {
-  const entry = Object.hasOwn(CATALOG, name) ? CATALOG[name] : undefined;
+export interface Found {
+  name: string;
+  shape: Shape;
+  attributes: Attributes | null | undefined;
+  /** The lines between the fences, for a container. */
+  body?: string;
+}
 
-  return entry?.shape === shape ? entry.read({ attributes: attributes ?? {}, body }) : null;
+/** A widget, if it is in the catalog in this shape, may be drawn here, and its values hold. */
+export function widgetFrom(found: Found, place: Place): Widget | null {
+  const listing = Object.hasOwn(CATALOG, found.name) ? CATALOG[found.name] : undefined;
+
+  if (listing?.shape !== found.shape || !listing.places.includes(place)) {
+    return null;
+  }
+
+  return listing.read({ attributes: found.attributes ?? {}, body: found.body ?? "" });
 }
 
 // The last line, when it could be a tag still arriving: colons, a name, and

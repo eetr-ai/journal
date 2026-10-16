@@ -82,6 +82,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
         {keeping.failed && <Failure text={options.t.entries.bookmarkFailed} />}
         <EntryContent
           entry={entry}
+          locale={options.locale}
           opened={opened}
           previous={previous}
           subject={options.subject}

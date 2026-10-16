@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkCallouts from "./callouts";
 import rehypeChanged from "./rehype_changed";
 import remarkWidgets, { WIDGET_PROPERTY } from "@/features/widgets/remark_widgets";
+import type { Place } from "@/features/widgets/rules";
 import { isExternal } from "./links";
 import type { TextRange } from "@/features/entries/changes";
 
@@ -24,6 +25,8 @@ export interface MarkdownOptions {
    * Without it, `::name{…}` lines are just text.
    */
   widget?: (encoded: string) => ReactNode;
+  /** Which of the catalog's cards these words may draw: a reply's, by default. */
+  place?: Place;
 }
 
 // A link out of the app opens beside it rather than in place of it, and the
@@ -46,12 +49,20 @@ const link: Components["a"] = (options) => {
 const DrawWidget = createContext<((encoded: string) => ReactNode) | null>(null);
 
 // A div carrying a widget is one the widgets plugin made; any other is a div.
+// The card keeps the block's change mark, so a card the agent added is shown
+// like any other passage it wrote.
 const WidgetDiv: Components["div"] = (options) => {
   const draw = useContext(DrawWidget);
   const { node, ...div } = options;
   const encoded = node?.properties?.[WIDGET_PROPERTY];
 
-  return draw && typeof encoded === "string" ? draw(encoded) : <div {...div} />;
+  if (!draw || typeof encoded !== "string") {
+    return <div {...div} />;
+  }
+
+  return (
+    <div data-changed={node?.properties?.dataChanged as string | undefined}>{draw(encoded)}</div>
+  );
 };
 
 function componentsFor(options: MarkdownOptions, own: (url: string) => boolean): Components {
@@ -91,7 +102,12 @@ export default function Markdown(options: MarkdownOptions) {
           rehypePlugins={options.changed ? [[rehypeChanged, options.changed]] : []}
           remarkPlugins={
             options.widget
-              ? [remarkGfm, remarkCallouts, remarkDirective, remarkWidgets]
+              ? [
+                  remarkGfm,
+                  remarkCallouts,
+                  remarkDirective,
+                  [remarkWidgets, options.place ?? "chat"],
+                ]
               : [remarkGfm, remarkCallouts]
           }
           urlTransform={(url) => (own(url) ? url : defaultUrlTransform(url))}

@@ -1,4 +1,4 @@
-import { widgetFrom } from "./rules";
+import { widgetFrom, type Place } from "./rules";
 
 /**
  * Turns `::name{…}` lines and `:::name{…}` blocks from `remark-directive` into
@@ -63,22 +63,32 @@ function bodyOf(node: Node, source: string): string {
   return lines.join("\n");
 }
 
-function widgetIn(node: Node, source: string) {
+interface Drawing {
+  source: string;
+  place: Place;
+}
+
+function widgetIn(node: Node, drawing: Drawing) {
   const name = node.name ?? "";
+  const attributes = node.attributes;
 
   // Block-level only: a widget is a card, not something mid-sentence.
   switch (node.type) {
     case "leafDirective":
-      return widgetFrom(name, "leaf", node.attributes);
+      return widgetFrom({ name, shape: "leaf", attributes }, drawing.place);
     case "containerDirective":
-      return widgetFrom(name, "container", node.attributes, bodyOf(node, source));
+      return widgetFrom(
+        { name, shape: "container", attributes, body: bodyOf(node, drawing.source) },
+        drawing.place,
+      );
     default:
       return null;
   }
 }
 
-function drawn(node: Node, source: string): Node {
-  const widget = widgetIn(node, source);
+function drawn(node: Node, drawing: Drawing): Node {
+  const source = drawing.source;
+  const widget = widgetIn(node, drawing);
 
   if (!widget) {
     return asWritten(node, source);
@@ -91,22 +101,23 @@ function drawn(node: Node, source: string): Node {
   };
 }
 
-function walk(node: Node, source: string): void {
+function walk(node: Node, drawing: Drawing): void {
   if (!node.children) {
     return;
   }
 
   node.children = node.children.map((child) =>
-    DIRECTIVES.has(child.type) ? drawn(child, source) : child,
+    DIRECTIVES.has(child.type) ? drawn(child, drawing) : child,
   );
 
   for (const child of node.children) {
-    walk(child, source);
+    walk(child, drawing);
   }
 }
 
-export default function remarkWidgets() {
+/** `place` decides which of the catalog's cards count; the rest stay text. */
+export default function remarkWidgets(place: Place = "chat") {
   return (tree: Node, file: { value: unknown }) => {
-    walk(tree, String(file.value));
+    walk(tree, { source: String(file.value), place });
   };
 }

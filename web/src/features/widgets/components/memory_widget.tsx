@@ -7,6 +7,7 @@ import { useChatSender } from "@/features/chat/chat_sender";
 import { WIDGET_BUTTON, WIDGET_PRIMARY } from "./widget_frame";
 import { useHeldEntry } from "../use_held_entry";
 import type { MemoryAct } from "../taps";
+import type { Place } from "../rules";
 import { agoText, dayText, excerptOf } from "../when";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -19,6 +20,8 @@ export interface MemoryWidgetOptions {
   known?: Entry;
   /** Offered only where there is another to give. */
   onAnother?: () => void;
+  /** In an entry it is a way to another day, with no conversation to tell. */
+  place?: Place;
 }
 
 /**
@@ -31,7 +34,6 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
   const held = useHeldEntry(options.id, options.known);
   const { state } = useEntries();
   const show = useShowEntry();
-  const { tap } = useChatSender();
   const t = options.t.widgets.memory;
 
   if (held.missing) {
@@ -68,12 +70,13 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
       )}
 
       <div className="flex flex-wrap gap-2 pt-1">
-        {entry ? (
-          <MemoryActions
-            onTap={(act) => void tap({ widget: "memory", act, id: entry.id, date: entry.date })}
-            onOpen={() => show(entry)}
-            t={options.t}
-          />
+        {entry && options.place === "entry" ? (
+          <button className={WIDGET_BUTTON} onClick={() => show(entry)} type="button">
+            {t.open}
+          </button>
+        ) : null}
+        {entry && options.place !== "entry" ? (
+          <MemoryActions entry={entry} onOpen={() => show(entry)} t={options.t} />
         ) : null}
         {options.onAnother ? (
           <button
@@ -91,7 +94,7 @@ export default function MemoryWidget(options: MemoryWidgetOptions) {
 
 interface MemoryActionsOptions {
   t: Dictionary;
-  onTap: (act: MemoryAct) => void;
+  entry: Entry;
   onOpen: () => void;
 }
 
@@ -100,21 +103,24 @@ interface MemoryActionsOptions {
  * own move, and the journal is only told, with whatever they say next.
  */
 function MemoryActions(options: MemoryActionsOptions) {
+  const { tap } = useChatSender();
   const t = options.t.widgets.memory;
+  const { id, date } = options.entry;
+  const onTap = (act: MemoryAct) => void tap({ widget: "memory", act, id, date });
 
   return (
     <>
-      <button className={WIDGET_PRIMARY} onClick={() => options.onTap("talk")} type="button">
+      <button className={WIDGET_PRIMARY} onClick={() => onTap("talk")} type="button">
         {t.talk}
       </button>
-      <button className={WIDGET_BUTTON} onClick={() => options.onTap("write")} type="button">
+      <button className={WIDGET_BUTTON} onClick={() => onTap("write")} type="button">
         {t.write}
       </button>
       <button
         className={WIDGET_BUTTON}
         onClick={() => {
           options.onOpen();
-          options.onTap("open");
+          onTap("open");
         }}
         type="button"
       >

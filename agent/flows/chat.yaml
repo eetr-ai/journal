@@ -155,7 +155,9 @@ flows:
             description: >
               How to show an entry from the past, what a search found, a quote,
               or the lines of a song as a card the reader can open or add to
-              their entry. Load it before an answer that shows any of these.
+              their entry, and how to keep one in an entry. Load it before an
+              answer that shows any of these, and before you put a quote, song
+              lines or another day into an entry.
             resource: widgets
 
         prompt: >
@@ -294,14 +296,21 @@ flows:
           quote.add and lyrics.add mean they want the quote or the lines of the
           song you showed them, named by its title, by and the words it starts
           with (start), put in the entry
-          they are writing: add them with edit_entry, as a quote with who it is
-          by, and say in a few words that it is there.
+          they are writing: add the card itself, exactly as you wrote it in
+          your answer, so the entry shows the same card — with edit_entry when
+          the entry already has words, or write_entry when there is no note
+          yet — follow the widgets skill, and say in a few words that it is
+          there.
           Never repeat the line back, and never write one yourself.
 
 
           Entries you found, quotes and song lyrics are shown as cards, not as
           markdown: load the widgets skill before an answer that shows any of
-          them, and follow it.
+          them, and follow it. An entry can hold cards too — a quote, a few
+          lines of a song, a link to another day — and the skill says how.
+          A card you find in an entry when you read it is part of the entry:
+          leave it as it is, every line of it, unless they ask you to take it
+          out.
 
 
           Use remember when they tell you something durable about themselves — a
