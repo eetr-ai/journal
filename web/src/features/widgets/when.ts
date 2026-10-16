@@ -59,6 +59,10 @@ const AROUND_CHARS = 90;
 // Words shorter than this match everywhere and say nothing about the search.
 const MIN_TERM_CHARS = 3;
 
+// A card's own lines: `::memory{…}`, a `:::quote{…}` opening, a `:::` close.
+// What a quote or a song says is between them, and is kept.
+const CARD_LINE = /^\s*:{2,}(?:[a-z][\w-]*(?:\{.*\})?)?\s*$/u;
+
 /**
  * An entry as plain text. A card is a glimpse, not a rendering: headings,
  * pictures and markup are dropped, and links keep only their words.
@@ -66,7 +70,7 @@ const MIN_TERM_CHARS = 3;
 function plainOf(markdown: string): string {
   return markdown
     .split("\n")
-    .filter((line) => !/^\s*#/u.test(line))
+    .filter((line) => !/^\s*#/u.test(line) && !CARD_LINE.test(line))
     .join(" ")
     .replaceAll(/!\[[^\]]*\]\([^)]*\)/gu, "")
     .replaceAll(/\[([^\]]*)\]\([^)]*\)/gu, "$1")

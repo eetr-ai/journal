@@ -11,10 +11,13 @@ import { useEntries } from "../entries_state";
 import { changedRanges, type TextRange } from "../changes";
 import { HIGHLIGHT_MS, useRevealChange } from "../use_reveal_change";
 import { isDraft, type Entry, type OpenedEntry } from "../types";
+import ChatWidget from "@/features/widgets/components/chat_widget";
 import type { Dictionary } from "@/i18n/en";
+import type { Locale } from "@/i18n/config";
 
 export interface EntryContentOptions {
   t: Dictionary;
+  locale: Locale;
   subject: string;
   entry: Entry | null;
   /** What the key made of it, absent until it has been through. */
@@ -46,6 +49,15 @@ function usePicturesOf(entry: Entry | null, subject: string) {
   });
 }
 
+// Cards an entry holds are drawn to be reread. Stable, because a new drawer
+// remounts every card in the words.
+function useDrawWidget(locale: Locale, t: Dictionary) {
+  return useCallback(
+    (encoded: string) => <ChatWidget encoded={encoded} locale={locale} place="entry" t={t} />,
+    [locale, t],
+  );
+}
+
 /**
  * The words, with the pictures their anchors place in them, and a badge for
  * every picture kept with the day. A draft has no row yet, so it has none.
@@ -61,6 +73,7 @@ export default function EntryContent(options: EntryContentOptions) {
   const stopLooking = useCallback(() => setLooking(false), []);
   const pictures = usePicturesOf(entry, options.subject);
   const { content, changed } = useWords(options);
+  const drawWidget = useDrawWidget(options.locale, options.t);
   const box = useRef<HTMLDivElement>(null);
   useRevealChange(box, entry?.id ?? null, changed);
   const anchored = useMemo(() => anchoredIn(content ?? ""), [content]);
@@ -95,6 +108,7 @@ export default function EntryContent(options: EntryContentOptions) {
           />
         )}
         sealed={Boolean(entry)}
+        widget={drawWidget}
         started={options.t.entries.started}
         waiting={options.t.entries.opening}
       />
@@ -122,6 +136,7 @@ interface EntryBodyOptions {
   /** There is an entry; whether its words have arrived yet is the other flag. */
   sealed: boolean;
   renderImage: (url: string, alt: string) => React.ReactNode;
+  widget: (encoded: string) => React.ReactNode;
 }
 
 // Four states worth telling apart: no entry at all, an entry the reader started
@@ -141,7 +156,13 @@ function EntryBody(options: EntryBodyOptions) {
   }
 
   return (
-    <Markdown changed={options.changed} renderImage={options.renderImage} scheme={IMAGE_SCHEME}>
+    <Markdown
+      changed={options.changed}
+      place="entry"
+      renderImage={options.renderImage}
+      scheme={IMAGE_SCHEME}
+      widget={options.widget}
+    >
       {options.body}
     </Markdown>
   );

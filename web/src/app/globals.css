@@ -340,3 +340,28 @@ body:has(.viewport-pinned) {
     animation: changed-fade var(--changed-ms, 2400ms) ease-out both;
   }
 }
+
+/* A card is opaque, so a wash behind it would only show in its margins: it is
+   ringed instead. */
+@keyframes changed-ring {
+  from {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--highlight) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+.prose [data-changed]:has(> .not-prose) {
+  background-color: transparent;
+  animation: none;
+}
+
+.prose [data-changed] > .not-prose {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--highlight) 40%, transparent);
+
+  @media (prefers-reduced-motion: no-preference) {
+    box-shadow: none;
+    animation: changed-ring var(--changed-ms, 2400ms) ease-out both;
+  }
+}
