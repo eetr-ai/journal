@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.14](https://github.com/eetr-ai/journal/compare/v0.0.13...v0.0.14) (2026-10-16)
+
+
+### Features
+
+* quote, lyrics and memory cards in journal entries ([#53](https://github.com/eetr-ai/journal/issues/53)) ([43e0f49](https://github.com/eetr-ai/journal/commit/43e0f4928d05e0f503c7dc03055d487537f70d8a))
+
 ## [0.0.13](https://github.com/eetr-ai/journal/compare/v0.0.12...v0.0.13) (2026-10-15)
 
 
