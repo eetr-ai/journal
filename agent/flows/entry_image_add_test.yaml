@@ -1,0 +1,57 @@
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. This
+# suite appends pictures to the second `dolphin-images` entry; the seed empties
+# it again before every run.
+flow: entry-image-add
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a picture the reader adds is kept with their entry, sealed
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        mimeType: image/png
+        caption: Pasted
+        data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC
+      vars: { subject: dolphin-images, id: f1f1f1f1-0000-4000-8000-000000000002 }
+    expect:
+      that:
+        - body.added == true
+        - body.entryId == "f1f1f1f1-0000-4000-8000-000000000002"
+        - body.id != ""
+    spies:
+      entry-image-add.insert-image:
+        records:
+          - input:
+              that:
+                - vars.sealedData.startsWith("enc1:")
+                - vars.sealedCaption.startsWith("enc1:")
+                - '!vars.sealedData.contains("iVBORw0KGgo")'
+
+  # Holding an id is not enough: the insert is scoped by subject as well.
+  - name: another person's entry takes nothing
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        mimeType: image/png
+        data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC
+      vars: { subject: dolphin-entries-other, id: f1f1f1f1-0000-4000-8000-000000000002 }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        added: false
+        error: entry not found
+
+  - name: an entry that does not exist takes nothing
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        mimeType: image/png
+        data: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC
+      vars: { subject: dolphin-images, id: f1f1f1f1-0000-4000-8000-0000000000ff }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        added: false
+        error: entry not found
