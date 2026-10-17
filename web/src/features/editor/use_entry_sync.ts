@@ -45,6 +45,12 @@ export interface EntrySyncOptions {
   pictures: ReadonlySet<string>;
 }
 
+interface Latest {
+  state: EditorState;
+  key: string | null;
+  options: EntrySyncOptions;
+}
+
 interface Attempt {
   state: EditorState;
   key: string;
@@ -89,7 +95,7 @@ function settle(attempt: Attempt, outcome: SaveOutcome): void {
   }
 }
 
-async function send(attempt: Attempt): Promise<void> {
+async function send(attempt: Attempt): Promise<SaveOutcome | null> {
   const { state, options } = attempt;
   const words = { title: state.present.title, content: state.present.markdown };
   // Anchors already stored stand while their pictures are still loading.
@@ -98,7 +104,7 @@ async function send(attempt: Attempt): Promise<void> {
 
   if (problem) {
     attempt.dispatch({ type: EditorActionType.Rejected, data: problem });
-    return;
+    return null;
   }
 
   attempt.dispatch({ type: EditorActionType.SaveStarted });
@@ -108,34 +114,62 @@ async function send(attempt: Attempt): Promise<void> {
     date: options.entry.date,
     version: state.saved.version,
   };
-  settle(attempt, await saveEntryAction(save, attempt.key).catch(() => FAILED));
+  const outcome = await saveEntryAction(save, attempt.key).catch(() => FAILED);
+  settle(attempt, outcome);
+  return outcome;
+}
+
+// The version a save landed, carried into what the next flush reads. Once the
+// editor has unmounted nothing renders again to put it there.
+function landed(now: Latest, attempt: Attempt, version: number): Latest {
+  const { title, markdown } = attempt.state.present;
+
+  return { ...now, state: { ...now.state, saved: { title, markdown, version } } };
 }
 
 export function useEntrySync(options: EntrySyncOptions): { flush: () => void } {
   const { state, dispatch } = useEditorState();
   const entries = useEntries().dispatch;
   const key = useAgentKey(options.subject);
-  const latest = useRef({ state, key, options });
+  const latest = useRef<Latest>({ state, key, options });
   const sending = useRef(false);
+  // A flush asked for while a save was out, which goes once that one settles.
+  const queued = useRef(false);
   const dirtySince = useRef<number | null>(null);
 
   useEffect(() => {
     latest.current = { state, key, options };
   });
 
-  const flush = useCallback(() => {
-    const now = latest.current;
+  const flush = useCallback(
+    function flush() {
+      const now = latest.current;
 
-    if (sending.current || !now.key || !isDirty(now.state) || now.state.incoming) {
-      return;
-    }
+      if (!now.key || !isDirty(now.state) || now.state.incoming) {
+        return;
+      }
+      if (sending.current) {
+        queued.current = true;
+        return;
+      }
 
-    sending.current = true;
-    dirtySince.current = null;
-    void send({ ...now, key: now.key, dispatch, entries }).finally(() => {
-      sending.current = false;
-    });
-  }, [dispatch, entries]);
+      sending.current = true;
+      dirtySince.current = null;
+      const attempt = { ...now, key: now.key, dispatch, entries };
+      void send(attempt)
+        .catch(() => null)
+        .then((outcome) => {
+          sending.current = false;
+          const again = queued.current && outcome?.status === "saved";
+          queued.current = false;
+          if (again) {
+            latest.current = landed(latest.current, attempt, outcome.entry.version);
+            flush();
+          }
+        });
+    },
+    [dispatch, entries],
+  );
 
   const dirty = isDirty(state);
   const held = HELD.has(state.status) || state.incoming !== null;
