@@ -27,6 +27,7 @@ export default function PictureSlotView(params: ReactNodeViewProps) {
 
   return (
     <NodeViewWrapper
+      data-picture-slot=""
       className={`group relative my-2 rounded-lg border border-dashed border-border bg-surface-muted ${params.selected ? "editor-selected" : ""}`}
       contentEditable={false}
       onDragOver={(event: React.DragEvent) => event.preventDefault()}
@@ -57,23 +58,33 @@ export default function PictureSlotView(params: ReactNodeViewProps) {
           </span>
         </button>
       )}
-      <button
-        aria-label={context.t.editor.remove}
-        className="absolute top-1 right-1 rounded p-1 text-muted opacity-0 group-hover:opacity-100 hover:text-accent focus:opacity-100"
-        onClick={() => params.deleteNode()}
-        title={context.t.editor.remove}
-        type="button"
-      >
-        <XIcon size={ICON_SIZE} />
-      </button>
+      <RemoveButton label={context.t.editor.remove} onRemove={() => params.deleteNode()} />
       <input
         accept={ACCEPTED_TYPES.join(",")}
         className="hidden"
-        onChange={(event) => pick(event.target.files)}
+        onChange={(event) => {
+          pick(event.target.files);
+          // Cleared, so the same file picked again after a failure still counts.
+          event.target.value = "";
+        }}
         ref={input}
         type="file"
       />
     </NodeViewWrapper>
+  );
+}
+
+function RemoveButton(options: { label: string; onRemove: () => void }) {
+  return (
+    <button
+      aria-label={options.label}
+      className="absolute top-1 right-1 rounded p-1 text-muted opacity-0 group-hover:opacity-100 hover:text-accent focus:opacity-100"
+      onClick={options.onRemove}
+      title={options.label}
+      type="button"
+    >
+      <XIcon size={ICON_SIZE} />
+    </button>
   );
 }
 

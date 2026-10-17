@@ -69,6 +69,11 @@ function took(editor: Editor | null, options: EntryTiptapOptions, files: File[],
   return true;
 }
 
+// A drop on a picture slot is the slot's to take; the words leave it alone.
+function onSlot(event: DragEvent): boolean {
+  return event.target instanceof Element && event.target.closest("[data-picture-slot]") !== null;
+}
+
 function droppedAt(view: EditorView, event: DragEvent): number {
   return (
     view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from
@@ -110,6 +115,7 @@ export function useEntryTiptap(options: EntryTiptapOptions): Editor | null {
           view.state.selection.from,
         ),
       handleDrop: (view, event) =>
+        onSlot(event) ||
         took(made.current, latest.current, picturesIn(event.dataTransfer), droppedAt(view, event)),
     },
     onCreate: ({ editor }) => {

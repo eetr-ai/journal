@@ -32,28 +32,39 @@ export function researchFrom(kind: unknown, query: unknown, locale: unknown): Re
   return { kind: kind as ResearchKind, query: trimmed, locale: locale as Locale };
 }
 
+// A card found twice is listed once, where it was first found.
+function distinct(hits: ResearchHit[]): ResearchHit[] {
+  return hits.filter(
+    (hit, index) => hits.findIndex((other) => other.source === hit.source) === index,
+  );
+}
+
 function separated(parts: (string | undefined)[]): string {
   return parts.filter((part) => part && part.trim() !== "").join(" · ");
 }
 
 /** The quotes the catalog would draw; the rest are dropped, not repaired. */
 export function quoteHits(found: QuoteEntity[]): ResearchHit[] {
-  return found.flatMap((quote) => {
-    const source = quoteDirective(quote);
+  return distinct(
+    found.flatMap((quote) => {
+      const source = quoteDirective(quote);
 
-    return source
-      ? [{ source, title: quote.text.trim(), detail: separated([quote.by, quote.source]) }]
-      : [];
-  });
+      return source
+        ? [{ source, title: quote.text.trim(), detail: separated([quote.by, quote.source]) }]
+        : [];
+    }),
+  );
 }
 
 export function songHits(found: SongEntity[]): ResearchHit[] {
-  return found.flatMap((song) => {
-    const source = lyricsDirective(song);
-    const first = song.lines.find((line) => line.trim() !== "");
+  return distinct(
+    found.flatMap((song) => {
+      const source = lyricsDirective(song);
+      const first = song.lines.find((line) => line.trim() !== "");
 
-    return source
-      ? [{ source, title: separated([song.title, song.by]), detail: first?.trim() ?? "" }]
-      : [];
-  });
+      return source
+        ? [{ source, title: separated([song.title, song.by]), detail: first?.trim() ?? "" }]
+        : [];
+    }),
+  );
 }
