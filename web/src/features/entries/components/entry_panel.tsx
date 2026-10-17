@@ -120,8 +120,12 @@ function ThrowAwayDialog(options: ThrowAwayDialogOptions) {
   );
 }
 
+interface ToolbarSlotOptions {
+  onSlot: (element: HTMLElement | null) => void;
+}
+
 // Where the editor puts its save button, handed up once it is in the page.
-function ToolbarSlot(params: { onSlot: (element: HTMLElement | null) => void }) {
+function ToolbarSlot(params: ToolbarSlotOptions) {
   const own = useRef<HTMLSpanElement>(null);
   const report = params.onSlot;
 
