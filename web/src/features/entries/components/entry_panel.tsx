@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { BookmarkSimpleIcon, SunHorizonIcon, TrashIcon } from "@phosphor-icons/react";
 import ConfirmDialog from "@/components/confirm_dialog";
 import EntryContent from "./entry_content";
@@ -44,6 +45,8 @@ export default function EntryPanel(options: EntryPanelOptions) {
   useOpenedEntries(options.subject, options.t.entries.unreadable);
   useEntryUrl();
 
+  // The header's slot for the editor's save button, which lives with the words.
+  const [toolbar, setToolbar] = useState<HTMLElement | null>(null);
   const entry = entryShowing(state);
   const opened = entry ? state.opened[entry.id] : undefined;
   const previous = entry ? state.previous[entry.id] : undefined;
@@ -77,6 +80,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
           t={options.t}
           title={opened?.title ?? previous?.title}
           today={state.today}
+          toolbar={setToolbar}
         />
         {going.failed && <Failure text={options.t.entries.deleteFailed} />}
         {keeping.failed && <Failure text={options.t.entries.bookmarkFailed} />}
@@ -87,20 +91,47 @@ export default function EntryPanel(options: EntryPanelOptions) {
           previous={previous}
           subject={options.subject}
           t={options.t}
+          toolbar={toolbar}
         />
       </aside>
-      {going.asking && entry && (
-        <ConfirmDialog
-          body={options.t.entries.deleteConfirm.body}
-          cancelLabel={options.t.entries.deleteConfirm.cancel}
-          confirmLabel={options.t.entries.deleteConfirm.confirm}
-          onCancel={going.cancel}
-          onConfirm={() => going.confirm(entry)}
-          title={options.t.entries.deleteConfirm.title}
-        />
-      )}
+      {going.asking && entry && <ThrowAwayDialog entry={entry} going={going} t={options.t} />}
     </PanelSheet>
   );
+}
+
+interface ThrowAwayDialogOptions {
+  t: Dictionary;
+  entry: Entry;
+  going: ReturnType<typeof useThrowAway>;
+}
+
+function ThrowAwayDialog(options: ThrowAwayDialogOptions) {
+  const labels = options.t.entries.deleteConfirm;
+
+  return (
+    <ConfirmDialog
+      body={labels.body}
+      cancelLabel={labels.cancel}
+      confirmLabel={labels.confirm}
+      onCancel={options.going.cancel}
+      onConfirm={() => options.going.confirm(options.entry)}
+      title={labels.title}
+    />
+  );
+}
+
+// Where the editor puts its save button, handed up once it is in the page.
+function ToolbarSlot(params: { onSlot: (element: HTMLElement | null) => void }) {
+  const own = useRef<HTMLSpanElement>(null);
+  const report = params.onSlot;
+
+  useEffect(() => {
+    report(own.current);
+
+    return () => report(null);
+  }, [report]);
+
+  return <span className="contents" ref={own} />;
 }
 
 function Failure(options: { text: string }) {
@@ -116,6 +147,7 @@ interface PanelHeaderOptions {
   today: string;
   onThrowAway: () => void;
   onKeep: (entry: Entry) => void;
+  toolbar: (element: HTMLElement | null) => void;
 }
 
 function PanelHeader(options: PanelHeaderOptions) {
@@ -143,6 +175,7 @@ function PanelHeader(options: PanelHeaderOptions) {
           {options.t.entries.backToToday}
         </button>
       )}
+      <ToolbarSlot onSlot={options.toolbar} />
       {options.entry && (
         <HeaderActions
           entry={options.entry}

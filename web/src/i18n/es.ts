@@ -2,6 +2,7 @@ import type { Dictionary } from "./en";
 import tools from "./es_tools";
 import images from "./es_images";
 import widgets from "./es_widgets";
+import editor from "./es_editor";
 
 // Typed as Dictionary rather than inferred, which is what makes a missing or
 // misspelled key fail the build instead of silently falling back to English.
@@ -97,7 +98,6 @@ const es: Dictionary = {
     backToToday: "Volver a hoy",
     new: "Empezar una entrada",
     untitled: "Una entrada nueva",
-    started: "Todav\u00eda no hay nada ac\u00e1. Cont\u00e1 qu\u00e9 pas\u00f3 y se va llenando.",
     bookmark: "Guardar esta entrada",
     unbookmark: "Dejar de guardar esta entrada",
     onlyKept: "Mostrar solo las guardadas",
@@ -279,6 +279,7 @@ const es: Dictionary = {
 
   images,
   widgets,
+  editor,
 
   validation: {
     required: "Esto no puede estar vacío",
