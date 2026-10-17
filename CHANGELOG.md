@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.15](https://github.com/eetr-ai/journal/compare/v0.0.14...v0.0.15) (2026-10-17)
+
+
+### Features
+
+* pictures and quote/song search blocks in the entry editor ([#56](https://github.com/eetr-ai/journal/issues/56)) ([e757136](https://github.com/eetr-ai/journal/commit/e757136a46ef90495822e0c1202308cb80383605))
+* rich text entry editor with versioned saves, undo and autosave ([#55](https://github.com/eetr-ai/journal/issues/55)) ([b74e858](https://github.com/eetr-ai/journal/commit/b74e858779177515b43b7e1e32ec6cd893fb49e6))
+
 ## [0.0.14](https://github.com/eetr-ai/journal/compare/v0.0.13...v0.0.14) (2026-10-16)
 
 
