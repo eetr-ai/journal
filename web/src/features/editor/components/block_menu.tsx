@@ -1,12 +1,41 @@
 "use client";
 
 import { createPortal } from "react-dom";
+import {
+  CheckSquareIcon,
+  CodeIcon,
+  InfoIcon,
+  ListBulletsIcon,
+  ListNumbersIcon,
+  MinusIcon,
+  QuotesIcon,
+  TextHOneIcon,
+  TextHThreeIcon,
+  TextHTwoIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
 import type { BlockMenu as BlockMenuHandle } from "../use_block_menu";
+import type { MenuItemId } from "../menu_items";
 import type { EditorDictionary } from "@/i18n/en_editor";
 
 // Room between the caret and the menu below it.
 const CARET_GAP_PX = 4;
+const ICON_SIZE = 18;
+
+const ICONS: Record<MenuItemId, React.ReactNode> = {
+  text: <TextTIcon size={ICON_SIZE} />,
+  heading1: <TextHOneIcon size={ICON_SIZE} />,
+  heading2: <TextHTwoIcon size={ICON_SIZE} />,
+  heading3: <TextHThreeIcon size={ICON_SIZE} />,
+  bullets: <ListBulletsIcon size={ICON_SIZE} />,
+  numbers: <ListNumbersIcon size={ICON_SIZE} />,
+  tasks: <CheckSquareIcon size={ICON_SIZE} />,
+  quote: <QuotesIcon size={ICON_SIZE} />,
+  callout: <InfoIcon size={ICON_SIZE} />,
+  divider: <MinusIcon size={ICON_SIZE} />,
+  code: <CodeIcon size={ICON_SIZE} />,
+};
 
 export interface BlockMenuOptions {
   editor: Editor;
@@ -31,7 +60,7 @@ export default function BlockMenu(options: BlockMenuOptions) {
   return createPortal(
     <div
       aria-label={options.labels.label}
-      className="fixed z-50 max-h-72 w-56 overflow-y-auto rounded-md border border-border bg-surface py-1 text-sm shadow-lg"
+      className="fixed z-50 max-h-80 w-72 overflow-y-auto rounded-md border border-border bg-surface py-1 text-sm shadow-lg"
       role="menu"
       style={{ left: menu.left, top: menu.top + CARET_GAP_PX }}
     >
@@ -42,7 +71,7 @@ export default function BlockMenu(options: BlockMenuOptions) {
       {visible.map((item, index) => (
         <button
           aria-current={index === menu.index}
-          className={`block w-full px-3 py-1.5 text-left ${
+          className={`flex w-full items-center gap-3 px-3 py-2 text-left ${
             index === menu.index ? "bg-surface-muted text-foreground" : "text-muted"
           }`}
           key={item.id}
@@ -53,6 +82,9 @@ export default function BlockMenu(options: BlockMenuOptions) {
           role="menuitem"
           type="button"
         >
+          <span className="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-surface">
+            {ICONS[item.id]}
+          </span>
           {options.labels[item.id]}
         </button>
       ))}
