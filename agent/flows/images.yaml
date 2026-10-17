@@ -1,6 +1,7 @@
 # Pictures kept with an entry.
 #
 #   GET    /entries/{subject}/{id}/images          an entry's pictures, sealed, in order
+#   POST   /entries/{subject}/{id}/images          add one the reader pasted or picked
 #   DELETE /entries/{subject}/{id}/images/{image}  throw one away
 #
 # and `entry-image-keep`, the sourceless flow behind the agent's keep_image tool.
@@ -25,26 +26,36 @@ flows:
       type: http
       settings:
         path: /entries/{subject}/{id}/images
-        methods: [GET]
+        methods: [GET, POST]
     process:
-      # Scoped by subject, so holding an entry's id is not enough to see its
-      # pictures. An entry with none, or that is not theirs, is an empty list.
-      - type: sql
-        name: select-images
-        settings:
-          connector: db
-          query: |
-            SELECT id, entry_id, ordinal, mime_type, caption, data, created_at
-            FROM journal_entry_image
-            WHERE oidc_subject = $1 AND entry_id = $2::uuid
-            ORDER BY ordinal
-          args:
-            - vars.subject
-            - vars.id
-      - type: set-payload
-        name: wrap
-        settings:
-          value: '{"images": body}'
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "POST"'
+            process:
+              - type: flow-ref
+                name: add
+                settings: { flow: entry-image-add }
+          - when: "true"
+            process:
+              # Scoped by subject, so holding an entry's id is not enough to see
+              # its pictures. An entry with none, or not theirs, is an empty list.
+              - type: sql
+                name: select-images
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, entry_id, ordinal, mime_type, caption, data, created_at
+                    FROM journal_entry_image
+                    WHERE oidc_subject = $1 AND entry_id = $2::uuid
+                    ORDER BY ordinal
+                  args:
+                    - vars.subject
+                    - vars.id
+              - type: set-payload
+                name: wrap
+                settings:
+                  value: '{"images": body}'
 
   # Scoped by subject and entry as well as id, so holding a picture's id is not
   # enough to throw it away. One that names nothing is not an error, just
@@ -206,3 +217,61 @@ flows:
                     {"kept": true, "id": vars.kept.id, "entryId": vars.kept.entry_id,
                      "anchor": "![" + (has(vars.ask.caption) ? vars.ask.caption : "")
                        .replace("]", "").replace("\n", " ") + "](image:" + vars.kept.id + ")"}
+
+  # A picture the reader pasted or picked in the editor, sealed under the key
+  # the request carries: {key, mimeType, data, caption?}, data base64. Only an
+  # entry that exists and is theirs takes one; anything else is a 404.
+  - name: entry-image-add
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: seal-image
+        settings:
+          name: sealedData
+          value: '"enc1:" + base64.encode(toAes(body.data, base64.decode(vars.dataKey)))'
+      - type: set-variable
+        name: seal-caption
+        settings:
+          name: sealedCaption
+          value: >
+            "enc1:" + base64.encode(toAes(
+              has(body.caption) ? body.caption : "", base64.decode(vars.dataKey)))
+      # The ownership check and the next ordinal are part of the one statement,
+      # so a foreign entry inserts nothing and two adds cannot share a place.
+      - type: sql
+        name: insert-image
+        settings:
+          connector: db
+          query: |
+            INSERT INTO journal_entry_image
+              (entry_id, oidc_subject, ordinal, mime_type, caption, data)
+            SELECT e.id, e.oidc_subject,
+                   COALESCE((SELECT max(ordinal) + 1 FROM journal_entry_image
+                             WHERE entry_id = e.id), 0),
+                   $3, $4, $5
+            FROM journal_entry e
+            WHERE e.oidc_subject = $1 AND e.id = $2::uuid
+            RETURNING id, entry_id
+          args:
+            - vars.subject
+            - vars.id
+            - body.mimeType
+            - vars.sealedCaption
+            - vars.sealedData
+          single: true
+      - type: switch
+        name: answer
+        cases:
+          - when: 'body == null'
+            process:
+              - type: set-variable
+                settings: { name: httpStatus, value: "404" }
+              - type: set-payload
+                settings: { value: '{"added": false, "error": "entry not found"}' }
+          - when: "true"
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"added": true, "id": body.id, "entryId": body.entry_id}'

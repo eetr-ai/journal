@@ -5,11 +5,14 @@ import { createPortal } from "react-dom";
 import {
   CheckSquareIcon,
   CodeIcon,
+  ImageIcon,
   InfoIcon,
   ListBulletsIcon,
   ListNumbersIcon,
   MinusIcon,
+  MusicNotesIcon,
   QuotesIcon,
+  MagnifyingGlassIcon,
   TextHOneIcon,
   TextHThreeIcon,
   TextHTwoIcon,
@@ -38,6 +41,9 @@ const ICONS: Record<MenuItemId, React.ReactNode> = {
   callout: <InfoIcon size={ICON_SIZE} />,
   divider: <MinusIcon size={ICON_SIZE} />,
   code: <CodeIcon size={ICON_SIZE} />,
+  picture: <ImageIcon size={ICON_SIZE} />,
+  quoteSearch: <MagnifyingGlassIcon size={ICON_SIZE} />,
+  songSearch: <MusicNotesIcon size={ICON_SIZE} />,
 };
 
 export interface BlockMenuOptions {

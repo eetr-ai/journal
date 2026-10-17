@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type Dispatch } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type RefObject } from "react";
 import { readEntryAction, saveEntryAction } from "@/features/entries/actions";
 import {
   EntriesActionType,
@@ -55,6 +55,8 @@ interface Attempt {
   state: EditorState;
   key: string;
   options: EntrySyncOptions;
+  /** Pictures stored from this editor since the list was last fetched. */
+  kept: ReadonlySet<string>;
   dispatch: Dispatch<EditorAction>;
   entries: Dispatch<EntriesAction>;
 }
@@ -99,7 +101,11 @@ async function send(attempt: Attempt): Promise<SaveOutcome | null> {
   const { state, options } = attempt;
   const words = { title: state.present.title, content: state.present.markdown };
   // Anchors already stored stand while their pictures are still loading.
-  const pictures = new Set([...anchoredIn(state.saved.markdown), ...options.pictures]);
+  const pictures = new Set([
+    ...anchoredIn(state.saved.markdown),
+    ...options.pictures,
+    ...attempt.kept,
+  ]);
   const problem = saveProblem(words, pictures);
 
   if (problem) {
@@ -127,14 +133,31 @@ function landed(now: Latest, attempt: Attempt, version: number): Latest {
   return { ...now, state: { ...now.state, saved: { title, markdown, version } } };
 }
 
-export function useEntrySync(options: EntrySyncOptions): { flush: () => void } {
+export interface EntrySync {
+  /** Saves what is unsaved now. Called with `true`, saves a draft never stored, words or not. */
+  flush: (force?: boolean) => Promise<boolean>;
+  /** A picture just stored with the entry, which its words may now anchor. */
+  kept: (id: string) => void;
+}
+
+// Whether there is anything for a flush to send.
+function wanted(now: Latest, force: unknown): boolean {
+  const unstored = force === true && now.state.saved.version === 0;
+
+  return Boolean(now.key) && (isDirty(now.state) || unstored) && !now.state.incoming;
+}
+
+export function useEntrySync(options: EntrySyncOptions): EntrySync {
   const { state, dispatch } = useEditorState();
   const entries = useEntries().dispatch;
   const key = useAgentKey(options.subject);
   const latest = useRef<Latest>({ state, key, options });
+  const kept = useRef(new Set<string>());
   const sending = useRef(false);
   // A flush asked for while a save was out, which goes once that one settles.
   const queued = useRef(false);
+  // Settles, true when the entry is stored, once every save asked for has.
+  const inFlight = useRef<Promise<boolean>>(Promise.resolve(false));
   const dirtySince = useRef<number | null>(null);
 
   useEffect(() => {
@@ -142,21 +165,21 @@ export function useEntrySync(options: EntrySyncOptions): { flush: () => void } {
   });
 
   const flush = useCallback(
-    function flush() {
+    function flush(force?: unknown): Promise<boolean> {
       const now = latest.current;
 
-      if (!now.key || !isDirty(now.state) || now.state.incoming) {
-        return;
-      }
       if (sending.current) {
-        queued.current = true;
-        return;
+        queued.current ||= wanted(now, force);
+        return inFlight.current;
+      }
+      if (!wanted(now, force)) {
+        return Promise.resolve(now.state.saved.version > 0);
       }
 
       sending.current = true;
       dirtySince.current = null;
-      const attempt = { ...now, key: now.key, dispatch, entries };
-      void send(attempt)
+      const attempt = { ...now, key: now.key ?? "", dispatch, entries, kept: kept.current };
+      inFlight.current = send(attempt)
         .catch(() => null)
         .then((outcome) => {
           sending.current = false;
@@ -164,13 +187,28 @@ export function useEntrySync(options: EntrySyncOptions): { flush: () => void } {
           queued.current = false;
           if (again) {
             latest.current = landed(latest.current, attempt, outcome.entry.version);
-            flush();
+            return flush();
           }
+          return outcome?.status === "saved" || now.state.saved.version > 0;
         });
+
+      return inFlight.current;
     },
     [dispatch, entries],
   );
 
+  useAutosave(state, flush, dirtySince);
+  useFlushWhenLeaving(flush);
+
+  return { flush, kept: useCallback((id: string) => void kept.current.add(id), []) };
+}
+
+// A save after a pause in typing, and at least every MAX_WAIT_MS while it does not pause.
+function useAutosave(
+  state: EditorState,
+  flush: () => void,
+  dirtySince: RefObject<number | null>,
+): void {
   const dirty = isDirty(state);
   const held = HELD.has(state.status) || state.incoming !== null;
   // Zero after an undo or a load, which then saves straight away.
@@ -185,19 +223,15 @@ export function useEntrySync(options: EntrySyncOptions): { flush: () => void } {
     dirtySince.current ??= now;
     const pause = PAUSE_MS - (now - typedAt);
     const left = MAX_WAIT_MS - (now - dirtySince.current);
-    const timer = window.setTimeout(flush, Math.max(0, Math.min(pause, left)));
+    const timer = window.setTimeout(() => flush(), Math.max(0, Math.min(pause, left)));
 
     return () => window.clearTimeout(timer);
-  }, [dirty, held, flush, typedAt]);
-
-  useFlushWhenLeaving(flush);
-
-  return { flush };
+  }, [dirty, held, flush, typedAt, dirtySince]);
 }
 
 // A tab going to the background may never come back, and an entry switched
 // away from unmounts this. What was typed goes before either.
-function useFlushWhenLeaving(flush: () => void): void {
+function useFlushWhenLeaving(flush: () => unknown): void {
   useEffect(() => {
     const hidden = () => {
       if (document.visibilityState === "hidden") {

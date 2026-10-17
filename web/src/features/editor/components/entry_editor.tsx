@@ -21,7 +21,10 @@ import {
   type Snapshot,
 } from "../editor_state";
 import { useBlockMenu } from "../use_block_menu";
-import { useEntrySync } from "../use_entry_sync";
+import { useEntrySync, type EntrySync } from "../use_entry_sync";
+import { usePictureUpload } from "../use_picture_upload";
+import { markdownOf } from "../extensions/slots";
+import { useAgentKey } from "@/features/chat/use_agent_key";
 import { useEntryTiptap, useLoadedWords } from "../use_entry_tiptap";
 import { useIncoming } from "../use_incoming";
 import { useShortcuts } from "../use_shortcuts";
@@ -39,6 +42,8 @@ export interface EntryEditorOptions {
   opened?: OpenedEntry;
   pictures: OpenedImage[];
   picturesLoading: boolean;
+  /** A picture the reader just added, stored and opened. */
+  onPictureAdded: (image: OpenedImage) => void;
   /** Where the save button goes in the page's top bar. */
   toolbar: HTMLElement | null;
 }
@@ -74,7 +79,7 @@ export default function EntryEditor(options: EntryEditorOptions) {
 function snapshotOf(editor: Editor, title: string): Snapshot {
   const { from, to } = editor.state.selection;
 
-  return { title, markdown: editor.getMarkdown(), selection: { from, to } };
+  return { title, markdown: markdownOf(editor), selection: { from, to } };
 }
 
 // Every change in the words becomes a step the reducer can coalesce or keep.
@@ -100,16 +105,33 @@ function useTyping(title: string): (editor: Editor) => void {
   );
 }
 
-function useContextValue(options: EntryEditorOptions): EntryEditorContextValue {
+function useContextValue(
+  options: EntryEditorOptions,
+  fillSlot: EntryEditorContextValue["fillSlot"],
+): EntryEditorContextValue {
   return useMemo(
     () => ({
       t: options.t,
       locale: options.locale,
       pictures: new Map(options.pictures.map((image) => [image.id, image])),
       picturesLoading: options.picturesLoading,
+      fillSlot,
     }),
-    [options.t, options.locale, options.pictures, options.picturesLoading],
+    [options.t, options.locale, options.pictures, options.picturesLoading, fillSlot],
   );
+}
+
+// Pictures go up under the agent key, into an entry that is stored first.
+function usePictures(options: EntryEditorOptions, sync: EntrySync) {
+  const { flush } = sync;
+
+  return usePictureUpload({
+    entryId: options.entry.id,
+    key: useAgentKey(options.subject),
+    store: useCallback(() => flush(true), [flush]),
+    kept: sync.kept,
+    onAdded: options.onPictureAdded,
+  });
 }
 
 function EditorBody(options: EntryEditorOptions) {
@@ -125,20 +147,27 @@ function EditorBody(options: EntryEditorOptions) {
   });
   const menu = useBlockMenu(options.t.editor.menu);
   const box = useRef<HTMLDivElement>(null);
+  const upload = usePictures(options, sync);
   const editor = useEntryTiptap({
     markdown: state.present.markdown,
     placeholder: options.t.editor.placeholder,
     menu,
     onBlur: sync.flush,
     onChange: useTyping(state.present.title),
+    onPictures: upload.place,
   });
+  const { fill } = upload;
+  const fillSlot = useCallback(
+    (files: File[], token: string) => editor && fill(editor, files, token),
+    [editor, fill],
+  );
 
   useIncoming(options.entry, options.opened);
   useLoadedWords(editor, state.present, state.revision);
   useShortcuts(box, sync.flush);
 
   return (
-    <EntryEditorContext value={useContextValue(options)}>
+    <EntryEditorContext value={useContextValue(options, fillSlot)}>
       <div ref={box}>
         <TitleField editor={editor} labels={options.t.editor} />
         <SaveButton labels={options.t.editor} onSave={sync.flush} slot={options.toolbar} />

@@ -42,6 +42,8 @@ export interface EntryImagesOptions {
 export interface EntryImages extends ImagesUiState {
   /** Takes a picture off the panel once the server has thrown it away. */
   removed: (id: string) => void;
+  /** Puts a picture the reader just stored on the panel, without fetching them all again. */
+  added: (image: OpenedImage) => void;
 }
 
 export function useEntryImages(options: EntryImagesOptions): EntryImages {
@@ -93,5 +95,10 @@ export function useEntryImages(options: EntryImagesOptions): EntryImages {
     [],
   );
 
-  return { ...state, removed };
+  const added = useCallback(
+    (image: OpenedImage) => dispatch({ type: ImagesActionType.Added, data: image }),
+    [],
+  );
+
+  return { ...state, removed, added };
 }

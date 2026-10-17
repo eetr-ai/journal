@@ -3,9 +3,12 @@
 import { useEffect, useRef } from "react";
 import type { Editor } from "@tiptap/core";
 import { Markdown } from "@tiptap/markdown";
+import type { EditorView } from "@tiptap/pm/view";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { ReactNodeViewRenderer as nodeView, useEditor } from "@tiptap/react";
+import PictureSlotView from "./components/picture_slot_view";
 import PictureView from "./components/picture_view";
+import SearchSlotView from "./components/search_slot_view";
 import VerbatimView from "./components/verbatim_view";
 import { LOADED } from "./extensions/guard";
 import { entrySchema } from "./schema";
@@ -24,10 +27,57 @@ export interface EntryTiptapOptions {
   menu: BlockMenu;
   onChange: (editor: Editor) => void;
   onBlur: () => void;
+  /** Pictures pasted or dropped into the words, and where they landed. */
+  onPictures: (editor: Editor, files: File[], at: number) => void;
 }
 
 function isOpeningMenu(event: KeyboardEvent): boolean {
   return event.ctrlKey && event.code === "Space";
+}
+
+// Pictures in a paste or a drop, which the guard would otherwise swallow.
+function picturesIn(transfer: DataTransfer | null | undefined): File[] {
+  return Array.from(transfer?.files ?? []).filter((file) => file.type.startsWith("image/"));
+}
+
+const ATTRIBUTES = {
+  class:
+    "prose prose-sm max-w-none min-h-40 focus:outline-none prose-headings:font-semibold prose-p:my-2",
+};
+
+// The menu sees a key first; Ctrl+Space opens it anywhere.
+function keyed(editor: Editor | null, options: EntryTiptapOptions, event: KeyboardEvent): boolean {
+  if (!editor || options.menu.handleKey(editor, event)) {
+    return Boolean(editor);
+  }
+
+  if (!isOpeningMenu(event)) {
+    return false;
+  }
+
+  options.menu.openHere(editor);
+  return true;
+}
+
+// Pictures go to be stored; true when there were any, so they are not pasted as they are.
+function took(editor: Editor | null, options: EntryTiptapOptions, files: File[], at: number) {
+  if (!editor || files.length === 0) {
+    return false;
+  }
+
+  options.onPictures(editor, files, at);
+  return true;
+}
+
+// A drop on a picture slot is the slot's to take; the words leave it alone.
+function onSlot(event: DragEvent): boolean {
+  return event.target instanceof Element && event.target.closest("[data-picture-slot]") !== null;
+}
+
+function droppedAt(view: EditorView, event: DragEvent): number {
+  return (
+    view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from
+  );
 }
 
 export function useEntryTiptap(options: EntryTiptapOptions): Editor | null {
@@ -44,6 +94,8 @@ export function useEntryTiptap(options: EntryTiptapOptions): Editor | null {
       ...entrySchema({
         picture: nodeView(PictureView, { as: "span" }),
         verbatim: nodeView(VerbatimView),
+        pictureSlot: nodeView(PictureSlotView),
+        searchSlot: nodeView(SearchSlotView),
       }),
       Markdown,
       Placeholder.configure({ placeholder: options.placeholder }),
@@ -53,28 +105,18 @@ export function useEntryTiptap(options: EntryTiptapOptions): Editor | null {
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editorProps: {
-      attributes: {
-        class:
-          "prose prose-sm max-w-none min-h-40 focus:outline-none prose-headings:font-semibold prose-p:my-2",
-      },
-      handleKeyDown: (_view, event) => {
-        const editor = made.current;
-
-        if (!editor) {
-          return false;
-        }
-
-        if (latest.current.menu.handleKey(editor, event)) {
-          return true;
-        }
-
-        if (!isOpeningMenu(event)) {
-          return false;
-        }
-
-        latest.current.menu.openHere(editor);
-        return true;
-      },
+      attributes: ATTRIBUTES,
+      handleKeyDown: (_view, event) => keyed(made.current, latest.current, event),
+      handlePaste: (view, event) =>
+        took(
+          made.current,
+          latest.current,
+          picturesIn(event.clipboardData),
+          view.state.selection.from,
+        ),
+      handleDrop: (view, event) =>
+        onSlot(event) ||
+        took(made.current, latest.current, picturesIn(event.dataTransfer), droppedAt(view, event)),
     },
     onCreate: ({ editor }) => {
       made.current = editor;

@@ -2,7 +2,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { imagesClient } from "./client";
 import { maxImages } from "./config";
-import type { EntryImage, ImagesView } from "./types";
+import type { EntryImage, ImagesView, PictureAdd } from "./types";
 
 /**
  * The rules the BFF owns between the session and the agent. The subject always
@@ -48,6 +48,30 @@ export async function deleteImage(entryId: string, imageId: string): Promise<boo
     console.error("[images] could not delete a picture", error);
 
     return false;
+  }
+}
+
+export type AddOutcome = { kind: "added"; id: string } | { kind: "missing" } | { kind: "failed" };
+
+/**
+ * Keep a picture the reader added with one of their entries. "missing" is an
+ * entry that is not theirs or not stored yet. Never log the argument.
+ */
+export async function addImage(entryId: string, add: PictureAdd): Promise<AddOutcome> {
+  const subject = (await auth())?.user?.subject;
+
+  if (!subject || !MINTED_ID.test(entryId)) {
+    return { kind: "missing" };
+  }
+
+  try {
+    const id = await imagesClient.add(subject, entryId, add);
+
+    return id ? { kind: "added", id } : { kind: "missing" };
+  } catch (error) {
+    console.error("[images] could not add a picture", error);
+
+    return { kind: "failed" };
   }
 }
 

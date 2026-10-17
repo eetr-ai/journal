@@ -1,0 +1,160 @@
+# Looking things up for the reader, from the editor rather than the chat.
+#
+#   POST /research/{subject}/quotes  {query, locale}  quotes worth keeping
+#   POST /research/{subject}/songs   {query, locale}  songs, with lines from them
+#
+# Nothing here touches the journal: the query is all that leaves, and nothing
+# is kept. What comes back is shaped for a card, and the BFF decides which of
+# it is fit to be one.
+flows:
+  - name: research
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /research/{subject}/{kind}
+        methods: [POST]
+        timeout: 60s
+    process:
+      - type: set-variable
+        name: hold-query
+        settings: { name: query, value: body.query }
+      - type: set-variable
+        name: hold-locale
+        settings:
+          name: answerIn
+          value: 'has(body.locale) && body.locale != "" ? body.locale : "en"'
+      - type: switch
+        name: kind
+        cases:
+          - when: 'vars.kind == "quotes"'
+            process:
+              - type: flow-ref
+                name: quotes
+                settings: { flow: research-quotes }
+          - when: 'vars.kind == "songs"'
+            process:
+              - type: flow-ref
+                name: songs
+                settings: { flow: research-songs }
+          - when: "true"
+            process:
+              - type: set-variable
+                settings: { name: httpStatus, value: "404" }
+              - type: set-payload
+                settings: { value: '{"results": []}' }
+
+  # Sources that print the words with who said them, so `text` can be copied
+  # rather than remembered.
+  - name: research-quotes
+    process:
+      - type: parallel-search
+        name: search
+        settings:
+          connector: research
+          objective: '"Find well-attributed quotations, with their exact words and who said or wrote them: " + vars.query'
+          searchQueries: >-
+            ["site:goodreads.com/quotes " + vars.query,
+             "site:wikiquote.org " + vars.query,
+             "site:gutenberg.org " + vars.query]
+          mode: fast
+          maxResults: 8
+          maxCharsTotal: 8000
+      - type: set-payload
+        name: what-was-found
+        settings:
+          value: '{"asked": vars.query, "answerIn": vars.answerIn, "found": body}'
+      - type: ai-mapping
+        name: pick-quotes
+        settings:
+          connector: router
+          prompt: >
+            Someone writing in their journal is looking for a quote: `asked` is
+            what they typed. `found` is what a web search returned.
+
+
+            Return up to five quotes that answer what they asked, best first.
+            `text` is the quotation copied word for word from `found`, in the
+            language it was written in; never write or translate one. `by` is
+            who said or wrote it, `source` the work it is from when `found`
+            names one, and `href` the https page it was found on. Leave a quote
+            out rather than guess who said it. An empty list is the right
+            answer when nothing fits.
+          outputSchema: |
+            {
+              "type": "object",
+              "required": ["results"],
+              "properties": {
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["text", "by"],
+                    "properties": {
+                      "text": { "type": "string" },
+                      "by": { "type": "string" },
+                      "source": { "type": "string" },
+                      "href": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+
+  # The same three sites the chat looks lyrics up on: Genius for breadth,
+  # Musixmatch for other languages, Letras for Spanish and Portuguese.
+  - name: research-songs
+    process:
+      - type: parallel-search
+        name: search
+        settings:
+          connector: research
+          objective: '"Find the lyrics of this song, with its title and artist: " + vars.query'
+          searchQueries: >-
+            ["site:genius.com " + vars.query,
+             "site:musixmatch.com " + vars.query,
+             "site:letras.com " + vars.query]
+          mode: fast
+          maxResults: 8
+          maxCharsTotal: 8000
+      - type: set-payload
+        name: what-was-found
+        settings:
+          value: '{"asked": vars.query, "answerIn": vars.answerIn, "found": body}'
+      - type: ai-mapping
+        name: pick-songs
+        settings:
+          connector: router
+          prompt: >
+            Someone writing in their journal is looking for a song: `asked` is
+            a title, an artist, or a line they remember. `found` is what a web
+            search returned.
+
+
+            Return up to five songs that match, best first. `title` and `by`
+            are the song and its artist. `lines` are at most eight consecutive
+            lines of it copied word for word from `found` — the ones that match
+            what they asked, or else the opening — with an empty string where a
+            verse breaks. `href` is the https page they were found on. Never
+            write or translate a line. An empty list is the right answer when
+            nothing fits.
+          outputSchema: |
+            {
+              "type": "object",
+              "required": ["results"],
+              "properties": {
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["title", "by", "lines"],
+                    "properties": {
+                      "title": { "type": "string" },
+                      "by": { "type": "string" },
+                      "lines": { "type": "array", "items": { "type": "string" } },
+                      "href": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }

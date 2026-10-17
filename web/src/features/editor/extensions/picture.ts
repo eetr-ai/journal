@@ -4,9 +4,9 @@ import type { MarkdownToken } from "@tiptap/core";
 /**
  * A picture kept with the entry, placed in its words as `![caption](image:<id>)`.
  *
- * For now pictures are added only from the conversation, so the editor can move
- * one with the words around it but never add or remove one; that rule is held
- * by the guard beside this node, not here.
+ * A picture is added once it is stored, never by pasting its anchor or its
+ * markup; and the editor never removes one. Both rules are held by the guard
+ * beside this node, not here.
  */
 
 export const PICTURE = "picture";

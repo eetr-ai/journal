@@ -1,0 +1,72 @@
+# The search and the model are both mocked. What is worth proving is the
+# routing and what each is handed — that the query reaches the search and the
+# model sees both what was asked and what came back — not that a provider
+# answers.
+flow: research
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+cases:
+  - name: quotes are searched for and picked from what was found
+    input:
+      data: { query: attention is devotion, locale: en }
+      vars: { method: POST, subject: dolphin-research, kind: quotes }
+    mocks:
+      research-quotes.search:
+        cases:
+          - when: "true"
+            body: { results: [{ url: "https://en.wikiquote.org/wiki/Mary_Oliver", excerpts: ["Attention is the beginning of devotion."] }] }
+      research-quotes.pick-quotes:
+        cases:
+          - when: "true"
+            body:
+              results:
+                - { text: Attention is the beginning of devotion., by: Mary Oliver, href: "https://en.wikiquote.org/wiki/Mary_Oliver" }
+    expect:
+      that:
+        - body.results.size() == 1
+        - body.results[0].by == "Mary Oliver"
+    spies:
+      research-quotes.pick-quotes:
+        records:
+          - input:
+              that:
+                - body.asked == "attention is devotion"
+                - body.found.results.size() == 1
+
+  - name: songs are searched for on the lyrics sites
+    input:
+      data: { query: hallelujah cohen }
+      vars: { method: POST, subject: dolphin-research, kind: songs }
+    mocks:
+      research-songs.search:
+        cases:
+          - when: "true"
+            body: { results: [] }
+      research-songs.pick-songs:
+        cases:
+          - when: "true"
+            body: { results: [] }
+    expect:
+      that:
+        - body.results.size() == 0
+    spies:
+      research-songs.pick-songs:
+        records:
+          - input:
+              that:
+                - body.asked == "hallelujah cohen"
+                - body.answerIn == "en"
+      research-quotes.pick-quotes:
+        count: 0
+
+  - name: anything else is not something to look up
+    input:
+      data: { query: anything }
+      vars: { method: POST, subject: dolphin-research, kind: recipes }
+    expect:
+      vars: { httpStatus: 404 }
+      body: { results: [] }
