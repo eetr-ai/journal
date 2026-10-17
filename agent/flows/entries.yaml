@@ -3,6 +3,7 @@
 #   GET    /entries/{subject}       the most recent, newest first
 #   GET    /entries/{subject}/days  the days with something on them
 #   GET    /entries/{subject}/{id}  one entry
+#   PUT    /entries/{subject}/{id}  save one written by hand
 #   DELETE /entries/{subject}/{id}  throw one away
 #   POST   /entries/{subject}/search  find one by what it was about
 #
@@ -50,7 +51,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1
               AND ($2 = '' OR entry_date = $2::date)
@@ -75,11 +76,17 @@ flows:
       type: http
       settings:
         path: /entries/{subject}/{id}
-        methods: [GET, DELETE]
+        methods: [GET, PUT, DELETE]
     process:
       - type: switch
         name: route
         cases:
+          - when: 'vars.method == "PUT"'
+            process:
+              - type: flow-ref
+                name: save
+                settings: { flow: entry-save }
+
           - when: 'vars.method == "GET"'
             process:
               - type: sql
@@ -87,7 +94,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+                    SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -142,7 +149,7 @@ flows:
             UPDATE journal_entry
             SET bookmarked = $3, updated_at = now()
             WHERE oidc_subject = $1 AND id = $2::uuid
-            RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+            RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
           args:
             - vars.subject
             - vars.id
@@ -250,7 +257,7 @@ flows:
             SELECT * FROM (
               SELECT DISTINCT ON (e.id)
                      e.id, e.thread_key, e.entry_date, e.title, e.content,
-                     e.bookmarked, e.created_at, e.updated_at,
+                     e.bookmarked, e.version, e.created_at, e.updated_at,
                      (c.embedding <=> $2::vector) AS distance
               FROM journal_entry e
               JOIN journal_entry_chunk c ON c.entry_id = e.id
@@ -383,10 +390,84 @@ flows:
                         "title": f.title,
                         "content": f.content,
                         "bookmarked": f.bookmarked,
+                        "version": f.version,
                         "created_at": f.created_at,
                         "updated_at": f.updated_at
                       }).first()
                     })}
+
+  # Save an entry written by hand. The browser minted the id, so the first save
+  # creates the row and every later one names the version it last saw.
+  #
+  # The key is on the body because sealing needs it, and it goes the way the
+  # search's does: lifted into a variable for this request and kept nowhere.
+  # Every save is re-embedded whole, so for now each autosave pays for one
+  # embedding call.
+  #
+  # A refused save answers which version is there now, which is all the browser
+  # needs to offer the reader the latest. A row that is not this person's is a
+  # 404 rather than a conflict, so an id is worth no more than a wrong one.
+  - name: entry-save
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: hold-entry
+        settings: { name: entryId, value: vars.id }
+      - type: set-variable
+        name: hold-date
+        settings:
+          name: entryDate
+          value: 'has(body.date) ? body.date : ""'
+      - type: set-variable
+        name: hold-today
+        settings: { name: today, value: vars.entryDate }
+      - type: set-payload
+        name: the-write
+        settings:
+          value: >
+            {"title": body.title, "content": body.content,
+             "version": has(body.version) ? body.version : 0}
+      - type: flow-ref
+        name: write
+        settings: { flow: entry-write }
+      - type: sql
+        name: select-saved
+        settings:
+          connector: db
+          query: |
+            SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+            FROM journal_entry
+            WHERE oidc_subject = $1 AND id = $2::uuid
+          args:
+            - vars.subject
+            - vars.id
+          single: true
+      - type: set-variable
+        name: hold-saved
+        settings: { name: stored, value: body }
+      - type: switch
+        name: answer
+        cases:
+          - when: 'vars.stored == null'
+            process:
+              - type: set-variable
+                settings: { name: httpStatus, value: "404" }
+              - type: set-payload
+                settings: { value: '{"saved": false, "error": "entry not found"}' }
+          # Read after the write rather than taken from it, so a landed save and
+          # a refused one answer from the same row.
+          - when: 'vars.written == null'
+            process:
+              - type: set-variable
+                settings: { name: httpStatus, value: "409" }
+              - type: set-payload
+                settings: { value: '{"saved": false, "version": vars.stored.version}' }
+          - when: "true"
+            process:
+              - type: set-payload
+                settings: { value: '{"saved": true, "entry": vars.stored}' }
 
   # --- the agent's tools -----------------------------------------------------
 
@@ -397,6 +478,17 @@ flows:
   # as one piece of writing instead of a pile of additions.
   - name: entry-write
     process:
+      # The version the writer read. Every path below writes only onto that
+      # version and moves it by one, so a write from a stale read — or one that
+      # arrives after a later one — matches nothing and loses nothing. No version
+      # is 0, which no stored row is at: a writer that read nothing can create,
+      # never overwrite. Lifted first, before
+      # anything replaces the body.
+      - type: set-variable
+        name: hold-version
+        settings:
+          name: readVersion
+          value: 'has(body.version) ? string(int(body.version)) : "0"'
       # A chunk is a paragraph. For now nothing merges the short ones and nothing
       # splits the long ones: a day written as prose falls into its parts on the
       # blank lines already in it, and a rule cleverer than that is worth having
@@ -471,10 +563,6 @@ flows:
             process:
             # An older entry, named. Scoped by subject as well as id, so holding
             # an id is not enough to write into somebody else's journal.
-            #
-            # `expected`, when given, is the sealed content the writer read. A
-            # seal carries a fresh nonce, so it names one version exactly: if
-            # anything wrote in between, nothing is updated and nothing is lost.
             - type: sql
               name: update-entry
               settings:
@@ -483,17 +571,17 @@ flows:
                   UPDATE journal_entry
                   SET title = $3,
                       content = $4,
+                      version = version + 1,
                       updated_at = now()
                   WHERE oidc_subject = $1 AND id = $2::uuid
-                    AND (NOT $6::boolean OR content = $5)
-                  RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+                    AND version = $5::bigint
+                  RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
                 args:
                   - vars.subject
                   - body.id
                   - vars.sealedTitle
                   - vars.sealedContent
-                  - 'has(body.expected) ? body.expected : ""'
-                  - 'has(body.expected)'
+                  - vars.readVersion
                 single: true
 
           # The entry the reader has open, which they may have started
@@ -519,15 +607,18 @@ flows:
                   ON CONFLICT (id) DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
+                    version = journal_entry.version + 1,
                     updated_at = now()
                   WHERE journal_entry.oidc_subject = $1
-                  RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+                    AND journal_entry.version = $6::bigint
+                  RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
                 args:
                   - vars.subject
                   - vars.entryId
                   - 'has(vars.entryDate) && vars.entryDate != "" ? vars.entryDate : vars.today'
                   - vars.sealedTitle
                   - vars.sealedContent
+                  - vars.readVersion
                 single: true
 
           - when: "true"
@@ -554,14 +645,17 @@ flows:
                   DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
+                    version = journal_entry.version + 1,
                     updated_at = now()
-                  RETURNING id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+                  WHERE journal_entry.version = $6::bigint
+                  RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
                 args:
                   - vars.subject
                   - vars.threadId
                   - 'has(body.date) && body.date != "" ? body.date : vars.today'
                   - vars.sealedTitle
                   - vars.sealedContent
+                  - vars.readVersion
                 single: true
       - type: set-variable
         name: hold-written
@@ -606,13 +700,13 @@ flows:
                       # entry — two conversations can be pointed at one — and a
                       # block is its own transaction, so the older one can reach
                       # here last and leave the newer entry paired with older
-                      # chunks. The stamp this run's own write returned is what
+                      # chunks. The version this run's own write returned is what
                       # says whether it is still the newest; if it is not, the
                       # insert matches nothing and the delete is held back by
                       # the same test, so a run that lost writes nothing at all.
                       query: |
                         WITH current AS (
-                          SELECT updated_at FROM journal_entry WHERE id = $1::uuid
+                          SELECT version FROM journal_entry WHERE id = $1::uuid
                         ),
                         written AS (
                           INSERT INTO journal_entry_chunk
@@ -620,7 +714,7 @@ flows:
                           SELECT $1::uuid, (c->>'ordinal')::int, c->>'content',
                                  (c->>'embedding')::vector, now()
                           FROM jsonb_array_elements($2::jsonb) AS c, current
-                          WHERE current.updated_at = $3::timestamptz
+                          WHERE current.version = $3::bigint
                           ON CONFLICT (entry_id, ordinal) DO UPDATE SET
                             content = EXCLUDED.content,
                             embedding = EXCLUDED.embedding,
@@ -631,12 +725,12 @@ flows:
                         WHERE entry_id = $1::uuid
                           AND ordinal >= (SELECT count(*) FROM written)
                           AND EXISTS (
-                            SELECT 1 FROM current WHERE updated_at = $3::timestamptz
+                            SELECT 1 FROM current WHERE version = $3::bigint
                           )
                       args:
                         - vars.written.id
                         - vars.chunkJson
-                        - vars.written.updated_at
+                        - string(vars.written.version)
                       exec: true
             # The panel beside the conversation, repainted mid-run. Sealed,
             # because the reader opens an entry exactly one way whether it
@@ -659,7 +753,8 @@ flows:
               settings:
                 value: >
                   {"saved": true, "id": vars.written.id,
-                   "date": vars.written.entry_date.substring(0, 10)}
+                   "date": vars.written.entry_date.substring(0, 10),
+                   "version": vars.written.version}
 
   # Find entries — by a day, by a range, or by what they were about.
   #
@@ -752,7 +847,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, entry_date, title, content
+                    SELECT id, entry_date, title, content, version
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -766,7 +861,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, entry_date, title, content
+                    SELECT id, entry_date, title, content, version
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -780,7 +875,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, entry_date, title, content
+                    SELECT id, entry_date, title, content, version
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND thread_key = $2 AND thread_key <> ''
                   args:
@@ -808,6 +903,7 @@ flows:
               settings:
                 value: >
                   {"found": true, "id": body.id, "date": body.entry_date.substring(0, 10),
+                   "version": body.version,
                    "title": body.title.startsWith("enc1:") ? string(fromAes(base64.decode(body.title.substring(5)), base64.decode(vars.dataKey))) : body.title,
                    "content": body.content.startsWith("enc1:") ? string(fromAes(base64.decode(body.content.substring(5)), base64.decode(vars.dataKey))) : body.content}
 
@@ -886,7 +982,7 @@ flows:
                   value: >
                     {"id": vars.target.id,
                      "title": has(vars.ask.title) && vars.ask.title != "" ? vars.ask.title : vars.oldTitle,
-                     "expected": vars.target.content,
+                     "version": vars.target.version,
                      "content": vars.find != "" ? vars.oldContent.replace(vars.find, vars.text, 1)
                        : vars.text == "" ? vars.oldContent
                        : vars.oldContent == "" ? vars.text
@@ -971,7 +1067,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, bookmarked, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1 AND id = $2::uuid
           args:

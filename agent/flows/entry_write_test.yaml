@@ -39,6 +39,8 @@ cases:
       that:
         - body.saved == true
         - body.id != ""
+        # A row that did not exist starts the count.
+        - body.version == 1
     # What reaches the statement is what is stored. The plaintext must not.
     spies:
       entry-write.new-or-known[2].upsert-entry:
@@ -58,6 +60,7 @@ cases:
       data:
         title: A slow, good morning
         content: Woke up before the alarm. Coffee on the balcony.
+        version: 1
       vars:
         subject: dolphin-entries-write
         threadId: dolphin-write-once
@@ -67,6 +70,7 @@ cases:
       that:
         - body.saved == true
         - body.id == "cccccccc-0000-4000-8000-000000000001"
+        - body.version == 2
 
   - name: an entry that could not be embedded is still written
     input:
@@ -90,6 +94,8 @@ cases:
         id: bbbbbbbb-0000-4000-8000-000000000001
         title: Overwritten
         content: Should not land.
+        # The version it is at, so only the subject stands in the way.
+        version: 1
       vars:
         subject: dolphin-entries-write
         threadId: dolphin-write-intruder
@@ -152,6 +158,7 @@ cases:
       data:
         title: A vector came back
         content: And was written down beside the words.
+        version: 1
       vars:
         subject: dolphin-entries-write
         threadId: dolphin-write-embedded
@@ -211,6 +218,7 @@ cases:
       data:
         title: An entry they started, and added to
         content: Begun by hand, and carried on.
+        version: 1
       vars:
         subject: dolphin-entries-write
         threadId: dolphin-write-open-again
@@ -232,6 +240,8 @@ cases:
       data:
         title: Overwritten
         content: Should not land.
+        # The version it is at, so only the subject stands in the way.
+        version: 1
       vars:
         subject: dolphin-entries-write
         threadId: dolphin-write-open-intruder
@@ -249,27 +259,122 @@ cases:
       data:
         title: Back to the running note
         content: Nothing was open.
+        version: 1
       vars:
         subject: dolphin-entries-write
-        threadId: dolphin-write-once
+        threadId: dolphin-write-twice
         today: "2026-09-15"
         dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
     expect:
       that:
-        - body.id == "cccccccc-0000-4000-8000-000000000001"
+        - body.id == "cccccccc-0000-4000-8000-000000000004"
 
-  # The seeded note was not written with this seal, so the version the writer
-  # read is not the one stored; an edit made from it must not land.
-  - name: a write made from a version that is no longer stored is refused
+  # --- versions ------------------------------------------------------------
+  #
+  # A writer names the version it read. The seeded rows these cases write into
+  # are their own, so no other case moves the version under them.
+
+  # The row is at 3. A write from version 2 was made before somebody else's
+  # landed, which is also what the second of two writes from one read looks
+  # like.
+  - name: a write made from an older version is refused, and nothing changes
     input:
       data:
-        id: cccccccc-0000-4000-8000-000000000001
+        id: cccccccc-0000-4000-8000-000000000005
         title: Stale
         content: Written from an old read.
-        expected: enc1:not-the-stored-seal
+        version: 2
       vars:
         subject: dolphin-entries-write
-        threadId: dolphin-write-stale
+        threadId: dolphin-write-stale-older
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
+    spies:
+      entry-write.check-written[else].chunks-to-write[then].write-chunks:
+        count: 0
+
+  # Out of sequence the other way: a version that has not been written yet is
+  # no more a read of this row than an old one.
+  - name: a write naming a version ahead of the stored one is refused
+    input:
+      data:
+        id: cccccccc-0000-4000-8000-000000000005
+        title: From the future
+        content: Should not land.
+        version: 4
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-stale-ahead
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
+
+  - name: a write from the stored version lands, and the version moves by one
+    input:
+      data:
+        id: cccccccc-0000-4000-8000-000000000006
+        title: Current
+        content: Written from the latest read.
+        version: 3
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-current-by-id
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      that:
+        - body.saved == true
+        - body.id == "cccccccc-0000-4000-8000-000000000006"
+        - body.version == 4
+
+  # The conversation's note already has words. A writer that names no version
+  # never read them, and rewriting the note from memory would lose whatever the
+  # person typed there since.
+  - name: a note that already exists is not rewritten by a writer that never read it
+    input:
+      data:
+        title: From memory
+        content: Should not land.
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-unread
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
+
+  - name: the conversation's note refuses a write from a version it is not at
+    input:
+      data:
+        title: Stale
+        content: Should not land.
+        version: 5
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-unread
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false
+
+  # The entry open on the reader's page, at version 2.
+  - name: the entry the reader has open refuses a write from an older version
+    input:
+      data:
+        title: Stale
+        content: Should not land.
+        version: 1
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-open-stale
+        entryId: cccccccc-0000-4000-8000-000000000008
         today: "2026-09-15"
         dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
     expect:
