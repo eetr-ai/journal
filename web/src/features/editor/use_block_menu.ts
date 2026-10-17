@@ -19,10 +19,21 @@ export interface MenuState {
   /** Where the slash is, when the menu was opened by one. */
   slashFrom: number | null;
   left: number;
+  /** The caret's bottom, which the menu hangs from when there is room below. */
   top: number;
+  /** The caret's top, which the menu sits on when there is not. */
+  above: number;
 }
 
-const CLOSED: MenuState = { open: false, query: "", index: 0, slashFrom: null, left: 0, top: 0 };
+const CLOSED: MenuState = {
+  open: false,
+  query: "",
+  index: 0,
+  slashFrom: null,
+  left: 0,
+  top: 0,
+  above: 0,
+};
 
 // A slash, then a word, and nothing else before the caret in the paragraph.
 const SLASH = /^\/([\p{L}\d]*)$/u;
@@ -30,7 +41,7 @@ const SLASH = /^\/([\p{L}\d]*)$/u;
 function caretBox(editor: Editor) {
   const caret = editor.view.coordsAtPos(editor.state.selection.from);
 
-  return { left: caret.left, top: caret.bottom };
+  return { left: caret.left, top: caret.bottom, above: caret.top };
 }
 
 function slashIn(editor: Editor): { from: number; query: string } | null {

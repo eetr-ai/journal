@@ -25,6 +25,10 @@ const editor: EditorDictionary = {
   menu: {
     label: "Convertir este bloque en",
     none: "No hay coincidencias",
+    section: "Bloques básicos",
+    close: "Cerrar menú",
+    closeKey: "esc",
+    search: "Escribí para buscar",
     text: "Texto",
     heading1: "Título",
     heading2: "Subtítulo",

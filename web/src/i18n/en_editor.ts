@@ -26,6 +26,10 @@ const editor = {
   menu: {
     label: "Turn this block into",
     none: "Nothing matches",
+    section: "Basic blocks",
+    close: "Close menu",
+    closeKey: "esc",
+    search: "Type to search",
     text: "Text",
     heading1: "Heading",
     heading2: "Subheading",
