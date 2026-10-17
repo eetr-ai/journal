@@ -1,6 +1,7 @@
 import tools from "./en_tools";
 import images from "./en_images";
 import widgets from "./en_widgets";
+import editor from "./en_editor";
 
 // The source dictionary. Every other locale is typed against this shape, so a
 // key added here is a compile error everywhere it is missing.
@@ -96,9 +97,8 @@ const en = {
     open: "Open this entry",
     backToToday: "Back to today",
     new: "Start a new entry",
-    // A draft the reader started, before the agent has put a title on it.
+    // A draft the reader started, before it has a title.
     untitled: "A new entry",
-    started: "Nothing in this one yet. Tell it what happened, and it fills in.",
     bookmark: "Keep this entry",
     unbookmark: "Stop keeping this entry",
     onlyKept: "Show only the ones you kept",
@@ -281,6 +281,7 @@ const en = {
 
   images,
   widgets,
+  editor,
 
   validation: {
     required: "This cannot be empty",

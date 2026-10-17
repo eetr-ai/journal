@@ -57,11 +57,17 @@ export enum EntriesActionType {
   DaysArrived = "daysArrived",
   Drafted = "drafted",
   Kept = "kept",
+  Saved = "saved",
   Pictured = "pictured",
   Highlighted = "highlighted",
 }
 
 export type EntriesAction = ReducerAction<EntriesActionType>;
+
+export interface SavedData {
+  entry: Entry;
+  opened: OpenedEntry;
+}
 
 export function initialEntriesState(
   entries: Entry[],
@@ -89,6 +95,10 @@ function byNewest(entries: Entry[]): Entry[] {
   return entries.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+function restated(state: EntriesUiState, entry: Entry): boolean {
+  return state.entries.some((held) => held.id === entry.id && held.version === entry.version);
+}
+
 /**
  * An entry the agent just wrote, folded in.
  *
@@ -101,6 +111,18 @@ function arrived(state: EntriesUiState, entry: Entry): EntriesUiState {
   // refused here rather than in each of the places one can arrive from.
   if (state.discarded.includes(entry.id)) {
     return state;
+  }
+
+  // Versions only move forward, so an older one is a delivery that lost a race
+  // — a frame, a list or a save answering late — and never news.
+  if (state.entries.some((held) => held.id === entry.id && held.version > entry.version)) {
+    return state;
+  }
+  // The same version is the same words, so what the key made of them stands.
+  if (restated(state, entry)) {
+    const entries = state.entries.map((held) => (held.id === entry.id ? entry : held));
+
+    return { ...state, entries: byNewest(entries) };
   }
 
   const others = state.entries.filter((held) => held.id !== entry.id);
@@ -152,7 +174,7 @@ const handlers: Record<
     const before = state.opened[entry.id] ?? state.previous[entry.id];
     const after = arrived(state, entry);
 
-    return before && after !== state
+    return before && after !== state && !restated(state, entry)
       ? { ...after, previous: { ...after.previous, [entry.id]: before } }
       : after;
   },
@@ -224,6 +246,15 @@ const handlers: Record<
       ...state,
       entries: state.entries.map((held) => (held.id === id ? { ...held, bookmarked } : held)),
     };
+  },
+
+  // Written by hand. The words are the ones the reader just typed, so they are
+  // held as opened straight away instead of being decrypted back from the seal.
+  [EntriesActionType.Saved]: (state, action) => {
+    const { entry, opened } = action.data as SavedData;
+    const after = arrived(state, entry);
+
+    return after === state ? state : { ...after, opened: { ...after.opened, [entry.id]: opened } };
   },
 
   [EntriesActionType.Opened]: (state, action) => ({

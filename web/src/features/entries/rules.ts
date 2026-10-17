@@ -1,4 +1,5 @@
 import { isAgentKey } from "@/features/vault/rules";
+import { anchoredIn } from "@/features/images/rules";
 import { isLocale, type Locale } from "@/i18n/config";
 
 /**
@@ -61,4 +62,78 @@ export function searchFrom(query: string, key: string, locale: string): SearchAs
   }
 
   return { query: query.trim(), key, locale };
+}
+
+// A title is a line; a day is a few pages. Both are room to spare, and both stop
+// a runaway paste before it is sealed, embedded and paid for.
+export const MAX_TITLE_CHARS = 200;
+export const MAX_CONTENT_CHARS = 50_000;
+
+/** An entry as the reader saves it by hand. */
+export interface EntrySave {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  /** The version the reader's copy was opened at; 0 for one never written. */
+  version: number;
+}
+
+export type SaveProblem = "titleTooLong" | "contentTooLong" | "pictures";
+
+/**
+ * What stops a save, or null. `pictures` is the ids kept with the entry: a save
+ * may drop an anchor but never name a picture the entry does not have, because
+ * for now pictures are added only through the conversation.
+ */
+export function saveProblem(
+  save: Pick<EntrySave, "title" | "content">,
+  pictures: ReadonlySet<string>,
+): SaveProblem | null {
+  if (save.title.length > MAX_TITLE_CHARS) {
+    return "titleTooLong";
+  }
+
+  if (save.content.length > MAX_CONTENT_CHARS) {
+    return "contentTooLong";
+  }
+
+  return [...anchoredIn(save.content)].every((id) => pictures.has(id)) ? null : "pictures";
+}
+
+/** Whether the words name any picture at all, which is what costs a lookup. */
+export function namesPictures(content: string): boolean {
+  return anchoredIn(content).size > 0;
+}
+
+function isVersion(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isText(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+/**
+ * A save as it may be sent, or null when its shape is not one we would send
+ * ourselves. Total, like `searchFrom`: what arrives at an action is unknown.
+ */
+export function saveFrom(value: unknown, key: string): EntrySave | null {
+  const save = value as Partial<EntrySave> | null;
+
+  if (!save || !isAgentKey(key) || !isEntryId(save.id) || !isVersion(save.version)) {
+    return null;
+  }
+
+  if (!isText(save.title) || !isText(save.content) || !isText(save.date) || !isDay(save.date)) {
+    return null;
+  }
+
+  return {
+    id: save.id,
+    title: save.title,
+    content: save.content,
+    date: save.date,
+    version: save.version,
+  };
 }

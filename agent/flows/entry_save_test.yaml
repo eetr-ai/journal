@@ -1,0 +1,95 @@
+# See entries_test.yaml. This suite owns saving an entry by hand: the route
+# behind PUT /entries/{subject}/{id}, driven here by name.
+#
+# `dolphin-entries-save` is this suite's alone, and every case that expects to
+# land writes a row of its own, because a write that lands moves the version.
+flow: entry-save
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  OPENROUTER_API_KEY: dolphin-not-a-key
+  PARALLEL_API_KEY: dolphin-not-a-key
+
+mocks:
+  entry-write.embed-if-we-can[process].embed-chunks:
+    default:
+      error: no embedding provider here
+
+cases:
+  # The reader pressed New entry; the browser minted the id and holds no
+  # version, because nothing has been written yet.
+  - name: a new entry is created under the id the browser chose, at version 1
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Begun by hand
+        content: Nobody asked me to write this.
+        date: "2026-03-02"
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-000000000009 }
+    expect:
+      that:
+        - body.saved == true
+        - body.entry.id == "c5c5c5c5-0000-4000-8000-000000000009"
+        - body.entry.version == 1
+        - body.entry.entry_date.startsWith("2026-03-02")
+        # Sealed on the way in, and still sealed on the way back.
+        - body.entry.title.startsWith("enc1:")
+        - body.entry.content.startsWith("enc1:")
+
+  - name: a save from the stored version lands and comes back one version on
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Carried on
+        content: And then some more.
+        version: 2
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-000000000001 }
+    expect:
+      that:
+        - body.saved == true
+        - body.entry.version == 3
+
+  # Somebody — the agent, or another tab — wrote in between. The answer says
+  # which version is there now, so the reader can be offered it.
+  - name: a save from an older version is a conflict that names the current one
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Stale
+        content: Should not land.
+        version: 1
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-000000000002 }
+    expect:
+      that:
+        - body.saved == false
+        - body.version == 2
+        - vars.httpStatus == 409
+
+  - name: another person's entry is not saved over, and is not admitted to exist
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Overwritten
+        content: Should not land.
+        version: 1
+      vars: { subject: dolphin-entries-save, id: bbbbbbbb-0000-4000-8000-000000000001 }
+    expect:
+      that:
+        - body.saved == false
+        - vars.httpStatus == 404
+
+  # Thrown away while the reader still had unsaved words in it. A save naming a
+  # version is a write onto that version, so with the row gone it writes nothing
+  # rather than bringing the entry back.
+  - name: a save naming a version does not bring back an entry that is gone
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Written after the delete
+        content: Should not land.
+        version: 3
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-0000000000dd }
+    expect:
+      that:
+        - body.saved == false
+        - vars.httpStatus == 404

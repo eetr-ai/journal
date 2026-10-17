@@ -55,3 +55,10 @@ ALTER TABLE journal_entry ADD COLUMN IF NOT EXISTS bookmarked boolean NOT NULL D
 -- index has no business carrying the rest.
 CREATE INDEX IF NOT EXISTS journal_entry_kept
   ON journal_entry (oidc_subject, entry_date DESC) WHERE bookmarked;
+
+-- Counts writes of the words, nothing else: a bookmark or a picture is not a new
+-- version of what somebody said. A writer names the version it read and the
+-- write lands only on that one, so a write made from a stale read, or one that
+-- arrives out of order, changes nothing. Rows that predate it start at 1, and 0
+-- is what a writer holding no version says: "this must not exist yet".
+ALTER TABLE journal_entry ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 1;
