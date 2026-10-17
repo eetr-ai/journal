@@ -57,11 +57,17 @@ export enum EntriesActionType {
   DaysArrived = "daysArrived",
   Drafted = "drafted",
   Kept = "kept",
+  Saved = "saved",
   Pictured = "pictured",
   Highlighted = "highlighted",
 }
 
 export type EntriesAction = ReducerAction<EntriesActionType>;
+
+export interface SavedData {
+  entry: Entry;
+  opened: OpenedEntry;
+}
 
 export function initialEntriesState(
   entries: Entry[],
@@ -100,6 +106,12 @@ function arrived(state: EntriesUiState, entry: Entry): EntriesUiState {
   // Gone is gone. A frame or a stale search hit naming a thrown-away entry is
   // refused here rather than in each of the places one can arrive from.
   if (state.discarded.includes(entry.id)) {
+    return state;
+  }
+
+  // Versions only move forward, so an older one is a delivery that lost a race
+  // — a frame, a list or a save answering late — and never news.
+  if (state.entries.some((held) => held.id === entry.id && held.version > entry.version)) {
     return state;
   }
 
@@ -224,6 +236,15 @@ const handlers: Record<
       ...state,
       entries: state.entries.map((held) => (held.id === id ? { ...held, bookmarked } : held)),
     };
+  },
+
+  // Written by hand. The words are the ones the reader just typed, so they are
+  // held as opened straight away instead of being decrypted back from the seal.
+  [EntriesActionType.Saved]: (state, action) => {
+    const { entry, opened } = action.data as SavedData;
+    const after = arrived(state, entry);
+
+    return after === state ? state : { ...after, opened: { ...after.opened, [entry.id]: opened } };
   },
 
   [EntriesActionType.Opened]: (state, action) => ({
