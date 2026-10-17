@@ -95,6 +95,10 @@ function byNewest(entries: Entry[]): Entry[] {
   return entries.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+function restated(state: EntriesUiState, entry: Entry): boolean {
+  return state.entries.some((held) => held.id === entry.id && held.version === entry.version);
+}
+
 /**
  * An entry the agent just wrote, folded in.
  *
@@ -113,6 +117,12 @@ function arrived(state: EntriesUiState, entry: Entry): EntriesUiState {
   // — a frame, a list or a save answering late — and never news.
   if (state.entries.some((held) => held.id === entry.id && held.version > entry.version)) {
     return state;
+  }
+  // The same version is the same words, so what the key made of them stands.
+  if (restated(state, entry)) {
+    const entries = state.entries.map((held) => (held.id === entry.id ? entry : held));
+
+    return { ...state, entries: byNewest(entries) };
   }
 
   const others = state.entries.filter((held) => held.id !== entry.id);
@@ -164,7 +174,7 @@ const handlers: Record<
     const before = state.opened[entry.id] ?? state.previous[entry.id];
     const after = arrived(state, entry);
 
-    return before && after !== state
+    return before && after !== state && !restated(state, entry)
       ? { ...after, previous: { ...after.previous, [entry.id]: before } }
       : after;
   },
