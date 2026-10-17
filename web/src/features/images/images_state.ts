@@ -23,6 +23,7 @@ export enum ImagesActionType {
   Opened = "opened",
   Failed = "failed",
   Removed = "removed",
+  Added = "added",
 }
 
 export type ImagesAction = ReducerAction<ImagesActionType>;
@@ -47,6 +48,11 @@ const handlers: Record<
     images: action.data as OpenedImage[],
   }),
   [ImagesActionType.Failed]: (state) => ({ ...state, status: "failed" }),
+  // One the reader just stored, already opened: put last, where its ordinal is.
+  [ImagesActionType.Added]: (state, action) => ({
+    ...state,
+    images: [...state.images, action.data as OpenedImage],
+  }),
   [ImagesActionType.Removed]: (state, action) => ({
     ...state,
     images: state.images.filter((image) => image.id !== action.data),

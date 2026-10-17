@@ -17,6 +17,12 @@ export interface Attachment {
   data: string;
 }
 
+/** A picture the reader adds to an entry, and the key it is sealed under. */
+export interface PictureAdd {
+  key: string;
+  picture: Attachment;
+}
+
 /** A picture kept with an entry, as stored: `caption` and `data` are sealed. */
 export interface EntryImage {
   id: string;

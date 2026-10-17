@@ -122,6 +122,7 @@ function EntryWords(params: EntryWordsOptions) {
       entry={entry}
       key={entry.id}
       locale={options.locale}
+      onPictureAdded={pictures.added}
       opened={options.opened}
       pictures={pictures.images}
       picturesLoading={pictures.status === "loading" || pictures.status === "idle"}

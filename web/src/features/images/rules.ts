@@ -1,4 +1,5 @@
-import type { Attachment } from "./types";
+import { isAgentKey } from "@/features/vault/rules";
+import type { Attachment, PictureAdd } from "./types";
 
 /**
  * Every rule about what a picture may be, in one place the composer and the
@@ -105,6 +106,25 @@ export function attachmentsFrom(value: unknown, maxImages: number): Attachment[]
   }));
 
   return attachmentProblem(attachments, maxImages) ? null : attachments;
+}
+
+/**
+ * A picture the reader is adding to an entry, as it may be sent, or null when
+ * it is not one we would send ourselves. One picture, so one picture's body.
+ */
+export function pictureAddFrom(value: unknown): PictureAdd | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const pictures = attachmentsFrom([candidate.picture], 1);
+
+  if (typeof candidate.key !== "string" || !isAgentKey(candidate.key) || !pictures) {
+    return null;
+  }
+
+  return { key: candidate.key, picture: pictures[0] };
 }
 
 /**

@@ -14,6 +14,8 @@ export interface EntryEditorContextValue {
   locale: Locale;
   pictures: Map<string, OpenedImage>;
   picturesLoading: boolean;
+  /** Stores what was picked or dropped on a picture slot, and puts it there. */
+  fillSlot: (files: File[], token: string) => void;
 }
 
 export const EntryEditorContext = createContext<EntryEditorContextValue | null>(null);

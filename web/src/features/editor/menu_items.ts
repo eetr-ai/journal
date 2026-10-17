@@ -1,7 +1,8 @@
 import type { ChainedCommands } from "@tiptap/core";
 import type { EditorDictionary } from "@/i18n/en_editor";
+import { pictureSlot, searchSlot } from "./extensions/slots";
 
-/** What the block menu can turn the current block into. */
+/** What the block menu can turn the current block into, or put in its place. */
 
 export type MenuItemId = Exclude<
   keyof EditorDictionary["menu"],
@@ -54,6 +55,24 @@ export const MENU_ITEMS: MenuItem[] = [
     run: (chain) => chain.setHorizontalRule(),
   },
   { id: "code", keywords: "pre", shortcut: "```", run: (chain) => chain.toggleCodeBlock() },
+  {
+    id: "picture",
+    keywords: "image photo upload",
+    shortcut: "",
+    run: (chain) => chain.insertContent(pictureSlot(crypto.randomUUID(), "empty", true)),
+  },
+  {
+    id: "quoteSearch",
+    keywords: "quote search web find",
+    shortcut: "",
+    run: (chain) => chain.insertContent(searchSlot("quotes")),
+  },
+  {
+    id: "songSearch",
+    keywords: "song lyrics music search web find",
+    shortcut: "",
+    run: (chain) => chain.insertContent(searchSlot("songs")),
+  },
 ];
 
 /** The items a query finds, in menu order. An empty query finds them all. */

@@ -5,6 +5,7 @@ import {
   type Capabilities,
   type EntryImage,
   type EntryImagesEntity,
+  type PictureAdd,
 } from "./types";
 
 /**
@@ -20,6 +21,7 @@ const REQUEST_TIMEOUT_MS = 5_000;
 // A page of pictures is megabytes, not the kilobytes of an entry list.
 const IMAGES_TIMEOUT_MS = 30_000;
 const ATTEMPTS = 2;
+const NOT_FOUND = 404;
 
 let client: RestClient | undefined;
 
@@ -43,6 +45,29 @@ export const imagesClient = {
     );
 
     return response.getOrThrow().images.map(imageFromEntity);
+  },
+
+  /**
+   * Keep a picture with an entry, sealed by the agent under the key. Null when
+   * the entry is not this person's, or not there.
+   */
+  async add(subject: string, entryId: string, add: PictureAdd): Promise<string | null> {
+    const response = await agent().post<{ added: boolean; id?: string }>(
+      `/entries/${encodeURIComponent(subject)}/${encodeURIComponent(entryId)}/images`,
+      {
+        key: add.key,
+        mimeType: add.picture.mimeType,
+        data: add.picture.data,
+        caption: "",
+      },
+      { timeoutMs: IMAGES_TIMEOUT_MS, retry: { attempts: 1 } },
+    );
+
+    if (response.status === NOT_FOUND) {
+      return null;
+    }
+
+    return response.getOrThrow().id ?? null;
   },
 
   /** Throw one away. False when it named nothing of this person's. */

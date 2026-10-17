@@ -4,6 +4,7 @@ import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Callout } from "./extensions/callout";
 import { PictureGuard } from "./extensions/guard";
 import { Picture } from "./extensions/picture";
+import { PictureSlot, SearchSlot } from "./extensions/slots";
 import { Verbatim, VerbatimHtml, VerbatimTable } from "./extensions/verbatim";
 
 /**
@@ -17,20 +18,26 @@ import { Verbatim, VerbatimHtml, VerbatimTable } from "./extensions/verbatim";
 export interface SchemaViews {
   picture?: NodeViewRenderer;
   verbatim?: NodeViewRenderer;
+  pictureSlot?: NodeViewRenderer;
+  searchSlot?: NodeViewRenderer;
+}
+
+function viewed<T extends { extend: (config: object) => T }>(node: T, view?: NodeViewRenderer): T {
+  return view ? node.extend({ addNodeView: () => view }) : node;
 }
 
 export function entrySchema(views: SchemaViews = {}): AnyExtension[] {
-  const { picture, verbatim } = views;
-
   return [
     StarterKit.configure({ undoRedo: false, underline: false, link: { openOnClick: false } }),
     TaskList,
     TaskItem.configure({ nested: true }),
     Callout,
-    picture ? Picture.extend({ addNodeView: () => picture }) : Picture,
-    verbatim ? Verbatim.extend({ addNodeView: () => verbatim }) : Verbatim,
+    viewed(Picture, views.picture),
+    viewed(Verbatim, views.verbatim),
     VerbatimTable,
     VerbatimHtml,
+    viewed(PictureSlot, views.pictureSlot),
+    viewed(SearchSlot, views.searchSlot),
     PictureGuard,
   ];
 }

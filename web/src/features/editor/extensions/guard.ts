@@ -4,9 +4,9 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { PICTURE } from "./picture";
 
 /**
- * Holds the rule that, for now, pictures are added and removed only from the
- * conversation: a change that would lose one of the entry's pictures is
- * refused whole, and a pasted or dropped file goes nowhere.
+ * Holds the rule that the editor never loses a picture: a change that would
+ * drop one of the entry's pictures is refused whole, and a pasted or dropped
+ * file is never pasted as it is. Pictures reach the words only once stored.
  *
  * A load of words from outside the editor — an undo, or the latest version —
  * is marked `LOADED` and passes, because it is putting back a state the entry
