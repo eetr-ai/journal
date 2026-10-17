@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
 import type { BlockMenu as BlockMenuHandle } from "../use_block_menu";
 import type { EditorDictionary } from "@/i18n/en_editor";
@@ -13,7 +14,13 @@ export interface BlockMenuOptions {
   labels: EditorDictionary["menu"];
 }
 
-/** The block menu, under the caret. Keyboard first; a click works too. */
+/**
+ * The block menu, under the caret. Keyboard first; a click works too.
+ *
+ * Drawn into the body: the panels slide, and anything translated is what a
+ * fixed element is placed against, so inside one the caret's coordinates
+ * would land the menu somewhere else entirely.
+ */
 export default function BlockMenu(options: BlockMenuOptions) {
   const { menu, visible } = options.handle;
 
@@ -21,7 +28,7 @@ export default function BlockMenu(options: BlockMenuOptions) {
     return null;
   }
 
-  return (
+  return createPortal(
     <div
       aria-label={options.labels.label}
       className="fixed z-50 max-h-72 w-56 overflow-y-auto rounded-md border border-border bg-surface py-1 text-sm shadow-lg"
@@ -49,6 +56,7 @@ export default function BlockMenu(options: BlockMenuOptions) {
           {options.labels[item.id]}
         </button>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 }
