@@ -380,3 +380,20 @@ cases:
     expect:
       body:
         saved: false
+
+  # A version names a row that exists. With the conversation's note gone, a
+  # write from an old read of it does not start a new one.
+  - name: a write naming a version does not create the conversation's note
+    input:
+      data:
+        title: From an old read
+        content: Should not land.
+        version: 2
+      vars:
+        subject: dolphin-entries-write
+        threadId: dolphin-write-gone
+        today: "2026-09-15"
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+    expect:
+      body:
+        saved: false

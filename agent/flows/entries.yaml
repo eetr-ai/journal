@@ -596,8 +596,12 @@ flows:
                 query: |
                   INSERT INTO journal_entry
                     (id, oidc_subject, thread_key, entry_date, title, content)
-                  VALUES
-                    ($2::uuid, $1, '', COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5)
+                  SELECT $2::uuid, $1, '', COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5
+                  -- A version names a row that exists. Without this, a write
+                  -- from a read of an entry thrown away since would bring it
+                  -- back; with it, only a writer that read nothing creates.
+                  WHERE $6::bigint = 0
+                     OR EXISTS (SELECT 1 FROM journal_entry WHERE id = $2::uuid)
                   -- The whole argument for letting a browser choose a primary
                   -- key. An id that collides with somebody else's row fails this
                   -- condition, so the statement updates nothing and returns
@@ -634,8 +638,13 @@ flows:
                 query: |
                   INSERT INTO journal_entry
                     (oidc_subject, thread_key, entry_date, title, content)
-                  VALUES
-                    ($1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5)
+                  SELECT $1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5
+                  -- As above: a version is a write onto a note that exists.
+                  WHERE $6::bigint = 0
+                     OR EXISTS (
+                       SELECT 1 FROM journal_entry
+                       WHERE oidc_subject = $1 AND thread_key = $2 AND thread_key <> ''
+                     )
                   -- entry_date is deliberately NOT updated. A note belongs to
                   -- the day it is about, and advancing it would move the note
                   -- off that day and leave it empty — a conversation picked up

@@ -77,3 +77,19 @@ cases:
       that:
         - body.saved == false
         - vars.httpStatus == 404
+
+  # Thrown away while the reader still had unsaved words in it. A save naming a
+  # version is a write onto that version, so with the row gone it writes nothing
+  # rather than bringing the entry back.
+  - name: a save naming a version does not bring back an entry that is gone
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Written after the delete
+        content: Should not land.
+        version: 3
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-0000000000dd }
+    expect:
+      that:
+        - body.saved == false
+        - vars.httpStatus == 404
