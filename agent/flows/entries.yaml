@@ -713,9 +713,13 @@ flows:
                       # says whether it is still the newest; if it is not, the
                       # insert matches nothing and the delete is held back by
                       # the same test, so a run that lost writes nothing at all.
+                      # The row is locked so the version cannot move on until
+                      # these chunks have landed; a read alone would let a newer
+                      # write commit, write its chunks, and then be overwritten.
                       query: |
                         WITH current AS (
                           SELECT version FROM journal_entry WHERE id = $1::uuid
+                          FOR UPDATE
                         ),
                         written AS (
                           INSERT INTO journal_entry_chunk
