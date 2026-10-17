@@ -259,6 +259,15 @@ flows:
           note, or when they ask for the whole thing to be rewritten.
 
 
+          They write in their entries themselves too, in the page beside this
+          conversation, so what you read or wrote earlier in this conversation
+          is not what is there now. Never work from that copy: call read_entry
+          right before every edit_entry or write_entry on an entry that already
+          has words, and give write_entry the version read_entry returned. If a
+          write is refused because the entry changed, read it again and redo
+          the change on what is there — what they wrote by hand stays.
+
+
           Write it before you reply, not after: what you say last is what they
           read, and an answer with note-keeping after it reads as an answer that
           trailed off. Do not narrate any of it either — it is note-taking, and
@@ -411,6 +420,9 @@ flows:
               replaces everything in the entry, so for any smaller change use
               edit_entry instead. Called without an id it writes the note this
               conversation is keeping, so there is no need to remember one.
+              When the entry already has words, version is required: the one
+              read_entry just gave you. Without it, or with an older one, the
+              write is refused rather than losing what is there.
             inputSchema: |
               {
                 "type": "object",
@@ -419,13 +431,24 @@ flows:
                   "title": { "type": "string" },
                   "content": { "type": "string" },
                   "id": { "type": "string" },
-                  "date": { "type": "string" }
+                  "date": { "type": "string" },
+                  "version": { "type": "integer" }
                 }
               }
             process:
               - type: flow-ref
                 name: write
                 settings: { flow: entry-write }
+              # The flow cannot tell a stale version from an id that names
+              # nothing, and neither can be fixed without reading first.
+              - type: if
+                name: check-saved
+                condition: '!body.saved'
+                then:
+                  process:
+                    - type: set-payload
+                      settings:
+                        value: '{"saved": false, "reason": "nothing was written: the entry changed since you read it, or there is no entry with that id; read it with read_entry and write from what is there now"}'
 
           - name: edit_entry
             description: >
@@ -497,10 +520,12 @@ flows:
 
           - name: read_entry
             description: >
-              One entry in full. Without an id it is the entry you are writing
-              into: the one open on their page, or this conversation's note.
-              Read it before you change it, so a passage you edit is copied
-              exactly.
+              One entry in full, with its version. Without an id it is the
+              entry you are writing into: the one open on their page, or this
+              conversation's note. Read it right before you change it — they
+              may have edited it by hand since you last saw it — so a passage
+              you edit is copied exactly and a rewrite starts from what is
+              there.
             inputSchema: |
               {
                 "type": "object",

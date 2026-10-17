@@ -137,6 +137,28 @@ VALUES
    'enc1:pE/ePAhzHA/rFRGCykddcSgtm8kktxiqqSMme+l6vLFM9gSIoKEwFuDjkmKY',
    'enc1:ewCmPL+uIM1trx6uI80JuPcmosUMVBACFTl97PSLNNUld3cHAOh4g85e0egXXwA=');
 
+-- One row per versioned write case. Cases run concurrently, and a write that
+-- lands moves the version, so no two cases may share a row they expect to win.
+-- The seals are never opened: a write replaces them without reading them.
+INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, content, version)
+VALUES
+  (UUID 'cccccccc-0000-4000-8000-000000000004', 'dolphin-entries-write', 'dolphin-write-twice', DATE '2026-09-15', 'enc1:x', 'enc1:x', 1),
+  (UUID 'cccccccc-0000-4000-8000-000000000005', 'dolphin-entries-write', 'dolphin-write-stale', DATE '2026-09-15', 'enc1:x', 'enc1:x', 3),
+  (UUID 'cccccccc-0000-4000-8000-000000000006', 'dolphin-entries-write', 'dolphin-write-current', DATE '2026-09-15', 'enc1:x', 'enc1:x', 3),
+  (UUID 'cccccccc-0000-4000-8000-000000000007', 'dolphin-entries-write', 'dolphin-write-unread', DATE '2026-09-15', 'enc1:x', 'enc1:x', 1),
+  (UUID 'cccccccc-0000-4000-8000-000000000008', 'dolphin-entries-write', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 2);
+
+-- Saved by hand, from the browser. `dolphin-entries-save` owns these, one row
+-- per case that expects to land.
+INSERT INTO user_profile (oidc_subject, email, name, config)
+VALUES ('dolphin-entries-save', 'entries-s@example.com', 'Entries Save', '{}'::jsonb)
+ON CONFLICT (oidc_subject) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name;
+
+INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, content, version)
+VALUES
+  (UUID 'c5c5c5c5-0000-4000-8000-000000000001', 'dolphin-entries-save', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 2),
+  (UUID 'c5c5c5c5-0000-4000-8000-000000000002', 'dolphin-entries-save', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 2);
+
 -- Chunks, for the suites that rank by meaning.
 --
 -- `dolphin-entries-chunks` owns this fixture and nothing else writes there, so

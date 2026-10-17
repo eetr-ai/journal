@@ -5,10 +5,12 @@ import {
   entriesOnDay,
   memory,
   readEntry,
+  saveEntry,
   searchEntries,
   setBookmark,
   writtenDays,
   type RemoveOutcome,
+  type SaveOutcome,
   type SearchOutcome,
 } from "./service";
 import type { Entry } from "./types";
@@ -34,6 +36,14 @@ export async function searchEntriesAction(
   locale: string,
 ): Promise<SearchOutcome> {
   return await searchEntries(query, key, locale);
+}
+
+/**
+ * Save an entry written by hand. Like a search, the key travels in this
+ * request's body and nowhere else. Never log the arguments to this function.
+ */
+export async function saveEntryAction(save: unknown, key: string): Promise<SaveOutcome> {
+  return await saveEntry(save, key);
 }
 
 /** Keep an entry, or let it go. Null when it is not this person's to keep. */

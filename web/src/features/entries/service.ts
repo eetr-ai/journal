@@ -1,8 +1,17 @@
 import "server-only";
 import { cache } from "react";
 import { auth } from "@/auth";
-import { entriesClient } from "./client";
-import { isDay, isEntryId, searchFrom } from "./rules";
+import { entriesClient, type SaveAnswer } from "./client";
+import {
+  isDay,
+  isEntryId,
+  namesPictures,
+  saveFrom,
+  saveProblem,
+  searchFrom,
+  type SaveProblem,
+} from "./rules";
+import { imagesClient } from "@/features/images/client";
 import { memoryDays, pickOne } from "./memory";
 import { momentFor } from "@/features/chat/now";
 import { currentProfile } from "@/features/profile/service";
@@ -133,6 +142,62 @@ export async function searchEntries(
   try {
     return { status: "found", hits: await entriesClient.search(subject, ask) };
   } catch {
+    return { status: "failed" };
+  }
+}
+
+export type SaveOutcome =
+  | { status: "saved"; entry: Entry }
+  | { status: "stale"; version: number }
+  | { status: "invalid"; problem: SaveProblem | null }
+  | { status: "failed" };
+
+// Only an entry whose words name a picture costs this lookup. For now it brings
+// the pictures themselves back too, because that is the only listing there is.
+async function picturesOf(subject: string, id: string, content: string): Promise<Set<string>> {
+  if (!namesPictures(content)) {
+    return new Set();
+  }
+
+  return new Set((await imagesClient.forEntry(subject, id)).map((image) => image.id));
+}
+
+function outcomeOf(answer: SaveAnswer): SaveOutcome {
+  switch (answer.kind) {
+    case "saved":
+      return { status: "saved", entry: answer.entry };
+    case "stale":
+      return { status: "stale", version: answer.version };
+    default:
+      return { status: "failed" };
+  }
+}
+
+/**
+ * Save an entry written by hand.
+ *
+ * The key is an argument for the same reason a search's is: the words are
+ * sealed where the key is, which is not here. Never log the arguments.
+ */
+export async function saveEntry(input: unknown, key: string): Promise<SaveOutcome> {
+  const subject = (await auth())?.user?.subject;
+  const save = saveFrom(input, key);
+
+  if (!subject || !save) {
+    return { status: "invalid", problem: null };
+  }
+
+  try {
+    const problem = saveProblem(save, await picturesOf(subject, save.id, save.content));
+
+    if (problem) {
+      return { status: "invalid", problem };
+    }
+
+    return outcomeOf(await entriesClient.save(subject, save, key));
+  } catch (error) {
+    console.error("[entries] could not save an entry", error);
+
     return { status: "failed" };
   }
 }

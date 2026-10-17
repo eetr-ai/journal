@@ -22,6 +22,8 @@ export interface Entry {
   content: string;
   /** Kept by hand. In the clear, like the day it was written on. */
   bookmarked: boolean;
+  /** Moves by one with every write of the words; 0 until the first. */
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,6 +41,7 @@ export interface EntryEntity {
   title: string;
   content: string;
   bookmarked: boolean;
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +61,7 @@ export function entryFromEntity(entity: EntryEntity): Entry {
     title: entity.title,
     content: entity.content,
     bookmarked: entity.bookmarked,
+    version: entity.version,
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,
   };
@@ -135,7 +139,24 @@ export function draftEntry(date: string): Entry {
     title: "",
     content: "",
     bookmarked: false,
+    version: 0,
     createdAt: at,
     updatedAt: at,
   };
+}
+
+/** What a save hands the agent: the words, sealed there, and the version read. */
+export interface EntrySaveEntity {
+  key: string;
+  title: string;
+  content: string;
+  date: string;
+  version: number;
+}
+
+export interface SavedEntity {
+  saved: boolean;
+  entry?: EntryEntity;
+  /** On a refusal, the version that is there now. */
+  version?: number;
 }

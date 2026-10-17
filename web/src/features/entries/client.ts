@@ -1,6 +1,6 @@
 import "server-only";
 import { RestClient } from "@eetr/ts-rest-utils";
-import type { SearchAsk } from "./rules";
+import type { EntrySave, SearchAsk } from "./rules";
 import {
   entryFromEntity,
   hitFromEntity,
@@ -8,6 +8,8 @@ import {
   type EntriesEntity,
   type Entry,
   type EntryEntity,
+  type EntrySaveEntity,
+  type SavedEntity,
   type SearchEntity,
   type SearchHit,
 } from "./types";
@@ -26,6 +28,7 @@ import {
 const DEFAULT_AGENT_URL = "http://localhost:8080";
 const REQUEST_TIMEOUT_MS = 5_000;
 const NOT_FOUND = 404;
+const CONFLICT = 409;
 const ATTEMPTS = 2;
 // A search waits on a model reading the shortlist, which the five seconds every
 // other call gets would cut off mid-thought. Longer than the flow's own 60s
@@ -35,6 +38,18 @@ const SEARCH_TIMEOUT_MS = 70_000;
 // And it is not retried: a second attempt is a second model call, paid for, for
 // a question the reader can simply ask again.
 const SEARCH_ATTEMPTS = 1;
+// A save is sealed and embedded before it answers, so it waits on the vector
+// provider. It is not retried: a save that landed and lost its answer would be
+// refused the second time as stale, and the reader told of a conflict that was
+// their own write.
+const SAVE_TIMEOUT_MS = 30_000;
+const SAVE_ATTEMPTS = 1;
+
+/** How a save came back. `missing` is an id that is not this person's. */
+export type SaveAnswer =
+  | { kind: "saved"; entry: Entry }
+  | { kind: "stale"; version: number }
+  | { kind: "missing" };
 
 let client: RestClient | undefined;
 
@@ -119,6 +134,41 @@ export const entriesClient = {
     });
 
     return response.getOrThrow().results.map(hitFromEntity);
+  },
+
+  /**
+   * Save an entry written by hand. The key is in the body because the words
+   * are sealed on the other side; a refusal names the version there now.
+   */
+  async save(subject: string, save: EntrySave, key: string): Promise<SaveAnswer> {
+    const body: EntrySaveEntity = {
+      key,
+      title: save.title,
+      content: save.content,
+      date: save.date,
+      version: save.version,
+    };
+    const response = await agent().put<SavedEntity>(
+      `${entriesPath(subject)}/${encodeURIComponent(save.id)}`,
+      body,
+      { timeoutMs: SAVE_TIMEOUT_MS, retry: { attempts: SAVE_ATTEMPTS } },
+    );
+
+    if (response.status === NOT_FOUND) {
+      return { kind: "missing" };
+    }
+
+    if (response.status === CONFLICT) {
+      return { kind: "stale", version: response.body.version ?? 0 };
+    }
+
+    const saved = response.getOrThrow();
+
+    if (!saved.entry) {
+      throw new Error("the agent saved an entry and did not answer with it");
+    }
+
+    return { kind: "saved", entry: entryFromEntity(saved.entry) };
   },
 
   /** One entry, or null when this subject has none by that id. */
