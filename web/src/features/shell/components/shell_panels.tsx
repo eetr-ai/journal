@@ -45,7 +45,10 @@ export default function ShellPanels(options: ShellPanelsOptions) {
             />
           </PanelSheet>
 
+          {/* Keyed by conversation: its reducer is seeded once, so another
+              conversation, or none, has to start over rather than inherit the turns. */}
           <ChatPanel
+            key={options.threadId}
             locale={options.locale}
             subject={options.subject}
             t={options.t}
