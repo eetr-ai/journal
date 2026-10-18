@@ -60,7 +60,11 @@ export default function EntryContent(options: EntryContentOptions) {
   const stopLooking = useCallback(() => setLooking(false), []);
   const pictures = usePicturesOf(entry, options.subject);
   const { content, changedFrom } = useWords(options);
-  useChangeTimeout(entry?.id ?? null, changedFrom !== undefined);
+  useChangeTimeout({
+    entryId: entry?.id ?? null,
+    version: entry?.version ?? 0,
+    pending: changedFrom !== undefined,
+  });
   const anchored = useMemo(() => anchoredIn(content ?? ""), [content]);
 
   return (

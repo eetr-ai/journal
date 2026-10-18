@@ -12,8 +12,9 @@ const changedKey = new PluginKey<DecorationSet>("changedBlocks");
 
 /**
  * Positions of the top-level blocks of `doc` that no block of `before` matches.
- * Matching is by node, so a moved block is not marked and a one-word edit marks
- * its whole block; what was only taken away leaves nothing to mark.
+ * Matching is by node, and each old block matches once, so a moved block is not
+ * marked, a repeated one is, and a one-word edit marks its whole block; what was
+ * only taken away leaves nothing to mark.
  */
 export function changedBlocks(doc: ProseNode, before: ProseNode): number[] {
   const known: ProseNode[] = [];
@@ -21,8 +22,12 @@ export function changedBlocks(doc: ProseNode, before: ProseNode): number[] {
 
   before.forEach((node) => known.push(node));
   doc.forEach((node, offset) => {
-    if (!known.some((old) => old.eq(node))) {
+    const match = known.findIndex((old) => old.eq(node));
+
+    if (match === -1) {
       ret.push(offset);
+    } else {
+      known.splice(match, 1);
     }
   });
 
