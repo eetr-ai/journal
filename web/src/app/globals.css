@@ -342,7 +342,7 @@ body:has(.viewport-pinned) {
 }
 
 /* A card is opaque, so a wash behind it would only show in its margins: it is
-   ringed instead. */
+   ringed instead. The card sits inside the block's view, not directly under it. */
 @keyframes changed-ring {
   from {
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--highlight) 60%, transparent);
@@ -352,12 +352,12 @@ body:has(.viewport-pinned) {
   }
 }
 
-.prose [data-changed]:has(> .not-prose) {
+.prose [data-changed]:has(.not-prose) {
   background-color: transparent;
   animation: none;
 }
 
-.prose [data-changed] > .not-prose {
+.prose [data-changed] .not-prose {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--highlight) 40%, transparent);
 
   @media (prefers-reduced-motion: no-preference) {

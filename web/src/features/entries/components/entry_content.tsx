@@ -1,14 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import EntryEditor from "@/features/editor/components/entry_editor";
 import PicturesBadge from "@/features/images/components/pictures_badge";
 import PicturesDialog from "@/features/images/components/pictures_dialog";
 import { anchoredIn } from "@/features/images/rules";
 import { useEntryImages } from "@/features/images/use_entry_images";
 import { useEntries } from "../entries_state";
-import { changedRanges } from "../changes";
-import { HIGHLIGHT_MS, useRevealChange } from "../use_reveal_change";
+import { HIGHLIGHT_MS, useChangeTimeout } from "../use_change_timeout";
 import { isDraft, type Entry, type OpenedEntry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -26,17 +25,13 @@ export interface EntryContentOptions {
   toolbar: HTMLElement | null;
 }
 
-// The old words stand in while the new ones are opened, and once they are, the
-// blocks that differ are what gets marked.
+// The old words stand in while the new ones are opened, and once they are, they
+// are what the change is measured from.
 function useWords(options: EntryContentOptions) {
   const after = options.opened?.content;
   const before = options.previous?.content;
-  const changed = useMemo(
-    () => (after === undefined || before === undefined ? null : changedRanges(before, after)),
-    [after, before],
-  );
 
-  return { content: after ?? before, changed };
+  return { content: after ?? before, changedFrom: after === undefined ? undefined : before };
 }
 
 function usePicturesOf(entry: Entry | null, subject: string) {
@@ -64,15 +59,17 @@ export default function EntryContent(options: EntryContentOptions) {
   // this re-renders on every frame the conversation streams in.
   const stopLooking = useCallback(() => setLooking(false), []);
   const pictures = usePicturesOf(entry, options.subject);
-  const { content, changed } = useWords(options);
-  const box = useRef<HTMLDivElement>(null);
-  useRevealChange(box, entry?.id ?? null, changed);
+  const { content, changedFrom } = useWords(options);
+  useChangeTimeout({
+    entryId: entry?.id ?? null,
+    version: entry?.version ?? 0,
+    pending: changedFrom !== undefined,
+  });
   const anchored = useMemo(() => anchoredIn(content ?? ""), [content]);
 
   return (
     <div
       className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm"
-      ref={box}
       style={{ "--changed-ms": `${HIGHLIGHT_MS}ms` } as React.CSSProperties}
     >
       <PicturesBadge
@@ -82,7 +79,12 @@ export default function EntryContent(options: EntryContentOptions) {
         status={pictures.status}
         t={options.t}
       />
-      <EntryWords content={content} options={options} pictures={pictures} />
+      <EntryWords
+        changedFrom={changedFrom}
+        content={content}
+        options={options}
+        pictures={pictures}
+      />
       {looking && entry ? (
         <PicturesDialog
           // Nothing is called loose until the words have been read.
@@ -102,12 +104,13 @@ interface EntryWordsOptions {
   options: EntryContentOptions;
   /** What the entry says, or undefined until the key has been through it. */
   content?: string;
+  changedFrom?: string;
   pictures: ReturnType<typeof usePicturesOf>;
 }
 
 // No entry, an entry still sealed, and the words themselves, written in place.
 function EntryWords(params: EntryWordsOptions) {
-  const { options, content, pictures } = params;
+  const { options, content, changedFrom, pictures } = params;
   const entry = options.entry;
 
   if (!entry || content === undefined) {
@@ -118,6 +121,7 @@ function EntryWords(params: EntryWordsOptions) {
 
   return (
     <EntryEditor
+      changedFrom={changedFrom}
       current={options.opened !== undefined}
       entry={entry}
       key={entry.id}

@@ -10,6 +10,7 @@ import PictureSlotView from "./components/picture_slot_view";
 import PictureView from "./components/picture_view";
 import SearchSlotView from "./components/search_slot_view";
 import VerbatimView from "./components/verbatim_view";
+import { ChangedBlocks } from "./extensions/changed";
 import { LOADED } from "./extensions/guard";
 import { entrySchema } from "./schema";
 import type { BlockMenu } from "./use_block_menu";
@@ -98,6 +99,7 @@ export function useEntryTiptap(options: EntryTiptapOptions): Editor | null {
         searchSlot: nodeView(SearchSlotView),
       }),
       Markdown,
+      ChangedBlocks,
       Placeholder.configure({ placeholder: options.placeholder }),
     ],
     content: options.markdown,
