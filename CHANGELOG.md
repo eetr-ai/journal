@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.16](https://github.com/eetr-ai/journal/compare/v0.0.15...v0.0.16) (2026-10-18)
+
+
+### Bug Fixes
+
+* **web:** leave a deleted conversation for an empty chat ([#61](https://github.com/eetr-ai/journal/issues/61)) ([230c35c](https://github.com/eetr-ai/journal/commit/230c35c4adf9e6d38308bffe724ebf5c9789298c))
+* **web:** scroll to and highlight what the agent changed in the editor ([#59](https://github.com/eetr-ai/journal/issues/59)) ([9930982](https://github.com/eetr-ai/journal/commit/993098201ff1fbe52dc01539be9f794daea9dbe3))
+
 ## [0.0.15](https://github.com/eetr-ai/journal/compare/v0.0.14...v0.0.15) (2026-10-17)
 
 
