@@ -52,16 +52,23 @@ function took(pool: ProseNode[], node: ProseNode): boolean {
 export function changedBlocks(doc: ProseNode, before: ProseNode): number[] {
   const blocks = childrenOf(before);
   const items = blocks.filter(isList).flatMap(childrenOf);
+  const fresh: { node: ProseNode; offset: number }[] = [];
   const ret: number[] = [];
 
+  // Whole blocks first, so an unchanged list's items are spoken for before any
+  // changed list is matched against them, whichever comes first in the entry.
   doc.forEach((node, offset) => {
-    if (isEmptyLine(node) || took(blocks, node)) {
-      return;
+    if (!took(blocks, node)) {
+      fresh.push({ node, offset });
+    } else if (isList(node)) {
+      node.forEach((item) => took(items, item));
     }
+  });
 
+  for (const { node, offset } of fresh.filter((block) => !isEmptyLine(block.node))) {
     if (!isList(node)) {
       ret.push(offset);
-      return;
+      continue;
     }
 
     node.forEach((item, at) => {
@@ -69,7 +76,7 @@ export function changedBlocks(doc: ProseNode, before: ProseNode): number[] {
         ret.push(offset + 1 + at);
       }
     });
-  });
+  }
 
   return ret;
 }
