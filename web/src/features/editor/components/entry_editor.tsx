@@ -21,6 +21,7 @@ import {
   type Snapshot,
 } from "../editor_state";
 import { useBlockMenu } from "../use_block_menu";
+import { useChangedBlocks } from "../use_changed_blocks";
 import { useEntrySync, type EntrySync } from "../use_entry_sync";
 import { usePictureUpload } from "../use_picture_upload";
 import { markdownOf } from "../extensions/slots";
@@ -40,6 +41,8 @@ export interface EntryEditorOptions {
   current: boolean;
   /** The current version once it has been opened, which may arrive later. */
   opened?: OpenedEntry;
+  /** What the entry said before a write from elsewhere, until that change is shown. */
+  changedFrom?: string;
   pictures: OpenedImage[];
   picturesLoading: boolean;
   /** A picture the reader just added, stored and opened. */
@@ -164,6 +167,10 @@ function EditorBody(options: EntryEditorOptions) {
 
   useIncoming(options.entry, options.opened);
   useLoadedWords(editor, state.present, state.revision);
+  useChangedBlocks(editor, {
+    before: options.changedFrom,
+    holding: state.present.markdown === options.opened?.content,
+  });
   useShortcuts(box, sync.flush);
 
   return (

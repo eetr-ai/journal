@@ -3,11 +3,9 @@ import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markd
 import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import remarkCallouts from "./callouts";
-import rehypeChanged from "./rehype_changed";
 import remarkWidgets, { WIDGET_PROPERTY } from "@/features/widgets/remark_widgets";
 import type { Place } from "@/features/widgets/rules";
 import { isExternal } from "./links";
-import type { TextRange } from "@/features/entries/changes";
 
 export interface MarkdownOptions {
   children: string;
@@ -18,8 +16,6 @@ export interface MarkdownOptions {
    */
   renderImage?: (url: string, alt: string) => ReactNode;
   scheme?: string;
-  /** Stretches of `children`, by offset, whose blocks are marked `data-changed`. */
-  changed?: TextRange[];
   /**
    * Draws a widget from the catalog, handed the checked widget as JSON.
    * Without it, `::name{…}` lines are just text.
@@ -49,8 +45,6 @@ const link: Components["a"] = (options) => {
 const DrawWidget = createContext<((encoded: string) => ReactNode) | null>(null);
 
 // A div carrying a widget is one the widgets plugin made; any other is a div.
-// The card keeps the block's change mark, so a card the agent added is shown
-// like any other passage it wrote.
 const WidgetDiv: Components["div"] = (options) => {
   const draw = useContext(DrawWidget);
   const { node, ...div } = options;
@@ -60,9 +54,7 @@ const WidgetDiv: Components["div"] = (options) => {
     return <div {...div} />;
   }
 
-  return (
-    <div data-changed={node?.properties?.dataChanged as string | undefined}>{draw(encoded)}</div>
-  );
+  return <div>{draw(encoded)}</div>;
 };
 
 function componentsFor(options: MarkdownOptions, own: (url: string) => boolean): Components {
@@ -99,7 +91,6 @@ export default function Markdown(options: MarkdownOptions) {
       <DrawWidget value={options.widget ?? null}>
         <ReactMarkdown
           components={componentsFor(options, own)}
-          rehypePlugins={options.changed ? [[rehypeChanged, options.changed]] : []}
           remarkPlugins={
             options.widget
               ? [
