@@ -4,31 +4,71 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 /**
- * Marks the top-level blocks someone else just wrote with `data-changed`. The
+ * Marks the blocks someone else just wrote with `data-changed`. The
  * marks follow the words as they are edited, and stay until they are cleared.
  */
 
 const changedKey = new PluginKey<DecorationSet>("changedBlocks");
 
+const LIST_ITEMS = new Set(["listItem", "taskItem"]);
+
+function isEmptyLine(node: ProseNode): boolean {
+  return node.isTextblock && node.content.size === 0;
+}
+
+function isList(node: ProseNode): boolean {
+  return node.childCount > 0 && LIST_ITEMS.has(node.firstChild?.type.name ?? "");
+}
+
+function childrenOf(node: ProseNode): ProseNode[] {
+  const ret: ProseNode[] = [];
+
+  node.forEach((child) => ret.push(child));
+
+  return ret;
+}
+
+// Takes a node equal to `node` out of `pool`; false when there was none left.
+function took(pool: ProseNode[], node: ProseNode): boolean {
+  const match = pool.findIndex((old) => old.eq(node));
+
+  if (match !== -1) {
+    pool.splice(match, 1);
+  }
+
+  return match !== -1;
+}
+
 /**
- * Positions of the top-level blocks of `doc` that no block of `before` matches.
+ * Positions of the blocks of `doc` that no block of `before` matches.
+ *
  * Matching is by node, and each old block matches once, so a moved block is not
- * marked, a repeated one is, and a one-word edit marks its whole block; what was
- * only taken away leaves nothing to mark.
+ * marked, a repeated one is, and a one-word edit marks its whole block. A list
+ * that changed is matched item by item against the items of every old list, so
+ * only its new items are marked. For now that goes one level deep: an item whose
+ * nested list changed is marked whole. What was only taken away, or an empty
+ * line, leaves nothing to mark.
  */
 export function changedBlocks(doc: ProseNode, before: ProseNode): number[] {
-  const known: ProseNode[] = [];
+  const blocks = childrenOf(before);
+  const items = blocks.filter(isList).flatMap(childrenOf);
   const ret: number[] = [];
 
-  before.forEach((node) => known.push(node));
   doc.forEach((node, offset) => {
-    const match = known.findIndex((old) => old.eq(node));
-
-    if (match === -1) {
-      ret.push(offset);
-    } else {
-      known.splice(match, 1);
+    if (isEmptyLine(node) || took(blocks, node)) {
+      return;
     }
+
+    if (!isList(node)) {
+      ret.push(offset);
+      return;
+    }
+
+    node.forEach((item, at) => {
+      if (!took(items, item)) {
+        ret.push(offset + 1 + at);
+      }
+    });
   });
 
   return ret;
