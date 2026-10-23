@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GearSixIcon, LockKeyIcon, SignOutIcon } from "@phosphor-icons/react";
+import { GearSixIcon, LockKeyIcon, SignOutIcon, UsersIcon } from "@phosphor-icons/react";
 import Avatar from "./avatar";
 import { forgetEveryKey } from "@/features/vault/session";
 import LanguageOptions from "./language_options";
@@ -79,6 +79,9 @@ function MenuBody(options: UserMenuOptions) {
       <div className="border-t border-border p-1">
         <MenuRow href={href(`/${options.locale}/settings`)} icon={<GearSixIcon size={ICON_SIZE} />}>
           {t.settings}
+        </MenuRow>
+        <MenuRow href={href(`/${options.locale}/people`)} icon={<UsersIcon size={ICON_SIZE} />}>
+          {t.people.menu}
         </MenuRow>
         <MenuRow href={href(`/${options.locale}/privacy`)} icon={<LockKeyIcon size={ICON_SIZE} />}>
           {t.vault.title}

@@ -2,6 +2,7 @@ import tools from "./en_tools";
 import images from "./en_images";
 import widgets from "./en_widgets";
 import editor from "./en_editor";
+import people from "./en_people";
 
 // The source dictionary. Every other locale is typed against this shape, so a
 // key added here is a compile error everywhere it is missing.
@@ -289,6 +290,7 @@ const en = {
   images,
   widgets,
   editor,
+  people,
 
   validation: {
     required: "This cannot be empty",
