@@ -113,7 +113,9 @@ export function usePanZoom(host: RefObject<HTMLDivElement | null>, places: Point
     // Not a React handler: those are passive, and the page must not scroll under a zoom.
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      setView((now) => zoomedAbout(now, WHEEL_STEP ** -wheelPixels(event), inPicture(element, event)));
+      setView((now) =>
+        zoomedAbout(now, WHEEL_STEP ** -wheelPixels(event), inPicture(element, event)),
+      );
     };
 
     element?.addEventListener("wheel", onWheel, { passive: false });
