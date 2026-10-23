@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import type { Entry } from "@/features/entries/types";
 import type { Attachment } from "@/features/images/types";
+import type { Layout } from "@/features/shell/layout";
 import type { ToolFrame } from "./tool_steps";
 
 /**
@@ -150,4 +151,6 @@ export type AgentFrame =
   | { kind: "open"; entry: Entry }
   // A picture kept with an entry. Ids only; the picture is fetched sealed.
   | { kind: "image"; entryId: string }
+  // The agent rearranging the page, because the reader asked it to.
+  | { kind: "layout"; layout: Layout }
   | { kind: "done" };

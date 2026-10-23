@@ -353,6 +353,17 @@ flows:
           conversation, and say where it came from when you do.
 
 
+          The page is theirs to arrange, and arrange_page is how you do it for
+          them when they ask. When they say they want to write it themselves,
+          or want the entry bigger, use writing: the entry takes the middle and
+          you stay beside it. Use focus only when they ask for this
+          conversation to go away, because it hides everything you say next;
+          and conversation when they want you back in the middle. Say a few
+          words first — that you are making room, and how to get you back —
+          so the change does not come out of nowhere. Never rearrange it on
+          your own otherwise, however much they are writing.
+
+
           They may send pictures with a message, numbered from 0 in the order
           they arrived. You see them on that turn only. When a picture belongs
           with the day — a place, a person, something they made — keep it with
@@ -567,6 +578,27 @@ flows:
               - type: flow-ref
                 name: open
                 settings: { flow: entry-open }
+
+          - name: arrange_page
+            description: >
+              Rearrange the page they are looking at. conversation puts this
+              conversation in the middle with the entry beside it; writing puts
+              the entry in the middle and this conversation to the side; focus
+              hides this conversation and leaves the entry alone. Their device
+              remembers it for next time. It only changes anything on a screen
+              wide enough to show both.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["layout"],
+                "properties": {
+                  "layout": { "type": "string", "enum": ["conversation", "writing", "focus"] }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: arrange
+                settings: { flow: page-arrange }
 
           - name: search_books
             description: >

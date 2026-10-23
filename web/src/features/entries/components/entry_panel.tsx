@@ -5,10 +5,7 @@ import { BookmarkSimpleIcon, SunHorizonIcon, TrashIcon } from "@phosphor-icons/r
 import ConfirmDialog from "@/components/confirm_dialog";
 import EntryContent from "./entry_content";
 import PanelSheet from "@/features/shell/components/panel_sheet";
-import ResizeHandle from "@/features/shell/components/resize_handle";
-import { MAX_TODAY_WIDTH, MIN_TODAY_WIDTH } from "@/features/profile/types";
 import { EntriesActionType, entryShowing, useEntries } from "../entries_state";
-import { useTodayWidth } from "../use_today_width";
 import { useOpenedEntries } from "../use_opened_entries";
 import { useEntryUrl } from "../use_entry_url";
 import { useThrowAway } from "../use_throw_away";
@@ -24,7 +21,6 @@ const ICON_SIZE = 16;
 export interface EntryPanelOptions {
   t: Dictionary;
   locale: Locale;
-  width: number;
   /** Whose vault holds the key these entries are sealed under. */
   subject: string;
 }
@@ -40,7 +36,6 @@ export default function EntryPanel(options: EntryPanelOptions) {
   const { state } = useEntries();
   const going = useThrowAway();
   const keeping = useKeeping();
-  const today = useTodayWidth(options.width);
 
   useOpenedEntries(options.subject, options.t.entries.unreadable);
   useEntryUrl();
@@ -52,21 +47,7 @@ export default function EntryPanel(options: EntryPanelOptions) {
   const previous = entry ? state.previous[entry.id] : undefined;
 
   return (
-    // The width is published as a custom property rather than an inline width,
-    // so only the size that docks this as a column reads it; below that the
-    // panel is a cover and the stored number is simply never consulted.
-    <PanelSheet
-      label={options.t.shell.dismiss}
-      style={{ "--today-width": `${today.width}px` } as React.CSSProperties}
-      variant="entry"
-    >
-      <ResizeHandle
-        label={options.t.shell.resizeToday}
-        max={MAX_TODAY_WIDTH}
-        min={MIN_TODAY_WIDTH}
-        onWidth={today.onWidth}
-        width={today.width}
-      />
+    <PanelSheet label={options.t.shell.dismiss} variant="entry">
       {/* min-w-0 because this is a flex item with no width of its own: the
           automatic minimum is the widest thing inside it, and a header that
           cannot shrink would otherwise carry the whole panel past the box

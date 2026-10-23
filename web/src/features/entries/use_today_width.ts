@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { saveTodayWidthAction } from "@/features/profile/actions";
 
 /**
- * How wide the entry panel is, while it is being dragged and afterwards.
+ * How wide the side column is, while it is being dragged and afterwards. One
+ * number whichever panel is beside: the entry, or the conversation once the
+ * entry has the middle.
  *
  * The width is local state for the length of the drag and written through only
  * on release, so a drag costs one round trip rather than one per frame.

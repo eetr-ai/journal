@@ -1,0 +1,46 @@
+# `page-arrange`, the sourceless flow behind the agent's arrange_page tool.
+#
+# How the page is laid out belongs to the reader's browser, which keeps it per
+# device; this flow stores nothing. It tells an open page to rearrange itself
+# with a `layout` frame, and tells the model whether it did.
+#
+#   conversation   the conversation in the middle, the entry beside it
+#   writing        the entry in the middle, the conversation beside it
+#   focus          the entry alone
+flows:
+  - name: page-arrange
+    process:
+      - type: set-variable
+        name: hold-layout
+        settings:
+          name: layout
+          value: 'has(body.layout) && type(body.layout) == string ? body.layout : ""'
+      # The only judgement this flow makes, and only so the model is told
+      # plainly that there is no such layout rather than believing it worked.
+      - type: switch
+        name: can-arrange
+        cases:
+          - when: '!(vars.layout in ["conversation", "writing", "focus"])'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"arranged": false, "reason": "no such layout; it is conversation, writing or focus"}'
+          - when: "true"
+            process:
+              # A tool that runs with nobody reading still has to answer the
+              # model; only the frame is conditional.
+              - type: if
+                name: tell-the-reader
+                condition: 'has(vars.sseStream) && vars.sseStream != ""'
+                then:
+                  process:
+                    - type: sse-event
+                      name: layout-frame
+                      settings:
+                        event: layout
+                        data: 'toJson({"layout": vars.layout})'
+                        ifClosed: ignore
+              - type: set-payload
+                name: arranged-result
+                settings:
+                  value: '{"arranged": true, "layout": vars.layout}'

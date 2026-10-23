@@ -81,6 +81,13 @@ const en = {
     todayTitle: "Today",
     todayDate: "Today · {day}",
     resizeToday: "Resize today's entry",
+    resizeChat: "Resize the conversation",
+    layout: {
+      label: "Page layout",
+      conversation: "Conversation in the middle",
+      writing: "Entry in the middle",
+      focus: "Only the entry",
+    },
     openDrawer: "Show chats and journal",
     closeDrawer: "Hide chats and journal",
     openToday: "Show the entry",
