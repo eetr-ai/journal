@@ -24,6 +24,7 @@ import type { Vault, VaultPasskey } from "../types";
 
 const ICON_SIZE = 16;
 const MASCOT_SIZE = 120;
+const UNLOCK_FORM = "vault-unlock";
 
 export interface UnlockScreenOptions {
   t: Dictionary;
@@ -53,15 +54,30 @@ function UnlockForm(options: UnlockFormOptions) {
   const { byPassword, byPasskey } = useVaultUnlock(options.identity);
   const t = options.t.vault;
 
+  function unlock(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (state.busy) {
+      return;
+    }
+
+    options.onAttempt("password");
+    void byPassword(options.password);
+  }
+
   return (
     <div className="flex w-full max-w-sm flex-col gap-3">
-      <VaultField
-        autoComplete="current-password"
-        id="vault-gate"
-        label={t.password}
-        onChange={options.onPassword}
-        value={options.password}
-      />
+      {/* Only the field is in the form, so Enter in it unlocks: sign out is a
+          form of its own and sits beside the button, and forms cannot nest. */}
+      <form id={UNLOCK_FORM} onSubmit={unlock}>
+        <VaultField
+          autoComplete="current-password"
+          id="vault-gate"
+          label={t.password}
+          onChange={options.onPassword}
+          value={options.password}
+        />
+      </form>
 
       <VaultError t={options.t} />
 
@@ -69,11 +85,8 @@ function UnlockForm(options: UnlockFormOptions) {
         <button
           className="flex-1 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
           disabled={state.busy}
-          onClick={() => {
-            options.onAttempt("password");
-            void byPassword(options.password);
-          }}
-          type="button"
+          form={UNLOCK_FORM}
+          type="submit"
         >
           {state.busy ? t.unlocking : t.unlock}
         </button>
