@@ -90,3 +90,20 @@ cases:
     expect:
       body:
         deleted: false
+
+  - name: an id that is not a uuid is a 404
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-people, id: Ana Torres }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: person not found
+
+  - name: an id that is not a uuid is forgotten by nothing
+    input:
+      data: {}
+      vars: { method: DELETE, subject: dolphin-people-delete, id: not-an-id }
+    expect:
+      body:
+        deleted: false

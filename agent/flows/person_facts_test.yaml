@@ -31,3 +31,15 @@ cases:
       body:
         added: false
         error: person not found
+
+  - name: an id that is not a uuid takes nothing
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        fact: Should not land.
+      vars: { subject: dolphin-people-write, id: Ana }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        added: false
+        error: person not found

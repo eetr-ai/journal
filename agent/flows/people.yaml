@@ -21,6 +21,9 @@
 # proximity as a number, 5 the innermost circle and 1 the most distant, or null
 # when it is not known, rather than the text it is stored as; the number is
 # wrapped in dyn() because both arms of a CEL ternary must share a type.
+#
+# Ids are matched as text, so one that is not a uuid names nobody rather than
+# failing the statement.
 flows:
   - name: people
     source:
@@ -85,7 +88,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    DELETE FROM person WHERE oidc_subject = $1 AND id = $2::uuid
+                    DELETE FROM person WHERE oidc_subject = $1 AND id::text = lower($2)
                     RETURNING id
                   args:
                     - vars.subject
@@ -105,7 +108,7 @@ flows:
                   query: |
                     SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
                     FROM person
-                    WHERE oidc_subject = $1 AND id = $2::uuid
+                    WHERE oidc_subject = $1 AND id::text = lower($2)
                   args:
                     - vars.subject
                     - vars.id
@@ -132,7 +135,7 @@ flows:
                         query: |
                           SELECT id, person_id, fact, created_at
                           FROM person_fact
-                          WHERE oidc_subject = $1 AND person_id = $2::uuid
+                          WHERE oidc_subject = $1 AND person_id::text = lower($2)
                           ORDER BY created_at
                         args:
                           - vars.subject
@@ -170,7 +173,7 @@ flows:
             INSERT INTO person_fact (person_id, oidc_subject, fact)
             SELECT p.id, p.oidc_subject, $3
             FROM person p
-            WHERE p.oidc_subject = $1 AND p.id = $2::uuid
+            WHERE p.oidc_subject = $1 AND p.id::text = lower($2)
             RETURNING id, person_id, fact, created_at
           args:
             - vars.subject
@@ -207,7 +210,7 @@ flows:
           connector: db
           query: |
             DELETE FROM person_fact
-            WHERE oidc_subject = $1 AND person_id = $2::uuid AND id = $3::uuid
+            WHERE oidc_subject = $1 AND person_id::text = lower($2) AND id::text = lower($3)
             RETURNING id
           args:
             - vars.subject
@@ -277,7 +280,7 @@ flows:
           query: |
             UPDATE person
             SET name = $3, relation = $4, birthday = $5, notes = $6, proximity = $7, updated_at = now()
-            WHERE oidc_subject = $1 AND id = $2::uuid
+            WHERE oidc_subject = $1 AND id::text = lower($2)
             RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
           args:
             - vars.subject
@@ -352,7 +355,7 @@ flows:
           query: |
             SELECT id, name, relation, birthday, notes, proximity
             FROM person
-            WHERE oidc_subject = $1 AND id = $2::uuid
+            WHERE oidc_subject = $1 AND id::text = lower($2)
           args:
             - vars.subject
             - body.id
@@ -380,7 +383,7 @@ flows:
                 connector: db
                 query: |
                   SELECT id, fact FROM person_fact
-                  WHERE oidc_subject = $1 AND person_id = $2::uuid
+                  WHERE oidc_subject = $1 AND person_id::text = lower($2)
                   ORDER BY created_at
                 args:
                   - vars.subject
@@ -408,9 +411,24 @@ flows:
   # and is sealed as its digits.
   - name: person-remember
     process:
+      # The refusals are the only judgements this flow makes, so the model is
+      # told plainly what went wrong rather than the tool failing under it. A
+      # birthday is refused unless it is a day the calendar has; empty clears it.
       - type: switch
         name: new-or-known
         cases:
+          - when: >
+              has(body.birthday) && body.birthday != ""
+                && !(body.birthday.matches("^([0-9]{4}-)?(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$")
+                  && !body.birthday.matches("(02-3[01]|(0[469]|11)-31)$")
+                  && (!body.birthday.matches("^[0-9]{4}-02-29$")
+                    || (int(body.birthday.substring(0, 4)) % 4 == 0
+                      && (int(body.birthday.substring(0, 4)) % 100 != 0
+                        || int(body.birthday.substring(0, 4)) % 400 == 0))))
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"saved": false, "reason": "birthday is YYYY-MM-DD, or MM-DD when the year is not known"}'
           - when: 'has(body.id) && body.id != ""'
             process:
               - type: set-variable
@@ -435,7 +453,7 @@ flows:
                         notes    = CASE WHEN $6 = '' THEN notes ELSE $6 END,
                         proximity = CASE WHEN $7 = '' THEN proximity ELSE $7 END,
                         updated_at = now()
-                    WHERE oidc_subject = $1 AND id = $2::uuid
+                    WHERE oidc_subject = $1 AND id::text = lower($2)
                     RETURNING id, name, proximity
                   args:
                     - vars.subject
@@ -446,8 +464,6 @@ flows:
                     - vars.sealed.notes
                     - vars.sealed.proximity
                   single: true
-          # The only judgement this flow makes, so the model is told plainly
-          # what went wrong rather than the tool failing under it.
           - when: '!has(body.name) || body.name.trim() == ""'
             process:
               - type: set-payload
@@ -527,7 +543,7 @@ flows:
             INSERT INTO person_fact (person_id, oidc_subject, fact)
             SELECT p.id, p.oidc_subject, $3
             FROM person p
-            WHERE p.oidc_subject = $1 AND p.id = $2::uuid
+            WHERE p.oidc_subject = $1 AND p.id::text = lower($2)
             RETURNING id
           args:
             - vars.subject
@@ -554,7 +570,7 @@ flows:
         settings:
           connector: db
           query: |
-            DELETE FROM person_fact WHERE oidc_subject = $1 AND id = $2::uuid
+            DELETE FROM person_fact WHERE oidc_subject = $1 AND id::text = lower($2)
             RETURNING id
           args:
             - vars.subject

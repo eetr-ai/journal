@@ -20,3 +20,11 @@ cases:
     expect:
       body:
         forgotten: false
+
+  - name: an id that is not a uuid forgets nothing
+    input:
+      data: { id: fa000000-0000 }
+      vars: { subject: dolphin-people-delete }
+    expect:
+      body:
+        forgotten: false

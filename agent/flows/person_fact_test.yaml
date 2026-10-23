@@ -38,3 +38,14 @@ cases:
     expect:
       body:
         deleted: false
+
+  - name: ids that are not uuids forget nothing
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people-delete
+        id: eeeeeeee-0000-4000-8000-000000000022
+        fact: not-a-fact
+    expect:
+      body:
+        deleted: false

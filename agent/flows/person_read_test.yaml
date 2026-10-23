@@ -42,3 +42,11 @@ cases:
     expect:
       body:
         found: false
+
+  - name: an id that is not a uuid is not found
+    input:
+      data: { id: Ana Torres }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false
