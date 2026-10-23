@@ -6,7 +6,7 @@
 # them, and they live beside the flows that name them.
 #
 #   docker build -f platform/Dockerfile -t journal-platform:local .
-FROM golang:1.27-alpine AS build
+FROM golang:1.27.3-alpine AS build
 WORKDIR /src
 
 # The manifests first, so a change to the code does not re-download the module
