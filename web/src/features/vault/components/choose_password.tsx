@@ -8,6 +8,8 @@ import { useVaultUnlock, type VaultIdentity } from "../use_vault_operations";
 import { useVault } from "../vault_state";
 import type { Dictionary } from "@/i18n/en";
 
+const CHOOSE_FORM = "vault-choose";
+
 export interface ChoosePasswordOptions {
   t: Dictionary;
   identity: VaultIdentity;
@@ -25,7 +27,13 @@ export default function ChoosePassword(options: ChoosePasswordOptions) {
 
   // The password is handed on only once the vault is stored and open; every
   // other outcome left an error on the state for this screen to show.
-  async function submit() {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (state.busy) {
+      return;
+    }
+
     if (await create(password, confirm)) {
       options.onChosen(password);
     }
@@ -40,7 +48,14 @@ export default function ChoosePassword(options: ChoosePasswordOptions) {
 
       <VaultDisclaimer t={options.t} />
 
-      <div className="grid w-full gap-4 sm:grid-cols-2">
+      {/* The fields are the form and the button names it, so Enter in either
+          field creates the vault: sign out is a form of its own beside the
+          button, and forms cannot nest. */}
+      <form
+        className="grid w-full gap-4 sm:grid-cols-2"
+        id={CHOOSE_FORM}
+        onSubmit={(event) => void submit(event)}
+      >
         <VaultField
           autoComplete="new-password"
           id="vault-password"
@@ -55,7 +70,7 @@ export default function ChoosePassword(options: ChoosePasswordOptions) {
           onChange={setConfirm}
           value={confirm}
         />
-      </div>
+      </form>
 
       <VaultError t={options.t} />
 
@@ -63,8 +78,8 @@ export default function ChoosePassword(options: ChoosePasswordOptions) {
         <button
           className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-on-brand disabled:opacity-50"
           disabled={state.busy}
-          onClick={() => void submit()}
-          type="button"
+          form={CHOOSE_FORM}
+          type="submit"
         >
           {state.busy ? t.creating : t.create}
         </button>
