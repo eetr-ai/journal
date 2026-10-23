@@ -41,6 +41,11 @@ const tools: ToolDictionary = {
     done: "Abrí una entrada",
     failed: "No pude abrir la entrada",
   },
+  arrange_page: {
+    running: "Acomodando tu página...",
+    done: "Acomodé tu página",
+    failed: "No pude acomodar tu página",
+  },
   search_books: {
     running: "Buscando el libro...",
     done: "Busqué el libro",

@@ -38,7 +38,7 @@ export default function ChatBody(options: ChatBodyOptions) {
   const { region, onScroll } = useStickToBottom(written);
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-background md:min-w-64 lg:min-w-80">
+    <section className="flex min-w-0 flex-1 flex-col bg-background">
       <ChatHeader
         onForget={going.ask}
         started={state.turns.length > 0 || options.unavailable}

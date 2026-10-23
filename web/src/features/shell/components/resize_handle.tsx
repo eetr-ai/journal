@@ -9,6 +9,8 @@ export interface ResizeHandleOptions {
   min: number;
   max: number;
   label: string;
+  /** Where it sits among its siblings, which is the caller's to decide. */
+  className?: string;
   /** Live while the pointer is down, then once more on release with `commit`. */
   onWidth: (width: number, commit: boolean) => void;
 }
@@ -78,7 +80,7 @@ export default function ResizeHandle(options: ResizeHandleOptions) {
     // keyboard-operable without asking anyone to trust a role.
     <button
       aria-label={options.label}
-      className="relative hidden w-1 shrink-0 cursor-col-resize touch-none border-0 bg-border p-0 transition-colors before:absolute before:-inset-x-2 before:inset-y-0 before:content-[''] hover:bg-brand focus:bg-brand focus:outline-none md:block"
+      className={`relative hidden w-1 shrink-0 cursor-col-resize touch-none border-0 bg-border p-0 transition-colors before:absolute before:-inset-x-2 before:inset-y-0 before:content-[''] hover:bg-brand focus:bg-brand focus:outline-none md:block ${options.className ?? ""}`}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

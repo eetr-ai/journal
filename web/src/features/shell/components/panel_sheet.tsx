@@ -25,7 +25,9 @@ export type SheetVariant = "drawer" | "entry";
  *
  * The stored width is a basis the entry may shrink from, and the drawer holds
  * its own. A number chosen on a wide screen is not a promise that the
- * conversation between them can be squeezed to nothing to keep it.
+ * conversation between them can be squeezed to nothing to keep it. Where the
+ * reader put the entry in the middle, or left it alone, it gives that basis up
+ * and takes the room instead.
  *
  * `display` is not an animatable property, which is what `transition-discrete`
  * is for: it holds the panel displayed until the slide has finished rather than
@@ -42,7 +44,7 @@ const SHEET: Record<SheetVariant, { docked: string; open: string; shut: string }
   },
   entry: {
     docked:
-      "absolute inset-0 z-20 starting:translate-y-full md:static md:inset-auto md:z-auto md:flex md:min-w-64 md:basis-(--today-width) md:grow-0 md:shrink md:translate-y-0 md:transition-none",
+      "absolute inset-0 z-20 starting:translate-y-full md:static md:inset-auto md:z-auto md:flex md:min-w-64 md:basis-(--today-width) md:grow-0 md:shrink md:translate-y-0 md:transition-none md:layout-writing:order-1 md:layout-writing:grow md:layout-writing:basis-0 md:layout-focus:grow md:layout-focus:basis-0",
     open: "flex translate-y-0",
     shut: "hidden translate-y-full",
   },
@@ -63,8 +65,6 @@ const SCRIM_MOTION =
 export interface PanelSheetOptions {
   variant: SheetVariant;
   label: string;
-  /** The entry panel's stored width, which only the docked size reads. */
-  style?: React.CSSProperties;
   children: React.ReactNode;
 }
 
@@ -103,10 +103,7 @@ export default function PanelSheet(options: PanelSheetOptions) {
         tabIndex={-1}
         type="button"
       />
-      <div
-        className={`${open ? sheet.open : sheet.shut} ${MOTION} ${sheet.docked}`}
-        style={options.style}
-      >
+      <div className={`${open ? sheet.open : sheet.shut} ${MOTION} ${sheet.docked}`}>
         {options.children}
       </div>
     </>
