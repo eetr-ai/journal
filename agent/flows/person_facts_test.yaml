@@ -1,0 +1,33 @@
+# See people_test.yaml. This suite owns the route that adds something worth
+# knowing about someone, from the browser.
+flow: person-facts
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a fact is kept with the person, sealed
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        fact: Takes her coffee black.
+      vars: { subject: dolphin-people-write, id: eeeeeeee-0000-4000-8000-000000000013 }
+    expect:
+      that:
+        - body.added == true
+        - body.fact.person_id == "eeeeeeee-0000-4000-8000-000000000013"
+        - body.fact.fact.startsWith("enc1:")
+        - string(fromAes(base64.decode(body.fact.fact.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Takes her coffee black."
+
+  # Holding an id is not enough: the insert is scoped by subject as well.
+  - name: another person's people take nothing
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        fact: Should not land.
+      vars: { subject: dolphin-people-write, id: ffffffff-0000-4000-8000-000000000001 }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        added: false
+        error: person not found

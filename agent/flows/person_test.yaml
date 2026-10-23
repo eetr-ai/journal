@@ -1,0 +1,89 @@
+# See people_test.yaml. This suite owns the route that reads, replaces and
+# forgets one person.
+#
+# Cases are not ordered and run concurrently, so each write has a row of its
+# own, and a delete asserts on what the statement did rather than on a read.
+flow: person
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a person comes back sealed, with their facts in the order they were added
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-people, id: eeeeeeee-0000-4000-8000-000000000001 }
+    expect:
+      that:
+        - body.person.id == "eeeeeeee-0000-4000-8000-000000000001"
+        - body.person.name.startsWith("enc1:")
+        - body.person.birthday.startsWith("enc1:")
+        - body.facts.size() == 2
+        - body.facts[0].id == "fa000000-0000-4000-8000-000000000001"
+        - body.facts[1].id == "fa000000-0000-4000-8000-000000000002"
+        - body.facts.all(f, f.fact.startsWith("enc1:"))
+
+  - name: another person's people are not readable with an id alone
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-people, id: ffffffff-0000-4000-8000-000000000001 }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: person not found
+
+  - name: someone who does not exist is a 404
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-people, id: eeeeeeee-0000-4000-8000-0000000000ff }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: person not found
+
+  - name: replacing someone writes every field, sealed
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        name: Renamed
+        relation: my manager
+        birthday: ""
+        notes: ""
+      vars: { method: PUT, subject: dolphin-people-write, id: eeeeeeee-0000-4000-8000-000000000012 }
+    expect:
+      that:
+        - body.id == "eeeeeeee-0000-4000-8000-000000000012"
+        - string(fromAes(base64.decode(body.name.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Renamed"
+        - string(fromAes(base64.decode(body.relation.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "my manager"
+        # Cleared rather than kept: the form submits the whole person.
+        - string(fromAes(base64.decode(body.birthday.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == ""
+
+  - name: another person's people are not replaced, and not admitted to exist
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        name: Overwritten
+        relation: ""
+        birthday: ""
+        notes: ""
+      vars: { method: PUT, subject: dolphin-people-write, id: ffffffff-0000-4000-8000-000000000001 }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: person not found
+
+  - name: someone is forgotten
+    input:
+      data: {}
+      vars: { method: DELETE, subject: dolphin-people-delete, id: eeeeeeee-0000-4000-8000-000000000021 }
+    expect:
+      body:
+        deleted: true
+
+  - name: another person's people are forgotten by nothing
+    input:
+      data: {}
+      vars: { method: DELETE, subject: dolphin-people-delete, id: ffffffff-0000-4000-8000-000000000001 }
+    expect:
+      body:
+        deleted: false

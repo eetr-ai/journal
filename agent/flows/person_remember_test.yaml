@@ -1,0 +1,90 @@
+# See people_test.yaml. This suite owns the tool that adds someone or changes
+# who they are. `dolphin-people-write` is written here, a row per case.
+flow: person-remember
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: someone new is added, sealed, and named back
+    input:
+      data: { name: Marta, relation: my dentist, birthday: "1980-06-01" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.id != ""
+        - body.name == "Marta"
+    spies:
+      person-remember.new-or-known[2].insert-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.name.startsWith("enc1:")
+                - vars.sealed.birthday.startsWith("enc1:")
+                - '!vars.sealed.relation.contains("dentist")'
+                # Not given, and still sealed: the row does not say it is empty.
+                - vars.sealed.notes.startsWith("enc1:")
+
+  - name: nobody is added without a name
+    input:
+      data: { relation: someone from the gym }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("name")
+    spies:
+      person-remember.new-or-known[2].insert-person:
+        count: 0
+
+  - name: a name of only spaces is no name
+    input:
+      data: { name: "   " }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+
+  # Only the birthday is given. The name coming back opened is what proves the
+  # other fields were left alone rather than blanked.
+  - name: changing one field leaves the others as they were
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000011, birthday: "05-06" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        saved: true
+        id: eeeeeeee-0000-4000-8000-000000000011
+        name: Written down
+    spies:
+      person-remember.new-or-known[0].update-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.name == ""
+                - vars.sealed.notes == ""
+                - vars.sealed.birthday.startsWith("enc1:")
+
+  - name: a field given as empty is cleared, not skipped
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000014, notes: "" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+    spies:
+      person-remember.new-or-known[0].update-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.notes.startsWith("enc1:")
+
+  - name: another person's people are not changed
+    input:
+      data: { id: ffffffff-0000-4000-8000-000000000001, name: Overwritten }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("find_people")

@@ -1,0 +1,22 @@
+# See people_test.yaml. This suite owns the tool that forgets one fact.
+flow: person-fact-forget
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a fact is forgotten
+    input:
+      data: { id: fa000000-0000-4000-8000-0000000000e3 }
+      vars: { subject: dolphin-people-delete }
+    expect:
+      body:
+        forgotten: true
+
+  - name: another person's fact is forgotten by nothing
+    input:
+      data: { id: fa000000-0000-4000-8000-0000000000f1 }
+      vars: { subject: dolphin-people-delete }
+    expect:
+      body:
+        forgotten: false

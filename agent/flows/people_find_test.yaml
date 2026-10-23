@@ -1,0 +1,48 @@
+# See people_test.yaml. This suite owns the tool that looks people up.
+#
+# Where a case reads a name in the clear, that is the seal being opened under
+# the throwaway key passed as `dataKey`.
+flow: people-find
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  # "carla" is written in lower case, so a sort that is not case-insensitive
+  # puts her last.
+  - name: everyone comes back opened, by name, whatever the case it was written in
+    input:
+      data: {}
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.people.map(p, p.name) == ["Ana Torres", "Bruno", "carla", "Diego", "Elena", "Fede"]
+        - body.people[0].relation == "my sister"
+        - body.people[0].birthday == "1990-11-02"
+        # Unmarked, so it reads as itself.
+        - body.people[2].birthday == ""
+
+  - name: a query finds names and relations that hold it, in any case
+    input:
+      data: { query: AR }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        # Bruno by his relation, climbing partner; carla by her name.
+        - body.people.map(p, p.name) == ["Bruno", "carla"]
+
+  - name: a query that matches nobody is an empty answer
+    input:
+      data: { query: nobody by this name }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        people: []
+
+  - name: nobody from somebody else's circle is found
+    input:
+      data: { query: not yours }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        people: []

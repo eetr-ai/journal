@@ -283,3 +283,119 @@ VALUES
   (UUID 'e7e7e7e7-0000-4000-8000-000000000005', 'dolphin-edit', 'dolphin-edit-refused', DATE '2026-09-15',
    'enc1:1qRkQUjDocKCen1FNlSKKTfZ62Q77/raLL8AFDKLPTyuxBawHzM=',
    'enc1:qOffOSjtgd7Oy6X5Y5+oxWCrP52jMxyNZ9SM3vpiFDMBC5gr2qYIuMMc82BaearF5gf0wHClSkRAYAfM+Zx55ZySzbY4jF9EsA4+tFSv+pz6QSyqWVY/gy+DhdHySbJ7pZwJpgU5XuBXnmxK3kpcQ/UFwpg9lsPx192aCuAr8qEEiPp8/rzVt6IfX73xFNFzwJQiMvVjB5dkeidE62lnO+jXzgc=');
+
+-- People, for the people suites. Sealed under the same fixture key as the
+-- entries, except carla's empty birthday and notes, which are left unmarked:
+-- a value written before there was a key reads as itself.
+--
+-- `dolphin-people` is only ever read. `dolphin-people-write` and
+-- `dolphin-people-delete` are only ever written, a row per case, because the
+-- cases run concurrently. `dolphin-people-other` is somebody else's circle,
+-- there to be reached for and missed.
+--
+-- The birthdays are placed around the day the suites pass as `today`,
+-- 2026-10-25: one on it, one ahead, one just gone, one early next year, and
+-- one that is not a date at all.
+INSERT INTO user_profile (oidc_subject, email, name, config)
+VALUES
+  ('dolphin-people',        'people@example.com',   'People Read',   '{}'::jsonb),
+  ('dolphin-people-write',  'people-w@example.com', 'People Write',  '{}'::jsonb),
+  ('dolphin-people-delete', 'people-d@example.com', 'People Delete', '{}'::jsonb),
+  ('dolphin-people-other',  'people-o@example.com', 'People Other',  '{}'::jsonb)
+ON CONFLICT (oidc_subject) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name;
+
+-- Facts cascade, so the people going takes them with them; anyone a create
+-- case added on the last run goes too.
+DELETE FROM person WHERE oidc_subject LIKE 'dolphin-%';
+
+INSERT INTO person (id, oidc_subject, name, relation, birthday, notes, created_at)
+VALUES
+  (UUID 'eeeeeeee-0000-4000-8000-000000000001', 'dolphin-people',
+   'enc1:mgh/V147W1Gf3GJMjv6p8q/rRrOOskjUuey4hj36ErnM9f8DKSE=',
+   'enc1:xAI6Nhhhn95p3ONrdjys1wUNRC5GPQi4Xy2D7ZmBtEzJwhHGQQ==',
+   'enc1:bzCSn0uCOsbdoeAcxZ1YOwyJ8w6KRrw8s4ApdLMs6ZaTCpX+YrI=',
+   'enc1:E5wONLXq8WT5ZAiBeV/fVjEMjlL1Y7nP9++cf8Qd3Cv0L1BSKzJ7IKQ9FXty',
+   TIMESTAMPTZ '2026-01-01 10:00:00Z'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000002', 'dolphin-people',
+   'enc1:IMS24ItM9YGcJSvLccl3zEKV1KAEz6BpsfPCc793RK9m',
+   'enc1:kHEeX4VraQ93Gywdsde2mJ4JaL7HKYrrm1n0wO7GDR3GygvYhloTCSEXA5o=',
+   'enc1:sSoZHNhig8bimPL6EYqXmyWe3V3sA4qbWtBnR+6zeiiC',
+   'enc1:eIY3I1lJE9RVHy98koetldKuAx1YyuI1G5YLBA==',
+   TIMESTAMPTZ '2026-01-02 10:00:00Z'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000003', 'dolphin-people',
+   'enc1:IN6CRfQlEjhmcfyTDEbEmTJP0UpMvaiNZ8MCK3ZBlAK4',
+   'enc1:5AJ/bnVNZrZuwjwXmrYeTRWSYAwc/jhD7RhO0z0Ews9zrGxV034pRA==',
+   '', '',
+   TIMESTAMPTZ '2026-01-03 10:00:00Z'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000004', 'dolphin-people',
+   'enc1:vCjZvp0jn/RyVN2rTH6UZEoHPWMgdPB2s4wTTUeGkf75',
+   'enc1:TJwG9N1lU/Tq2u/qp1FIYbO0+Ge2CYLAcFuX53ie5doFpKBC2v7bKfnlLPKviCU+J9w=',
+   'enc1:MYl+5wOh8JXrAimvWd+dJivAesiTuN97ec4a78VIyox1',
+   'enc1:eIY3I1lJE9RVHy98koetldKuAx1YyuI1G5YLBA==',
+   TIMESTAMPTZ '2026-01-04 10:00:00Z'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000005', 'dolphin-people',
+   'enc1:2E9C481QhK1ttI1EyaEvqiB3V5PD6g0upT0k/WLI5sr1',
+   'enc1:7tpuIYzpwdwlJvZ8D7T3cLx0fRhmCN5JprB67Z/mu8FgWRg=',
+   'enc1:6XYjBTXeA3rZC3VZhTPDKFqFyQ3LuFR6jQP4LhPWL65I',
+   'enc1:eIY3I1lJE9RVHy98koetldKuAx1YyuI1G5YLBA==',
+   TIMESTAMPTZ '2026-01-05 10:00:00Z'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000006', 'dolphin-people',
+   'enc1:TxMiD5d7JRNaBkTvfJaBSKoRpLrv80kbCFP6s68BZPU=',
+   'enc1:x/XompkeRBw8lGCg3MgMfrqewSZ5DNSIW30H9tABE16ERsiZ',
+   'enc1:NG1KE1t2urKanUcur/ZpjXlW1DFRjIcG0uu5/kngTDfHz6yHbtj1VGG7pmawcA==',
+   'enc1:eIY3I1lJE9RVHy98koetldKuAx1YyuI1G5YLBA==',
+   TIMESTAMPTZ '2026-01-06 10:00:00Z'),
+  (UUID 'ffffffff-0000-4000-8000-000000000001', 'dolphin-people-other',
+   'enc1:c9qDjQrJwut20YWIWOXK6HV3ZHaNn9PblGoubyQDUTSrLWvGHA==',
+   'enc1:NJMSi7WMSQxblaAKAFDapnXyrbTnxbfGwDT5tgxOr4qyMpJx0tSu6CEURQHgoYJFgA==',
+   'enc1:N2KghOZ6nPbMpzKWjYQMAk9zjXP3pC4kfv6Zx5MZNQ7o',
+   'enc1:eIY3I1lJE9RVHy98koetldKuAx1YyuI1G5YLBA==',
+   TIMESTAMPTZ '2026-01-01 10:00:00Z');
+
+-- The same person four times over, one per write case.
+INSERT INTO person (id, oidc_subject, name, relation, birthday, notes)
+SELECT id, 'dolphin-people-write',
+       'enc1:Wn421woUqCykO46ZX/m/MGbxqK88UnSxRYpu2H3tUomlGel6RAiCzg==',
+       'enc1:tp3Fgc9F9qma/LqV/S5HJNDUqTi7VE/KqVXBZLmh/tYgSg83V8wE',
+       'enc1:fbbGl2idm3LMSVBieYqR76Xt+4frOAg2DuBpwsOKBLRT',
+       'enc1:XgbknBXlwK08GROAjjRuC//0pj+IfY7irlL5OjL3vADZ+qdoJRwsaNJxMw=='
+FROM unnest(ARRAY[
+  UUID 'eeeeeeee-0000-4000-8000-000000000011',
+  UUID 'eeeeeeee-0000-4000-8000-000000000012',
+  UUID 'eeeeeeee-0000-4000-8000-000000000013',
+  UUID 'eeeeeeee-0000-4000-8000-000000000014'
+]) AS id;
+
+INSERT INTO person (id, oidc_subject, name)
+VALUES
+  (UUID 'eeeeeeee-0000-4000-8000-000000000021', 'dolphin-people-delete',
+   'enc1:ESGaNd0quVNqmjkSRoAPI04X76wonKXKVvXk3g+KobqC7tXaE2z8gmToIQ=='),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000022', 'dolphin-people-delete',
+   'enc1:ESGaNd0quVNqmjkSRoAPI04X76wonKXKVvXk3g+KobqC7tXaE2z8gmToIQ==');
+
+INSERT INTO person_fact (id, person_id, oidc_subject, fact, created_at)
+VALUES
+  (UUID 'fa000000-0000-4000-8000-000000000001', UUID 'eeeeeeee-0000-4000-8000-000000000001', 'dolphin-people',
+   'enc1:RwZtZzDlQw/QBdsSgyl7tvFARgD+P84s/HC3MXk5s7zUBifgR2xDGc1H0ruH',
+   TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000002', UUID 'eeeeeeee-0000-4000-8000-000000000001', 'dolphin-people',
+   'enc1:VejTdPOAdq2ORDOO/rZuhOsawMffkOnktE5c268U7hZW+yEAHsSN+lBZ/bQeL20J3nIMcDJT8LvZgpz8kQ==',
+   TIMESTAMPTZ '2026-02-02 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-0000000000f1', UUID 'ffffffff-0000-4000-8000-000000000001', 'dolphin-people-other',
+   'enc1:8yti5ea5/A/gGbqbFE57focTJ/oT+oQtRqDjKWfs4DOO7jZztTgjp8aJdJE=',
+   TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  -- Gone with the person the delete suite forgets, which is what says the
+  -- foreign key still cascades.
+  (UUID 'fa000000-0000-4000-8000-0000000000e1', UUID 'eeeeeeee-0000-4000-8000-000000000021', 'dolphin-people-delete',
+   'enc1:zc9usdgC7nNVKoHLucfzyeRB/85LLXGaDReEVsKbVXY+kZuRH2qDzuWy0ns=',
+   TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-0000000000e2', UUID 'eeeeeeee-0000-4000-8000-000000000022', 'dolphin-people-delete',
+   'enc1:zc9usdgC7nNVKoHLucfzyeRB/85LLXGaDReEVsKbVXY+kZuRH2qDzuWy0ns=',
+   TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-0000000000e3', UUID 'eeeeeeee-0000-4000-8000-000000000022', 'dolphin-people-delete',
+   'enc1:zc9usdgC7nNVKoHLucfzyeRB/85LLXGaDReEVsKbVXY+kZuRH2qDzuWy0ns=',
+   TIMESTAMPTZ '2026-02-02 10:00:00Z'),
+  -- Named under the wrong person by its suite, and expected to survive it.
+  (UUID 'fa000000-0000-4000-8000-0000000000e4', UUID 'eeeeeeee-0000-4000-8000-000000000022', 'dolphin-people-delete',
+   'enc1:zc9usdgC7nNVKoHLucfzyeRB/85LLXGaDReEVsKbVXY+kZuRH2qDzuWy0ns=',
+   TIMESTAMPTZ '2026-02-03 10:00:00Z');

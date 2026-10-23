@@ -1,0 +1,51 @@
+# Run against a real Postgres holding sql/ and agent/testdata/seed.sql. This
+# suite owns the route that lists a person's people and the one that adds
+# someone by hand.
+#
+# Where a case opens a value, that is the seal being checked: the fixtures and
+# the writes are sealed under the throwaway key the suites pass as `key`.
+flow: people
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: everyone comes back sealed, in the order they were added
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-people }
+    expect:
+      that:
+        - body.people.size() == 6
+        - body.people[0].id == "eeeeeeee-0000-4000-8000-000000000001"
+        - body.people[5].id == "eeeeeeee-0000-4000-8000-000000000006"
+        - body.people.all(p, p.name.startsWith("enc1:"))
+
+  - name: nobody from somebody else's circle is listed
+    input:
+      data: {}
+      vars: { method: GET, subject: dolphin-people-other }
+    expect:
+      that:
+        - body.people.size() == 1
+        - body.people[0].id == "ffffffff-0000-4000-8000-000000000001"
+
+  # Every field is sealed, the empty ones included, so the row does not say
+  # which of them is known.
+  - name: someone added by hand is stored sealed, empty fields and all
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        name: Someone new
+        relation: ""
+        birthday: "07-07"
+        notes: ""
+      vars: { method: POST, subject: dolphin-people-write }
+    expect:
+      that:
+        - body.id != ""
+        - body.name.startsWith("enc1:")
+        - body.relation.startsWith("enc1:")
+        - body.notes.startsWith("enc1:")
+        - string(fromAes(base64.decode(body.name.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Someone new"
+        - string(fromAes(base64.decode(body.birthday.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "07-07"
