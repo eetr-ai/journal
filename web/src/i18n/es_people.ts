@@ -37,6 +37,8 @@ const people: PeopleDictionary = {
   saving: "Guardando...",
   saved: "Guardado",
   saveFailed: "No se pudo guardar. No cambió nada — probá en un momento.",
+  locked:
+    "Parte de esto no se pudo abrir con tu clave, así que no se puede guardar desde acá sin perder lo que había.",
   missing: "Esta persona ya no está. Puede que la hayas olvidado desde otra ventana.",
   facts: "Para tener presente",
   noFacts: "Nada todavía.",

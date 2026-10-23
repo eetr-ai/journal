@@ -13,11 +13,18 @@ export interface PersonFormOptions {
   /** Null for someone new. */
   id: string | null;
   initial: PersonDraft;
+  /** Some field would not open under the key, so saving is refused. */
+  locked: boolean;
   agentKey: string;
   t: Dictionary;
 }
 
-function Status(options: { status: SaveStatus; t: Dictionary }) {
+interface StatusOptions {
+  status: SaveStatus;
+  t: Dictionary;
+}
+
+function Status(options: StatusOptions) {
   const t = options.t.people;
 
   switch (options.status) {
@@ -38,7 +45,7 @@ function Status(options: { status: SaveStatus; t: Dictionary }) {
 }
 
 export default function PersonForm(options: PersonFormOptions) {
-  const save = usePersonSave(options.id, options.initial, options.agentKey);
+  const save = usePersonSave(options.id, options.initial, options.agentKey, options.locked);
   const t = options.t;
   const field = (name: keyof PersonDraft) => ({
     id: `person-${name}`,
@@ -81,13 +88,14 @@ export default function PersonForm(options: PersonFormOptions) {
           multiline
         />
       </fieldset>
+      {options.locked && <p className="text-sm text-accent">{t.people.locked}</p>}
       <div className="flex items-center justify-between gap-4">
         <p className="text-xs text-muted">
           <Status status={save.status} t={t} />
         </p>
         <button
           className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-on-brand transition hover:bg-brand-strong disabled:opacity-50"
-          disabled={save.pending}
+          disabled={save.pending || options.locked}
           type="submit"
         >
           <FloppyDiskIcon size={ICON_SIZE} weight="fill" />

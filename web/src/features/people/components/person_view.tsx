@@ -20,7 +20,7 @@ export default function PersonView(options: PersonViewOptions) {
   const { state, dispatch } = usePeople();
   const t = options.t;
   const id = state.selected === NEW_PERSON ? null : state.selected;
-  const initial = id ? (state.opened[id] ?? EMPTY_DRAFT) : EMPTY_DRAFT;
+  const opened = id ? state.opened[id] : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -41,8 +41,9 @@ export default function PersonView(options: PersonViewOptions) {
       <PersonForm
         agentKey={options.agentKey}
         id={id}
-        initial={initial}
+        initial={opened ?? EMPTY_DRAFT}
         key={id ?? NEW_PERSON}
+        locked={(opened?.unreadable.length ?? 0) > 0}
         t={t}
       />
 

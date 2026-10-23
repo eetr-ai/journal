@@ -4,27 +4,35 @@ import { useEffect } from "react";
 import { openSealed } from "@/features/chat/sealed";
 import { readPersonAction } from "./actions";
 import { NEW_PERSON, PeopleActionType, usePeople } from "./people_state";
-import type { OpenedPerson, Person } from "./types";
+import { EMPTY_DRAFT } from "./rules";
+import type { OpenedPerson, Person, PersonField } from "./types";
 
 /**
  * Opening what the page was handed sealed, under the key in this browser.
  *
  * A value the key will not open shows a stand-in rather than nothing, so a
- * person written under another key reads as someone with a gap in them.
+ * person written under another key reads as someone with a gap in them, and
+ * is named in `unreadable` so the gap is never mistaken for what is kept.
  */
 
-async function openOne(person: Person, key: string, unreadable: string): Promise<OpenedPerson> {
-  const open = async (value: string) => (await openSealed(value, key)) ?? unreadable;
+const FIELDS: PersonField[] = ["name", "relation", "birthday", "notes", "proximity"];
 
-  return {
-    name: await open(person.name),
-    relation: await open(person.relation),
-    birthday: await open(person.birthday),
-    notes: await open(person.notes),
-    // Not a stand-in: it is a choice of level, and one the key will not open
-    // reads as not known rather than as a level that does not exist.
-    proximity: (await openSealed(person.proximity, key)) ?? "",
-  };
+async function openOne(person: Person, key: string, unreadable: string): Promise<OpenedPerson> {
+  const ret: OpenedPerson = { ...EMPTY_DRAFT, unreadable: [] };
+
+  for (const field of FIELDS) {
+    const value = await openSealed(person[field], key);
+
+    if (value === null) {
+      ret.unreadable.push(field);
+    }
+
+    // Proximity is a choice of level, so one the key will not open reads as
+    // not known rather than as a level that does not exist.
+    ret[field] = value ?? (field === "proximity" ? "" : unreadable);
+  }
+
+  return ret;
 }
 
 /** Opens whoever is in the list and has not been opened yet. */

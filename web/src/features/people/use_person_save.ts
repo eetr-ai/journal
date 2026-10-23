@@ -19,9 +19,16 @@ export interface PersonSave {
 /**
  * One person's form: checked here against the rules the server action checks
  * again, then sealed by the agent under the key. A refused or failed save
- * leaves the draft as it was, so nothing typed is lost.
+ * leaves the draft as it was, so nothing typed is lost. A locked person is
+ * never saved: every field is written, stand-ins for what the key would not
+ * open included, so saving would seal them over what is kept.
  */
-export function usePersonSave(id: string | null, initial: PersonDraft, key: string): PersonSave {
+export function usePersonSave(
+  id: string | null,
+  initial: PersonDraft,
+  key: string,
+  locked: boolean,
+): PersonSave {
   const { dispatch } = usePeople();
   const [draft, setDraft] = useState(initial);
   const [issues, setIssues] = useState<PersonIssues>({});
@@ -35,6 +42,10 @@ export function usePersonSave(id: string | null, initial: PersonDraft, key: stri
   }
 
   function submit() {
+    if (locked) {
+      return;
+    }
+
     const tidy = tidyDraft(draft);
     const found = validatePerson(tidy);
 
@@ -47,7 +58,10 @@ export function usePersonSave(id: string | null, initial: PersonDraft, key: stri
       const outcome = await savePersonAction(id, tidy, key).catch(() => null);
 
       if (outcome?.kind === "saved") {
-        dispatch({ type: PeopleActionType.Saved, data: { person: outcome.person, opened: tidy } });
+        dispatch({
+          type: PeopleActionType.Saved,
+          data: { person: outcome.person, opened: { ...tidy, unreadable: [] } },
+        });
         setDraft(tidy);
         setStatus("saved");
         return;

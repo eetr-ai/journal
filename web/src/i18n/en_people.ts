@@ -38,6 +38,8 @@ const people = {
   saving: "Saving...",
   saved: "Saved",
   saveFailed: "This could not be saved. Nothing changed — try again in a moment.",
+  locked:
+    "Some of this could not be unlocked with your key, so it cannot be saved from here without losing what is kept.",
   missing: "This person is no longer here. They may have been forgotten from another window.",
   facts: "Worth knowing",
   noFacts: "Nothing yet.",

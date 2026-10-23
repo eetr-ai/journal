@@ -54,6 +54,8 @@ export interface FactAddedEntity {
   fact?: PersonFactEntity;
 }
 
+export type PersonField = "name" | "relation" | "birthday" | "notes" | "proximity";
+
 /** A person opened under the key, as the page shows and edits them. */
 export interface OpenedPerson {
   name: string;
@@ -62,6 +64,8 @@ export interface OpenedPerson {
   notes: string;
   /** "1".."5", 5 the innermost circle; empty when not known. */
   proximity: string;
+  /** The fields the key would not open. Their text above is only a stand-in. */
+  unreadable: PersonField[];
 }
 
 export interface OpenedFact {
