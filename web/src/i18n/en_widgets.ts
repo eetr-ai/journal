@@ -1,4 +1,5 @@
-// Cards a reply can draw in the conversation, and the memory a new one opens on.
+// Cards a reply can draw in the conversation, and the memory and birthdays a new
+// one opens on.
 const widgets = {
   memory: {
     label: "From your journal",
@@ -25,11 +26,21 @@ const widgets = {
   search: {
     label: "From your journal",
   },
+  birthdays: {
+    label: "Birthdays coming up",
+    today: "Today",
+    tomorrow: "Tomorrow",
+    inDays: "In {days} days",
+    turns: "turns {age}",
+    talk: "Plan something",
+    everyone: "See everyone",
+  },
   // A tap, as the conversation shows it. The agent reads the tap itself.
   taps: {
     talk: "You chose to talk about the memory from {date}",
     write: "You started writing from the memory from {date}",
     open: "You opened the memory from {date}",
+    birthdayTalk: "You asked for help with the birthday on {date}",
     quoteAdd: "You asked to add the quote by {by} to the entry",
     lyricsAdd: "You asked to add “{title}” by {by} to the entry",
   },

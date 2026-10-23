@@ -5,6 +5,7 @@ import ChatNotice from "./chat_notice";
 import ConfirmDialog from "@/components/confirm_dialog";
 import Composer from "./composer";
 import TurnList from "./turn_list";
+import BirthdaysLanding from "@/features/widgets/components/birthdays_landing";
 import MemoryLanding from "@/features/widgets/components/memory_landing";
 import { useChat } from "../chat_state";
 import { useStickToBottom } from "../use_stick_to_bottom";
@@ -66,7 +67,13 @@ export default function ChatBody(options: ChatBodyOptions) {
         ref={region}
       >
         {state.turns.length === 0 ? (
-          <Nothing locale={options.locale} t={options.t} unavailable={options.unavailable} />
+          <Nothing
+            locale={options.locale}
+            subject={options.subject}
+            t={options.t}
+            timezone={options.timezone}
+            unavailable={options.unavailable}
+          />
         ) : (
           <TurnList locale={options.locale} t={options.t} timezone={options.timezone} />
         )}
@@ -83,11 +90,20 @@ export default function ChatBody(options: ChatBodyOptions) {
   );
 }
 
+interface NothingOptions {
+  t: Dictionary;
+  locale: Locale;
+  unavailable: boolean;
+  subject: string;
+  timezone: string;
+}
+
 /**
  * Before anything has been said, and when what was said will not load. A new
- * conversation also offers something from the past to start from.
+ * conversation also offers something from the past to start from, and the
+ * birthdays coming up.
  */
-function Nothing(options: { t: Dictionary; locale: Locale; unavailable: boolean }) {
+function Nothing(options: NothingOptions) {
   const t = options.t.chat;
 
   return (
@@ -100,7 +116,17 @@ function Nothing(options: { t: Dictionary; locale: Locale; unavailable: boolean 
           {options.unavailable ? t.unavailablePrompt : t.emptyPrompt}
         </p>
       </div>
-      {options.unavailable ? null : <MemoryLanding locale={options.locale} t={options.t} />}
+      {options.unavailable ? null : (
+        <>
+          <BirthdaysLanding
+            locale={options.locale}
+            subject={options.subject}
+            t={options.t}
+            timezone={options.timezone}
+          />
+          <MemoryLanding locale={options.locale} t={options.t} />
+        </>
+      )}
     </div>
   );
 }

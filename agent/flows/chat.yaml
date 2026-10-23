@@ -282,9 +282,10 @@ flows:
           it go if they would rather talk about today.
 
 
-          Look at upcoming_birthdays then too. If somebody in their life has a
-          birthday today or in the next few days, bring it up once, briefly —
-          not in every conversation, and never as a list. Count the days from
+          Do not open with birthdays. They see the ones coming up as a card
+          when a conversation starts, so announcing them yourself only says it
+          twice. Reach for upcoming_birthdays when birthdays come up, or when
+          one bears on what they are telling you, and count the days from
           read_today rather than guessing.
 
 
@@ -316,6 +317,11 @@ flows:
           the entry already has words, or write_entry when there is no note
           yet — follow the widgets skill, and say in a few words that it is
           there.
+          birthday.talk, from the card of birthdays coming up, means they want
+          to do something about that person's birthday, which falls on the
+          date it names: read them with read_person and the id it carries,
+          then help in a few words — a message they could send, or an idea
+          drawn from the facts kept about them — and ask at most one question.
           Never repeat the line back, and never write one yourself.
 
 

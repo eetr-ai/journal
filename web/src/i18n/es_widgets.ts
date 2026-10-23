@@ -26,10 +26,20 @@ const widgets: WidgetsDictionary = {
   search: {
     label: "De tu diario",
   },
+  birthdays: {
+    label: "Cumpleaños que se acercan",
+    today: "Hoy",
+    tomorrow: "Mañana",
+    inDays: "En {days} días",
+    turns: "cumple {age}",
+    talk: "Planear algo",
+    everyone: "Ver a todos",
+  },
   taps: {
     talk: "Elegiste charlar sobre el recuerdo del {date}",
     write: "Empezaste a escribir a partir del recuerdo del {date}",
     open: "Abriste el recuerdo del {date}",
+    birthdayTalk: "Pediste ayuda con el cumpleaños del {date}",
     quoteAdd: "Pediste agregar la cita de {by} a la entrada",
     lyricsAdd: "Pediste agregar «{title}» de {by} a la entrada",
   },

@@ -104,11 +104,13 @@ the agent in Postgres.
   (`YYYY-MM-DD`, or `MM-DD` without a year), how close they are (1 distant to 5
   the inner circle, or not known), notes, and facts worth knowing — in `person`
   and `person_fact`, every field sealed under the same key as the entries,
-  birthday included. The agent keeps them quietly through its people tools and
-  mentions a birthday that is close; the People page (user menu) lists them by
-  upcoming birthday, the closer first among equals, and edits them, opened in
-  the browser. Being sealed, nobody is looked up by value: every lookup opens
-  all of a person's people in the flow, and nothing about them is embedded.
+  birthday included. The agent keeps them quietly through its people tools; a
+  new conversation opens on a card of the birthdays in the next two weeks, each
+  with a button that asks the agent for help with it; the People page (user
+  menu) lists them by upcoming birthday, the closer first among equals, and
+  edits them, all opened in the browser. Being sealed, nobody is looked up by
+  value: every lookup opens all of a person's people in the flow, and nothing
+  about them is embedded.
 - Phosphor icons and `react-markdown` for the UI.
 
 See [CLAUDE.md](CLAUDE.md) for the coding standards this repo is built to.
