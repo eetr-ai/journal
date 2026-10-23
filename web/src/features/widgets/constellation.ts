@@ -158,10 +158,9 @@ function lone(drawing: Drawing, text: string): void {
   }
 }
 
-function link(drawing: Drawing, left: string, right: string): void {
-  const colon = right.indexOf(":");
+function link(drawing: Drawing, left: string, right: string, label: string): void {
   const one = named(left);
-  const other = named(colon < 0 ? right : right.slice(0, colon));
+  const other = named(right);
 
   if (!one || !other || one.key === other.key || !hasRoom(drawing, [one, other])) {
     return;
@@ -179,7 +178,7 @@ function link(drawing: Drawing, left: string, right: string): void {
     drawing.ties.push({
       from,
       to,
-      label: colon < 0 ? "" : tidy(right.slice(colon + 1), MAX_LABEL_CHARS),
+      label: tidy(label, MAX_LABEL_CHARS),
     });
   }
 }
@@ -187,12 +186,15 @@ function link(drawing: Drawing, left: string, right: string): void {
 function read(drawing: Drawing, line: string): void {
   const text = line.trim().replace(BULLET, "");
   const heading = HEADING.exec(text);
-  const sides = text.split(LINK);
+  // Names hold no colon, so only what comes before the first one is split into
+  // ends; a dash in the label is part of the label.
+  const colon = text.indexOf(":");
+  const sides = (colon < 0 ? text : text.slice(0, colon)).split(LINK);
 
   if (heading) {
     enter(drawing, heading[1]);
   } else if (sides.length === ENDS) {
-    link(drawing, sides[0], sides[1]);
+    link(drawing, sides[0], sides[1], colon < 0 ? "" : text.slice(colon + 1));
   } else if (sides.length === 1 && text !== "") {
     lone(drawing, text);
   }
