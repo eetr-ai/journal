@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import LayoutSwitch from "./layout_switch";
 import PanelToggle from "./panel_toggle";
 import SearchButton from "./search_button";
 import UserMenu from "./user_menu";
@@ -34,6 +35,9 @@ export default function ShellHeader(options: ShellHeaderOptions) {
 
       <SearchButton t={options.t} />
 
+      {/* Shown where the toggle beside it is not: one is for columns, the other
+          for covers, so the header never offers both. */}
+      <LayoutSwitch t={options.t} />
       <PanelToggle panel="entry" t={options.t} />
 
       <UserMenu

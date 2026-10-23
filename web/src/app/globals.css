@@ -9,6 +9,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
+ * The layout the reader chose, which is on <html> before the first paint. Not
+ * wrapped in :where like dark, on purpose: these have to outrank the docked
+ * sizes they rearrange, which are plain breakpoint classes.
+ */
+@custom-variant layout-writing ([data-layout="writing"] &);
+@custom-variant layout-focus ([data-layout="focus"] &);
+
+/*
  * Semantic tokens. Components name the role (surface, muted, border) and never
  * a colour, which is what lets the two palettes below be the only place either
  * scheme is described.

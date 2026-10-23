@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { BACKGROUND_DARK, BACKGROUND_LIGHT, THEME_COOKIE, THEME_SCRIPT } from "@/theme/config";
 import { requestLocale } from "@/i18n/server";
+import { LAYOUT_SCRIPT } from "@/features/shell/layout";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -49,6 +50,8 @@ export default async function RootLayout(options: RootLayoutOptions) {
       <head>
         {/* Resolves "match my system" before the first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/* Arranges the columns before the first paint, for the same reason. */}
+        <script dangerouslySetInnerHTML={{ __html: LAYOUT_SCRIPT }} />
       </head>
       <body className="antialiased">{options.children}</body>
     </html>

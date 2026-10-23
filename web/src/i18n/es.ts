@@ -82,6 +82,13 @@ const es: Dictionary = {
     todayTitle: "Hoy",
     todayDate: "Hoy · {day}",
     resizeToday: "Redimensionar la entrada de hoy",
+    resizeChat: "Redimensionar la charla",
+    layout: {
+      label: "Disposición de la página",
+      conversation: "La charla en el centro",
+      writing: "La entrada en el centro",
+      focus: "Solo la entrada",
+    },
     openDrawer: "Ver charlas y diario",
     closeDrawer: "Ocultar charlas y diario",
     openToday: "Ver la entrada",
