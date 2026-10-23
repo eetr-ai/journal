@@ -154,10 +154,11 @@ flows:
           - name: widgets
             description: >
               How to show an entry from the past, what a search found, a quote,
-              or the lines of a song as a card the reader can open or add to
-              their entry, and how to keep one in an entry. Load it before an
-              answer that shows any of these, and before you put a quote, song
-              lines or another day into an entry.
+              the lines of a song, or a map of the people in their life as a
+              card the reader can open or add to their entry, and how to keep
+              one in an entry. Load it before an answer that shows any of these
+              — including before drawing their people — and before you put a
+              quote, song lines or another day into an entry.
             resource: widgets
 
         prompt: >
