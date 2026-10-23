@@ -18,6 +18,7 @@ cases:
         - body.person.id == "eeeeeeee-0000-4000-8000-000000000001"
         - body.person.name.startsWith("enc1:")
         - body.person.birthday.startsWith("enc1:")
+        - string(fromAes(base64.decode(body.person.proximity.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "5"
         - body.facts.size() == 2
         - body.facts[0].id == "fa000000-0000-4000-8000-000000000001"
         - body.facts[1].id == "fa000000-0000-4000-8000-000000000002"
@@ -49,12 +50,14 @@ cases:
         relation: my manager
         birthday: ""
         notes: ""
+        proximity: "2"
       vars: { method: PUT, subject: dolphin-people-write, id: eeeeeeee-0000-4000-8000-000000000012 }
     expect:
       that:
         - body.id == "eeeeeeee-0000-4000-8000-000000000012"
         - string(fromAes(base64.decode(body.name.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Renamed"
         - string(fromAes(base64.decode(body.relation.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "my manager"
+        - string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "2"
         # Cleared rather than kept: the form submits the whole person.
         - string(fromAes(base64.decode(body.birthday.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == ""
 

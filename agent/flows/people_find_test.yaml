@@ -21,6 +21,8 @@ cases:
         - body.people[0].birthday == "1990-11-02"
         # Unmarked, so it reads as itself.
         - body.people[2].birthday == ""
+        # A number where it is known; null where it is sealed empty or unmarked.
+        - body.people.map(p, p.proximity) == [5, 3, null, 1, null, null]
 
   - name: a query finds names and relations that hold it, in any case
     input:

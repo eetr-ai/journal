@@ -8,13 +8,14 @@ env:
 cases:
   - name: someone new is added, sealed, and named back
     input:
-      data: { name: Marta, relation: my dentist, birthday: "1980-06-01" }
+      data: { name: Marta, relation: my dentist, birthday: "1980-06-01", proximity: 2 }
       vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
     expect:
       that:
         - body.saved == true
         - body.id != ""
         - body.name == "Marta"
+        - body.proximity == 2
     spies:
       person-remember.new-or-known[2].insert-person:
         records:
@@ -23,8 +24,24 @@ cases:
                 - vars.sealed.name.startsWith("enc1:")
                 - vars.sealed.birthday.startsWith("enc1:")
                 - '!vars.sealed.relation.contains("dentist")'
+                - vars.sealed.proximity.startsWith("enc1:")
                 # Not given, and still sealed: the row does not say it is empty.
                 - vars.sealed.notes.startsWith("enc1:")
+
+  - name: someone added without a proximity is not placed yet
+    input:
+      data: { name: Nico }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.proximity == null
+    spies:
+      person-remember.new-or-known[2].insert-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.proximity.startsWith("enc1:")
 
   - name: nobody is added without a name
     input:
@@ -46,8 +63,8 @@ cases:
       that:
         - body.saved == false
 
-  # Only the birthday is given. The name coming back opened is what proves the
-  # other fields were left alone rather than blanked.
+  # Only the birthday is given. The name and the proximity coming back opened
+  # are what prove the other fields were left alone rather than blanked.
   - name: changing one field leaves the others as they were
     input:
       data: { id: eeeeeeee-0000-4000-8000-000000000011, birthday: "05-06" }
@@ -57,6 +74,7 @@ cases:
         saved: true
         id: eeeeeeee-0000-4000-8000-000000000011
         name: Written down
+        proximity: 4
     spies:
       person-remember.new-or-known[0].update-person:
         records:
@@ -64,7 +82,31 @@ cases:
               that:
                 - vars.sealed.name == ""
                 - vars.sealed.notes == ""
+                - vars.sealed.proximity == ""
                 - vars.sealed.birthday.startsWith("enc1:")
+
+  # Given as a double, the way a number in a model's JSON arrives, and sealed
+  # as its digits.
+  - name: changing how close someone is changes only that
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000015, proximity: 2.0 }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        saved: true
+        id: eeeeeeee-0000-4000-8000-000000000015
+        name: Written down
+        proximity: 2
+    spies:
+      person-remember.new-or-known[0].update-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.name == ""
+                - vars.sealed.relation == ""
+                - vars.sealed.birthday == ""
+                - vars.sealed.notes == ""
+                - string(fromAes(base64.decode(vars.sealed.proximity.substring(5)), base64.decode(vars.dataKey))) == "2"
 
   - name: a field given as empty is cleared, not skipped
     input:

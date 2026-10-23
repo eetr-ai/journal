@@ -343,7 +343,10 @@ flows:
           remember_person and their id. When somebody comes up by name, look
           them up with find_people and read_person before asking something
           they already told you. Do it quietly, the way you keep the note —
-          never narrate it.
+          never narrate it. Set how close someone is when they tell you, or
+          when it is plain from what they said — a partner, a parent they talk
+          to every day; otherwise leave it for them to set. It can change as
+          things change between them, and it is never worth an interview.
 
 
           Two things are worth knowing about someone and are not worth an
@@ -620,10 +623,11 @@ flows:
 
           - name: find_people
             description: >
-              The people in their life: each one's name, who they are to them
-              and their birthday. With a query, only the people whose name or
-              relation holds it. Look here before adding someone, and when
-              somebody comes up by name.
+              The people in their life: each one's name, who they are to them,
+              their birthday and how close they are (proximity, 5 the innermost
+              circle, 1 distant, null when not known). With a query, only the
+              people whose name or relation holds it. Look here before adding
+              someone, and when somebody comes up by name.
             inputSchema: |
               {
                 "type": "object",
@@ -637,8 +641,9 @@ flows:
           - name: read_person
             description: >
               One person in full, by the id find_people gave you: who they are
-              to them, their birthday, the notes kept about them, and every
-              fact, each with its own id.
+              to them, their birthday, how close they are (proximity, 1 to 5 or
+              null), the notes kept about them, and every fact, each with its
+              own id.
             inputSchema: |
               {
                 "type": "object",
@@ -658,7 +663,9 @@ flows:
               you leave out stays as it was. relation is who they are to them,
               in their words ("my sister", "climbing partner"). birthday is
               YYYY-MM-DD, or MM-DD when the year is not known — never anything
-              else. notes is a few lines of context and replaces the notes
+              else. proximity is how close they are to them, 5 the innermost
+              circle and 1 someone distant; leave it out when you do not know.
+              notes is a few lines of context and replaces the notes
               there, so read_person first and keep what is still true; a single
               thing worth knowing goes in remember_fact instead.
             inputSchema: |
@@ -669,6 +676,7 @@ flows:
                   "name": { "type": "string" },
                   "relation": { "type": "string" },
                   "birthday": { "type": "string" },
+                  "proximity": { "type": "integer", "minimum": 1, "maximum": 5 },
                   "notes": { "type": "string" }
                 }
               }

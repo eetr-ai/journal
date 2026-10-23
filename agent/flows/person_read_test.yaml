@@ -17,6 +17,7 @@ cases:
         relation: my sister
         birthday: "1990-11-02"
         notes: Lives in Rosario.
+        proximity: 5
         facts:
           - id: fa000000-0000-4000-8000-000000000001
             fact: Allergic to cats.
@@ -31,6 +32,7 @@ cases:
       that:
         - body.found == true
         - body.name == "carla"
+        - body.proximity == null
         - body.facts == []
 
   - name: another person's people are not found with an id alone

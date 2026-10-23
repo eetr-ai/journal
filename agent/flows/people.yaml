@@ -17,7 +17,10 @@
 # Everything about a person is sealed, the birthday included, so nothing here
 # can filter or order by value: every lookup reads all of a person's people and
 # opens them in the run. Rows leave the routes sealed; the browser opens them.
-# The tools open them here, because the model has to read them.
+# The tools open them here, because the model has to read them. They give
+# proximity as a number, 5 the innermost circle and 1 the most distant, or null
+# when it is not known, rather than the text it is stored as; the number is
+# wrapped in dyn() because both arms of a CEL ternary must share a type.
 flows:
   - name: people
     source:
@@ -43,7 +46,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, name, relation, birthday, notes, created_at, updated_at
+                    SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
                     FROM person
                     WHERE oidc_subject = $1
                     ORDER BY created_at
@@ -100,7 +103,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, name, relation, birthday, notes, created_at, updated_at
+                    SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
                     FROM person
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -216,9 +219,9 @@ flows:
         settings:
           value: '{"deleted": body != null}'
 
-  # Add someone written down by hand: {key, name, relation, birthday, notes}.
-  # Every field is sealed, an empty one included, so the stored row does not
-  # say which of them is known.
+  # Add someone written down by hand: {key, name, relation, birthday, notes,
+  # proximity}. Every field is sealed, an empty one included, so the stored row
+  # does not say which of them is known.
   - name: person-create
     process:
       - type: set-variable
@@ -232,21 +235,23 @@ flows:
             {"name": "enc1:" + base64.encode(toAes(has(body.name) ? body.name : "", base64.decode(vars.dataKey))),
              "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
              "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
-             "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey)))}
+             "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
+             "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? body.proximity : "", base64.decode(vars.dataKey)))}
       - type: sql
         name: insert-person
         settings:
           connector: db
           query: |
-            INSERT INTO person (oidc_subject, name, relation, birthday, notes)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, name, relation, birthday, notes, created_at, updated_at
+            INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
           args:
             - vars.subject
             - vars.sealed.name
             - vars.sealed.relation
             - vars.sealed.birthday
             - vars.sealed.notes
+            - vars.sealed.proximity
           single: true
 
   # Replace who someone is, every field at once, the way the form submits it.
@@ -263,16 +268,17 @@ flows:
             {"name": "enc1:" + base64.encode(toAes(has(body.name) ? body.name : "", base64.decode(vars.dataKey))),
              "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
              "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
-             "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey)))}
+             "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
+             "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? body.proximity : "", base64.decode(vars.dataKey)))}
       - type: sql
         name: update-person
         settings:
           connector: db
           query: |
             UPDATE person
-            SET name = $3, relation = $4, birthday = $5, notes = $6, updated_at = now()
+            SET name = $3, relation = $4, birthday = $5, notes = $6, proximity = $7, updated_at = now()
             WHERE oidc_subject = $1 AND id = $2::uuid
-            RETURNING id, name, relation, birthday, notes, created_at, updated_at
+            RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
           args:
             - vars.subject
             - vars.id
@@ -280,6 +286,7 @@ flows:
             - vars.sealed.relation
             - vars.sealed.birthday
             - vars.sealed.notes
+            - vars.sealed.proximity
           single: true
       - type: if
         name: check-found
@@ -307,22 +314,33 @@ flows:
         name: select-people
         settings:
           connector: db
-          query: SELECT id, name, relation, birthday FROM person WHERE oidc_subject = $1
+          query: SELECT id, name, relation, birthday, proximity FROM person WHERE oidc_subject = $1
           args:
             - vars.subject
-      - type: set-payload
-        name: opened
+      - type: set-variable
+        name: open-people
         settings:
+          name: opened
           value: >
-            {"people": body.map(r, {
+            body.map(r, {
               "id": r.id,
               "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
               "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
-              "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday
-            }).filter(p, vars.needle == ""
+              "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday,
+              "proximity": r.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(r.proximity.substring(5)), base64.decode(vars.dataKey))) : r.proximity
+            })
+      - type: set-payload
+        name: found
+        settings:
+          value: >
+            {"people": vars.opened.filter(p, vars.needle == ""
                 || p.name.lowerAscii().contains(vars.needle)
                 || p.relation.lowerAscii().contains(vars.needle))
-              .sortBy(p, p.name.lowerAscii())}
+              .sortBy(p, p.name.lowerAscii())
+              .map(p, {
+                "id": p.id, "name": p.name, "relation": p.relation, "birthday": p.birthday,
+                "proximity": p.proximity.matches("^[0-9]+$") ? dyn(int(p.proximity)) : null
+              })}
 
   # One person, opened, with everything known about them.
   - name: person-read
@@ -332,7 +350,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, name, relation, birthday, notes
+            SELECT id, name, relation, birthday, notes, proximity
             FROM person
             WHERE oidc_subject = $1 AND id = $2::uuid
           args:
@@ -351,6 +369,11 @@ flows:
             - type: set-variable
               name: hold-person
               settings: { name: person, value: body }
+            - type: set-variable
+              name: open-proximity
+              settings:
+                name: proximity
+                value: 'body.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode(vars.dataKey))) : body.proximity'
             - type: sql
               name: select-facts
               settings:
@@ -371,6 +394,7 @@ flows:
                    "relation": vars.person.relation.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.relation.substring(5)), base64.decode(vars.dataKey))) : vars.person.relation,
                    "birthday": vars.person.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.birthday.substring(5)), base64.decode(vars.dataKey))) : vars.person.birthday,
                    "notes": vars.person.notes.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.notes.substring(5)), base64.decode(vars.dataKey))) : vars.person.notes,
+                   "proximity": vars.proximity.matches("^[0-9]+$") ? dyn(int(vars.proximity)) : null,
                    "facts": body.map(f, {
                      "id": f.id,
                      "fact": f.fact.startsWith("enc1:") ? string(fromAes(base64.decode(f.fact.substring(5)), base64.decode(vars.dataKey))) : f.fact
@@ -380,7 +404,8 @@ flows:
   #
   # With an id, only the fields given change: an absent field is passed as ''
   # and leaves its column alone. A field given as empty still clears it, because
-  # an empty string sealed is not an empty string.
+  # an empty string sealed is not an empty string. Proximity arrives as a number
+  # and is sealed as its digits.
   - name: person-remember
     process:
       - type: switch
@@ -396,7 +421,8 @@ flows:
                     {"name": has(body.name) ? "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))) : "",
                      "relation": has(body.relation) ? "enc1:" + base64.encode(toAes(body.relation, base64.decode(vars.dataKey))) : "",
                      "birthday": has(body.birthday) ? "enc1:" + base64.encode(toAes(body.birthday, base64.decode(vars.dataKey))) : "",
-                     "notes": has(body.notes) ? "enc1:" + base64.encode(toAes(body.notes, base64.decode(vars.dataKey))) : ""}
+                     "notes": has(body.notes) ? "enc1:" + base64.encode(toAes(body.notes, base64.decode(vars.dataKey))) : "",
+                     "proximity": has(body.proximity) ? "enc1:" + base64.encode(toAes(string(int(body.proximity)), base64.decode(vars.dataKey))) : ""}
               - type: sql
                 name: update-person
                 settings:
@@ -407,9 +433,10 @@ flows:
                         relation = CASE WHEN $4 = '' THEN relation ELSE $4 END,
                         birthday = CASE WHEN $5 = '' THEN birthday ELSE $5 END,
                         notes    = CASE WHEN $6 = '' THEN notes ELSE $6 END,
+                        proximity = CASE WHEN $7 = '' THEN proximity ELSE $7 END,
                         updated_at = now()
                     WHERE oidc_subject = $1 AND id = $2::uuid
-                    RETURNING id, name
+                    RETURNING id, name, proximity
                   args:
                     - vars.subject
                     - body.id
@@ -417,6 +444,7 @@ flows:
                     - vars.sealed.relation
                     - vars.sealed.birthday
                     - vars.sealed.notes
+                    - vars.sealed.proximity
                   single: true
           # The only judgement this flow makes, so the model is told plainly
           # what went wrong rather than the tool failing under it.
@@ -435,24 +463,27 @@ flows:
                     {"name": "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))),
                      "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
                      "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
-                     "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey)))}
+                     "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
+                     "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? string(int(body.proximity)) : "", base64.decode(vars.dataKey)))}
               - type: sql
                 name: insert-person
                 settings:
                   connector: db
                   query: |
-                    INSERT INTO person (oidc_subject, name, relation, birthday, notes)
-                    VALUES ($1, $2, $3, $4, $5)
-                    RETURNING id, name
+                    INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    RETURNING id, name, proximity
                   args:
                     - vars.subject
                     - vars.sealed.name
                     - vars.sealed.relation
                     - vars.sealed.birthday
                     - vars.sealed.notes
+                    - vars.sealed.proximity
                   single: true
       # A refusal above already answered; anything else is the row written, or
-      # null for an id that named nobody of theirs.
+      # null for an id that named nobody of theirs. Who was saved is named back
+      # with their proximity as it now stands.
       - type: if
         name: answer
         condition: 'body == null || !has(body.saved)'
@@ -468,11 +499,17 @@ flows:
                       value: '{"saved": false, "reason": "there is no one with that id; look them up with find_people"}'
               else:
                 process:
+                  - type: set-variable
+                    name: open-proximity
+                    settings:
+                      name: proximity
+                      value: 'body.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode(vars.dataKey))) : body.proximity'
                   - type: set-payload
                     settings:
                       value: >
                         {"saved": true, "id": body.id,
-                         "name": body.name.startsWith("enc1:") ? string(fromAes(base64.decode(body.name.substring(5)), base64.decode(vars.dataKey))) : body.name}
+                         "name": body.name.startsWith("enc1:") ? string(fromAes(base64.decode(body.name.substring(5)), base64.decode(vars.dataKey))) : body.name,
+                         "proximity": vars.proximity.matches("^[0-9]+$") ? dyn(int(vars.proximity)) : null}
 
   # Something worth knowing about someone already written down.
   - name: person-fact-add

@@ -20,6 +20,7 @@ cases:
         - body.people[0].id == "eeeeeeee-0000-4000-8000-000000000001"
         - body.people[5].id == "eeeeeeee-0000-4000-8000-000000000006"
         - body.people.all(p, p.name.startsWith("enc1:"))
+        - body.people[0].proximity.startsWith("enc1:")
 
   - name: nobody from somebody else's circle is listed
     input:
@@ -40,6 +41,7 @@ cases:
         relation: ""
         birthday: "07-07"
         notes: ""
+        proximity: "3"
       vars: { method: POST, subject: dolphin-people-write }
     expect:
       that:
@@ -49,3 +51,4 @@ cases:
         - body.notes.startsWith("enc1:")
         - string(fromAes(base64.decode(body.name.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Someone new"
         - string(fromAes(base64.decode(body.birthday.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "07-07"
+        - string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "3"

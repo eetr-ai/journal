@@ -12,6 +12,10 @@
 -- A birthday, once opened, is `YYYY-MM-DD`, or `MM-DD` when the year is not
 -- known, or empty when the day is not known either.
 --
+-- Proximity, once opened, is how close someone is to the person, "1" to "5":
+-- 5 is the innermost circle, 1 someone distant. Empty is not known yet, which
+-- is what every row written before there was a proximity reads as.
+--
 -- The trade we accepted: nothing can be looked up by value, so every lookup
 -- opens all of a person's rows in the flow — a circle is tens to hundreds of
 -- rows, not thousands. And there is no embedding of anyone, on purpose: a
@@ -26,9 +30,14 @@ CREATE TABLE IF NOT EXISTS person (
   birthday     text        NOT NULL DEFAULT '',
   -- Free context, kept by hand or by the agent.
   notes        text        NOT NULL DEFAULT '',
+  proximity    text        NOT NULL DEFAULT '',
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
+
+-- Added rather than assumed: this file is re-applied over databases built
+-- before the column existed, where CREATE TABLE IF NOT EXISTS is a no-op.
+ALTER TABLE person ADD COLUMN IF NOT EXISTS proximity text NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS person_by_subject
   ON person (oidc_subject, created_at);
