@@ -4,7 +4,8 @@ import type { WidgetsDictionary } from "@/i18n/en_widgets";
 
 /**
  * A constellation in words, for whoever cannot see the picture: each person
- * with who they are to the reader and how close, then the links between others.
+ * with who they are to the reader, their group and how close, then the links
+ * between others.
  */
 
 type Words = WidgetsDictionary["constellation"];
@@ -33,12 +34,13 @@ export function isSpoke(constellation: Constellation, tie: Tie): boolean {
 export function personText(constellation: Constellation, at: number, t: Words): string {
   const person = constellation.people[at];
   const relation = constellation.ties.find((tie) => spokeTo(constellation, tie) === at)?.label;
+  const group = person.group === null ? undefined : constellation.groups[person.group];
   const closeness =
     person.near === null
       ? t.unknown
       : format(t.closeness, { near: String(person.near), of: String(NEAREST) });
 
-  return [person.name, relation, closeness].filter(Boolean).join(SEPARATOR);
+  return [person.name, relation, group, closeness].filter(Boolean).join(SEPARATOR);
 }
 
 export function tieText(constellation: Constellation, tie: Tie, t: Words): string {
