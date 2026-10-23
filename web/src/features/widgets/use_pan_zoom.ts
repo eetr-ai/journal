@@ -20,6 +20,20 @@ const MAX_ZOOM = 5;
 export const ZOOM_STEP = 1.25;
 // Zoom per pixel of wheel: a mouse notch of 100 is about a step.
 const WHEEL_STEP = 1.002;
+// What a wheel reporting in lines or pages (Firefox's mouse wheel) moves, in pixels.
+const LINE_PIXELS = 33;
+const PAGE_PIXELS = 800;
+
+function wheelPixels(event: WheelEvent): number {
+  switch (event.deltaMode) {
+    case WheelEvent.DOM_DELTA_LINE:
+      return event.deltaY * LINE_PIXELS;
+    case WheelEvent.DOM_DELTA_PAGE:
+      return event.deltaY * PAGE_PIXELS;
+    default:
+      return event.deltaY;
+  }
+}
 
 function zoomedAbout(view: View, factor: number, about: Point): View {
   const k = Math.min(Math.max(view.k * factor, MIN_ZOOM), MAX_ZOOM);
@@ -99,7 +113,7 @@ export function usePanZoom(host: RefObject<HTMLDivElement | null>, places: Point
     // Not a React handler: those are passive, and the page must not scroll under a zoom.
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      setView((now) => zoomedAbout(now, WHEEL_STEP ** -event.deltaY, inPicture(element, event)));
+      setView((now) => zoomedAbout(now, WHEEL_STEP ** -wheelPixels(event), inPicture(element, event)));
     };
 
     element?.addEventListener("wheel", onWheel, { passive: false });
