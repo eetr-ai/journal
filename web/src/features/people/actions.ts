@@ -4,20 +4,27 @@ import {
   addFact,
   deleteFact,
   deletePerson,
+  people,
   readPerson,
   savePerson,
   type FactOutcome,
   type ReadOutcome,
   type SaveOutcome,
 } from "./service";
+import type { Person } from "./types";
 
 /**
- * The people page's reads and writes, as the browser reaches them. Thin on
+ * The reads and writes on people, as the browser reaches them. Thin on
  * purpose: every rule lives in the service and in rules.ts.
  *
  * Where a key is an argument it is in the body of this request and nowhere
  * else. Never log the arguments to these functions.
  */
+
+/** Everyone, sealed, or null when they could not be fetched. No key travels. */
+export async function peopleAction(): Promise<Person[] | null> {
+  return await people();
+}
 
 /** One person and their facts, sealed. No key travels: the browser opens them. */
 export async function readPersonAction(id: string): Promise<ReadOutcome> {

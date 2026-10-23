@@ -34,17 +34,25 @@ export function daysUntil(birthday: string, today: string): number | null {
   return Math.round((next - from) / MS_PER_DAY);
 }
 
-export interface Placed {
+/**
+ * What ordering needs: the days to someone's birthday, and how close they are
+ * and their name to break ties with. Without a proximity they rank as not known.
+ */
+export interface Ranked {
+  days: number | null;
+  person: { name: string; proximity?: string };
+}
+
+export interface Placed extends Ranked {
   id: string;
   person: OpenedPerson;
-  days: number | null;
 }
 
 /**
  * Soonest birthday first; people with no birthday last. Ties go to the closer
  * person, then by name.
  */
-export function soonestFirst(a: Placed, b: Placed): number {
+export function soonestFirst(a: Ranked, b: Ranked): number {
   if (a.days !== b.days) {
     if (a.days === null) {
       return 1;
@@ -57,7 +65,7 @@ export function soonestFirst(a: Placed, b: Placed): number {
     return a.days - b.days;
   }
 
-  const closer = proximityRank(b.person.proximity) - proximityRank(a.person.proximity);
+  const closer = proximityRank(b.person.proximity ?? "") - proximityRank(a.person.proximity ?? "");
 
   return closer || a.person.name.localeCompare(b.person.name, undefined, { sensitivity: "base" });
 }
@@ -70,7 +78,7 @@ export function birthdayIn(birthday: string, locale: string): string {
     return birthday;
   }
 
-  const year = birthday.length > "MM-DD".length ? Number(birthday.slice(0, "YYYY".length)) : null;
+  const year = bornIn(birthday);
   const at = new Date(Date.UTC(year ?? LEAP_YEAR, parts.month - 1, parts.day));
 
   try {
@@ -83,4 +91,72 @@ export function birthdayIn(birthday: string, locale: string): string {
   } catch {
     return birthday;
   }
+}
+
+/** The year in a well-formed birthday, or null for MM-DD. */
+function bornIn(birthday: string): number | null {
+  return birthday.length > "MM-DD".length ? Number(birthday.slice(0, "YYYY".length)) : null;
+}
+
+/** A person as far as their birthday needs them opened. */
+export type Readable = Pick<OpenedPerson, "name" | "relation" | "birthday">;
+
+/** A birthday on its way. */
+export interface Upcoming extends Ranked {
+  id: string;
+  person: Readable;
+  days: number;
+  /** The day it falls on, YYYY-MM-DD. */
+  on: string;
+  /** The age it brings, or null when the year they were born is not known. */
+  turns: number | null;
+}
+
+function dayAfter(today: string, days: number): string {
+  const [year, month, day] = today.split("-").map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day + days))
+    .toISOString()
+    .slice(0, "YYYY-MM-DD".length);
+}
+
+function turning(birthday: string, on: string): number | null {
+  const born = bornIn(birthday);
+  const age = born === null ? 0 : Number(on.slice(0, "YYYY".length)) - born;
+
+  // A year of birth still to come is a typo, not an age.
+  return age > 0 ? age : null;
+}
+
+/** The birthdays from today through `within` days on, soonest first. */
+export function upcoming(
+  people: { id: string; person: Readable }[],
+  today: string,
+  within: number,
+): Upcoming[] {
+  const ret: Upcoming[] = [];
+
+  for (const { id, person } of people) {
+    const days = daysUntil(person.birthday, today);
+
+    if (days !== null && days <= within) {
+      const on = dayAfter(today, days);
+
+      ret.push({ id, person, days, on, turns: turning(person.birthday, on) });
+    }
+  }
+
+  return ret.toSorted(soonestFirst);
+}
+
+/** The day a birthday falls on, as a reader says it: "Sunday, 25 October". */
+export function birthdayOn(on: string, locale: string): string {
+  const [year, month, day] = on.split("-").map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
 }

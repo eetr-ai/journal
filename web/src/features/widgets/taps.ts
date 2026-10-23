@@ -1,4 +1,5 @@
 import { isEntryId } from "@/features/entries/rules";
+import { isPersonId } from "@/features/people/rules";
 import { format } from "@/i18n/format";
 import { dayText } from "./when";
 import type { WidgetsDictionary } from "@/i18n/en_widgets";
@@ -15,9 +16,11 @@ import type { WidgetsDictionary } from "@/i18n/en_widgets";
  * `talk`, `write` and `add` ask for an answer. `open` is only something the
  * agent should know, and waits for the next thing the reader says.
  *
- * A memory tap names its entry. An add tap names what it adds by its title, who
- * it is by and how it begins: enough for the agent to find that one card in
- * what it said, even beside another from the same author or song.
+ * A memory tap names its entry, and a birthday tap its person, by id: what
+ * they hold is sealed and stays out of the line. An add tap names what it adds
+ * by its title, who it is by and how it begins: enough for the agent to find
+ * that one card in what it said, even beside another from the same author or
+ * song.
  */
 
 export type MemoryAct = "talk" | "write" | "open";
@@ -31,6 +34,13 @@ export type Tap =
       date: string;
     }
   | {
+      widget: "birthday";
+      act: "talk";
+      id: string;
+      /** The day the birthday falls on. */
+      date: string;
+    }
+  | {
       widget: "quote" | "lyrics";
       act: "add";
       title: string;
@@ -41,6 +51,7 @@ export type Tap =
 
 const MEMORY_LINE =
   /^\[tap memory\.(talk|write|open) id=([0-9a-f-]{36}) date=(\d{4}-\d{2}-\d{2})\]$/u;
+const BIRTHDAY_LINE = /^\[tap birthday\.talk id=([0-9a-f-]{36}) date=(\d{4}-\d{2}-\d{2})\]$/u;
 const ADD_LINE =
   /^\[tap (quote|lyrics)\.add title="([^"\]\n]*)" by="([^"\]\n]*)" start="([^"\]\n]*)"\]$/u;
 
@@ -50,9 +61,13 @@ function quoted(value: string): string {
 }
 
 export function tapLine(tap: Tap): string {
-  return tap.widget === "memory"
-    ? `[tap memory.${tap.act} id=${tap.id} date=${tap.date}]`
-    : `[tap ${tap.widget}.add title="${quoted(tap.title)}" by="${quoted(tap.by)}" start="${quoted(tap.start)}"]`;
+  switch (tap.widget) {
+    case "memory":
+    case "birthday":
+      return `[tap ${tap.widget}.${tap.act} id=${tap.id} date=${tap.date}]`;
+    default:
+      return `[tap ${tap.widget}.add title="${quoted(tap.title)}" by="${quoted(tap.by)}" start="${quoted(tap.start)}"]`;
+  }
 }
 
 /** A day that is on the calendar: 2025-02-31 has the shape of one and is not. */
@@ -63,17 +78,23 @@ function isRealDay(day: string): boolean {
   return at.getUTCFullYear() === year && at.getUTCMonth() === month - 1 && at.getUTCDate() === date;
 }
 
-// The line exactly as tapLine writes it. Not trimmed: an indented line is one
-// somebody typed, and what they typed is never mistaken for a tap.
-export function tapFrom(line: string): Tap | null {
+function memoryFrom(line: string): Tap | null {
   const memory = MEMORY_LINE.exec(line);
 
-  if (memory) {
-    return isEntryId(memory[2]) && isRealDay(memory[3])
-      ? { widget: "memory", act: memory[1] as MemoryAct, id: memory[2], date: memory[3] }
-      : null;
-  }
+  return memory && isEntryId(memory[2]) && isRealDay(memory[3])
+    ? { widget: "memory", act: memory[1] as MemoryAct, id: memory[2], date: memory[3] }
+    : null;
+}
 
+function birthdayFrom(line: string): Tap | null {
+  const birthday = BIRTHDAY_LINE.exec(line);
+
+  return birthday && isPersonId(birthday[1]) && isRealDay(birthday[2])
+    ? { widget: "birthday", act: "talk", id: birthday[1], date: birthday[2] }
+    : null;
+}
+
+function addFrom(line: string): Tap | null {
   const added = ADD_LINE.exec(line);
 
   return added
@@ -85,6 +106,12 @@ export function tapFrom(line: string): Tap | null {
         start: added[4],
       }
     : null;
+}
+
+// The line exactly as tapLine writes it. Not trimmed: an indented line is one
+// somebody typed, and what they typed is never mistaken for a tap.
+export function tapFrom(line: string): Tap | null {
+  return memoryFrom(line) ?? birthdayFrom(line) ?? addFrom(line);
 }
 
 /** A message as it is sent: the taps first, one per line, then what was typed. */
@@ -124,6 +151,8 @@ export function tapText(tap: Tap, t: WidgetsDictionary["taps"], locale: string):
   switch (tap.widget) {
     case "memory":
       return format(t[tap.act], { date: dayText(tap.date, locale, "long") });
+    case "birthday":
+      return format(t.birthdayTalk, { date: dayText(tap.date, locale, "long") });
     case "quote":
       return format(t.quoteAdd, { by: tap.by });
     default:
