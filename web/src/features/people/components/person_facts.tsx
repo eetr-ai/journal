@@ -16,7 +16,18 @@ export interface PersonFactsOptions {
   t: Dictionary;
 }
 
-function FactItem(options: { personId: string; fact: OpenedFact; t: Dictionary }) {
+interface FactItemOptions {
+  personId: string;
+  fact: OpenedFact;
+  t: Dictionary;
+}
+
+interface FactListOptions {
+  personId: string;
+  t: Dictionary;
+}
+
+function FactItem(options: FactItemOptions) {
   const { dispatch } = usePeople();
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -55,10 +66,15 @@ function FactItem(options: { personId: string; fact: OpenedFact; t: Dictionary }
   );
 }
 
-function FactList(options: PersonFactsOptions) {
+function FactList(options: FactListOptions) {
   const { state } = usePeople();
   const t = options.t.people;
   const facts = state.facts;
+
+  // Facts held for someone else are still loading for this person.
+  if (facts.personId !== options.personId) {
+    return <p className="text-sm text-muted">{t.opening}</p>;
+  }
 
   if (facts.status === "failed") {
     return <p className="text-sm text-accent">{t.factsFailed}</p>;
@@ -85,7 +101,7 @@ export default function PersonFacts(options: PersonFactsOptions) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-medium">{options.t.people.facts}</h2>
-      <FactList {...options} />
+      <FactList personId={options.personId} t={options.t} />
       <FactForm agentKey={options.agentKey} personId={options.personId} t={options.t} />
     </section>
   );
