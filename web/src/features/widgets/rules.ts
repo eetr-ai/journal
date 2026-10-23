@@ -1,4 +1,5 @@
 import { isEntryId } from "@/features/entries/rules";
+import { constellationFrom, type Constellation } from "./constellation";
 
 /**
  * The widgets a reply may draw, and what it has to say for one to be drawn.
@@ -11,14 +12,16 @@ import { isEntryId } from "@/features/entries/rules";
  * Entries are named by id, never by their words: they are fetched sealed and
  * opened in the browser, so a memory or a search hit cannot be made up and an
  * entry's text never enters the chat. Quotes and lyrics are the agent's own
- * words to show, so they carry their text, and are held to an excerpt.
+ * words to show, so they carry their text, and are held to an excerpt. A
+ * constellation carries names and short labels, held to a few dozen people.
  */
 
 export type Widget =
   | { name: "memory"; id: string }
   | { name: "search"; query: string; ids: string[] }
   | { name: "quote"; text: string; by: string; source: string; href: string }
-  | { name: "lyrics"; title: string; by: string; lines: string[]; href: string; cut: boolean };
+  | { name: "lyrics"; title: string; by: string; lines: string[]; href: string; cut: boolean }
+  | Constellation;
 
 type Attributes = Record<string, string | null | undefined>;
 
@@ -151,6 +154,7 @@ const CATALOG: Record<string, Listing> = {
   search: { shape: "leaf", places: ["chat"], read: searchFrom },
   quote: { shape: "container", places: ANYWHERE, read: quoteFrom },
   lyrics: { shape: "container", places: ANYWHERE, read: lyricsFrom },
+  constellation: { shape: "container", places: ANYWHERE, read: constellationFrom },
 };
 
 export interface Found {
@@ -176,6 +180,21 @@ export function widgetFrom(found: Found, place: Place): Widget | null {
 // braces not yet closed.
 const TRAILING_TAG = /(?:^|\n):{2,3}([a-z][\w-]*)(\{[^}\n]*)?$/u;
 
+const CONSTELLATION_OPENING = /(?:^|\n):::constellation\{/gu;
+const CLOSING_FENCE = /\n:::[ \t]*(?:\n|$)/u;
+
+// Where a constellation still without its closing fence begins, or -1. Its lines
+// are names, and one half-arrived would be drawn as somebody else.
+function openConstellationAt(text: string): number {
+  for (const found of text.matchAll(CONSTELLATION_OPENING)) {
+    if (!CLOSING_FENCE.test(text.slice(found.index + found[0].length))) {
+      return found.index;
+    }
+  }
+
+  return -1;
+}
+
 /**
  * A reply as far as it can be drawn mid-stream. A widget half-written is left
  * off until it is whole, rather than flashing up as source and then turning
@@ -183,9 +202,16 @@ const TRAILING_TAG = /(?:^|\n):{2,3}([a-z][\w-]*)(\{[^}\n]*)?$/u;
  * does not start with is text, and text is never held back.
  *
  * A container whose opening line is whole is drawn while its body arrives, so
- * a quote or a song fills its card the way prose fills the reply.
+ * a quote or a song fills its card the way prose fills the reply. A
+ * constellation is the exception: it waits for its closing fence.
  */
 export function withoutUnfinished(text: string): string {
+  const open = openConstellationAt(text);
+
+  if (open >= 0) {
+    return text.slice(0, open);
+  }
+
   const found = TRAILING_TAG.exec(text);
 
   if (!found) {
