@@ -6,7 +6,7 @@ import { isAgentKey } from "@/features/vault/rules";
  * none of it.
  */
 
-export type PersonIssueCode = "required" | "tooLong" | "badBirthday";
+export type PersonIssueCode = "required" | "tooLong" | "badBirthday" | "notAllowed";
 
 /** A person as the form submits them, in the clear. */
 export interface PersonDraft {
@@ -14,6 +14,8 @@ export interface PersonDraft {
   relation: string;
   birthday: string;
   notes: string;
+  /** "1".."5", 5 the innermost circle, or empty when not known. */
+  proximity: string;
 }
 
 export type PersonIssues = Partial<Record<keyof PersonDraft, PersonIssueCode>>;
@@ -29,7 +31,18 @@ export interface FactWrite {
   fact: string;
 }
 
-export const EMPTY_DRAFT: PersonDraft = { name: "", relation: "", birthday: "", notes: "" };
+export const EMPTY_DRAFT: PersonDraft = {
+  name: "",
+  relation: "",
+  birthday: "",
+  notes: "",
+  proximity: "",
+};
+
+/** Closest first, the order the form offers them in. */
+export const PROXIMITY_LEVELS = ["5", "4", "3", "2", "1"] as const;
+
+export type ProximityLevel = (typeof PROXIMITY_LEVELS)[number];
 
 const MAX_NAME = 120;
 const MAX_RELATION = 120;
@@ -46,6 +59,15 @@ const BIRTHDAY = /^(?:(\d{4})-)?(\d{2})-(\d{2})$/u;
 
 // Ids are UUIDs, minted by Postgres.
 const PERSON_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+export function isProximityLevel(value: string): value is ProximityLevel {
+  return (PROXIMITY_LEVELS as readonly string[]).includes(value);
+}
+
+/** How close someone is as a number, 0 when it is not known. */
+export function proximityRank(value: string): number {
+  return isProximityLevel(value) ? Number(value) : 0;
+}
 
 export function isPersonId(value: unknown): value is string {
   return typeof value === "string" && PERSON_ID.test(value);
@@ -83,6 +105,10 @@ function birthday(value: string): PersonIssueCode | undefined {
   return birthdayParts(value.trim()) ? undefined : "badBirthday";
 }
 
+function proximity(value: string): PersonIssueCode | undefined {
+  return value === "" || isProximityLevel(value) ? undefined : "notAllowed";
+}
+
 function text(value: string, limit: number, required: boolean): PersonIssueCode | undefined {
   if (required && value.trim() === "") {
     return "required";
@@ -99,6 +125,7 @@ export function validatePerson(draft: PersonDraft): PersonIssues {
     ["relation", text(draft.relation, MAX_RELATION, false)],
     ["birthday", birthday(draft.birthday)],
     ["notes", text(draft.notes, MAX_NOTES, false)],
+    ["proximity", proximity(draft.proximity)],
   ];
 
   for (const [field, code] of found) {
@@ -117,6 +144,7 @@ export function tidyDraft(draft: PersonDraft): PersonDraft {
     relation: draft.relation.trim(),
     birthday: draft.birthday.trim(),
     notes: draft.notes.trim(),
+    proximity: draft.proximity.trim(),
   };
 }
 
@@ -126,7 +154,7 @@ function draftFrom(value: unknown): PersonDraft | null {
   }
 
   const candidate = value as Record<string, unknown>;
-  const fields = ["name", "relation", "birthday", "notes"] as const;
+  const fields = ["name", "relation", "birthday", "notes", "proximity"] as const;
 
   if (!fields.every((field) => typeof candidate[field] === "string")) {
     return null;
@@ -137,6 +165,7 @@ function draftFrom(value: unknown): PersonDraft | null {
     relation: candidate.relation as string,
     birthday: candidate.birthday as string,
     notes: candidate.notes as string,
+    proximity: candidate.proximity as string,
   };
 }
 

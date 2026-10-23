@@ -1,6 +1,7 @@
 "use client";
 
 import { CakeIcon } from "@phosphor-icons/react";
+import ProximityDots from "./proximity_dots";
 import { birthdayIn, type Placed } from "../birthdays";
 import { PeopleActionType, usePeople } from "../people_state";
 import { format } from "@/i18n/format";
@@ -42,7 +43,10 @@ export default function PersonRow(options: PersonRowOptions) {
         type="button"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{person.name}</span>
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium">{person.name}</span>
+            <ProximityDots t={options.t} value={person.proximity} />
+          </span>
           {person.relation && (
             <span className="block truncate text-xs text-muted">{person.relation}</span>
           )}

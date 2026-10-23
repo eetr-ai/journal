@@ -21,6 +21,9 @@ async function openOne(person: Person, key: string, unreadable: string): Promise
     relation: await open(person.relation),
     birthday: await open(person.birthday),
     notes: await open(person.notes),
+    // Not a stand-in: it is a choice of level, and one the key will not open
+    // reads as not known rather than as a level that does not exist.
+    proximity: (await openSealed(person.proximity, key)) ?? "",
   };
 }
 

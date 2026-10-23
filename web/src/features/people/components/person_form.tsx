@@ -2,6 +2,7 @@
 
 import { CheckCircleIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import PersonField from "./person_field";
+import ProximityField from "./proximity_field";
 import { usePersonSave, type SaveStatus } from "../use_person_save";
 import type { PersonDraft } from "../rules";
 import type { Dictionary } from "@/i18n/en";
@@ -66,6 +67,12 @@ export default function PersonForm(options: PersonFormOptions) {
           {...field("birthday")}
           hint={t.people.birthdayHint}
           label={t.people.birthday}
+        />
+        <ProximityField
+          invalid={Boolean(save.issues.proximity)}
+          onChange={(value) => save.edit("proximity", value)}
+          t={t}
+          value={save.draft.proximity}
         />
         <PersonField
           {...field("notes")}

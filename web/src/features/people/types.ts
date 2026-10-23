@@ -12,6 +12,7 @@ export interface Person {
   relation: string;
   birthday: string;
   notes: string;
+  proximity: string;
 }
 
 export interface PersonEntity {
@@ -20,6 +21,7 @@ export interface PersonEntity {
   relation: string;
   birthday: string;
   notes: string;
+  proximity: string;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +60,8 @@ export interface OpenedPerson {
   relation: string;
   birthday: string;
   notes: string;
+  /** "1".."5", 5 the innermost circle; empty when not known. */
+  proximity: string;
 }
 
 export interface OpenedFact {
@@ -72,6 +76,7 @@ export function personFromEntity(entity: PersonEntity): Person {
     relation: entity.relation,
     birthday: entity.birthday,
     notes: entity.notes,
+    proximity: entity.proximity,
   };
 }
 

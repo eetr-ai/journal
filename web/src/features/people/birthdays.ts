@@ -1,4 +1,4 @@
-import { birthdayParts } from "./rules";
+import { birthdayParts, proximityRank } from "./rules";
 import type { OpenedPerson } from "./types";
 
 /**
@@ -40,7 +40,10 @@ export interface Placed {
   days: number | null;
 }
 
-/** Soonest birthday first, then by name; people with no birthday last, by name. */
+/**
+ * Soonest birthday first; people with no birthday last. Ties go to the closer
+ * person, then by name.
+ */
 export function soonestFirst(a: Placed, b: Placed): number {
   if (a.days !== b.days) {
     if (a.days === null) {
@@ -54,7 +57,9 @@ export function soonestFirst(a: Placed, b: Placed): number {
     return a.days - b.days;
   }
 
-  return a.person.name.localeCompare(b.person.name, undefined, { sensitivity: "base" });
+  const closer = proximityRank(b.person.proximity) - proximityRank(a.person.proximity);
+
+  return closer || a.person.name.localeCompare(b.person.name, undefined, { sensitivity: "base" });
 }
 
 /** A birthday as a reader says it: "2 November", with the year when it is known. */
