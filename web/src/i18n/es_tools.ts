@@ -83,6 +83,36 @@ const tools: ToolDictionary = {
     done: "Hice memoria",
     failed: "No pude hacer memoria",
   },
+  find_people: {
+    running: "Pensando en quién es...",
+    done: "Pensé en quién es",
+    failed: "No pude pensar en quién es",
+  },
+  read_person: {
+    running: "Recordando a esa persona...",
+    done: "Recordé a esa persona",
+    failed: "No pude recordar a esa persona",
+  },
+  remember_person: {
+    running: "Recordando quién es...",
+    done: "Recordé quién es",
+    failed: "No pude recordar quién es",
+  },
+  remember_fact: {
+    running: "Teniéndolo presente...",
+    done: "Lo tengo presente",
+    failed: "No pude tenerlo presente",
+  },
+  forget_fact: {
+    running: "Dejándolo ir...",
+    done: "Lo dejé ir",
+    failed: "No pude dejarlo ir",
+  },
+  upcoming_birthdays: {
+    running: "Mirando si hay cumpleaños...",
+    done: "Miré si hay cumpleaños",
+    failed: "No pude mirar los cumpleaños",
+  },
   other: { running: "Buscando algo...", done: "Busqué algo", failed: "No pude buscar eso" },
 };
 

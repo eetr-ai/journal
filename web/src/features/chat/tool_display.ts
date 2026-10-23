@@ -4,6 +4,7 @@ import {
   BookOpenTextIcon,
   BooksIcon,
   BrainIcon,
+  CakeIcon,
   CalendarBlankIcon,
   ImageIcon,
   type Icon,
@@ -15,6 +16,9 @@ import {
   ScrollIcon,
   SparkleIcon,
   UserCircleIcon,
+  UserIcon,
+  UserPlusIcon,
+  UsersIcon,
 } from "@phosphor-icons/react";
 import type { ToolDictionary } from "@/i18n/en_tools";
 
@@ -45,6 +49,12 @@ const ICONS: Record<ToolName, Icon> = {
   remember: BrainIcon,
   forget: BrainIcon,
   search_memory: BrainIcon,
+  find_people: UsersIcon,
+  read_person: UserIcon,
+  remember_person: UserPlusIcon,
+  remember_fact: UserIcon,
+  forget_fact: UserIcon,
+  upcoming_birthdays: CakeIcon,
 };
 
 function isKnown(name: string): name is ToolName {

@@ -14,9 +14,9 @@
 # It reaches two places, because two things are written. No block here ever sees
 # agent memory — the runtime writes that on its own behalf — so for memory the
 # key travels: the BFF puts it on the body, forwardContext lifts it onto every
-# memory call, and the platform sidecar seals with it. Entries are ours to write,
-# so for those the key is lifted into a variable below and the entry flows seal
-# with it themselves.
+# memory call, and the platform sidecar seals with it. Entries and people are
+# ours to write, so for those the key is lifted into a variable below and their
+# flows seal with it themselves.
 flows:
   - name: chat
     source:
@@ -282,6 +282,12 @@ flows:
           it go if they would rather talk about today.
 
 
+          Look at upcoming_birthdays then too. If somebody in their life has a
+          birthday today or in the next few days, bring it up once, briefly —
+          not in every conversation, and never as a list. Count the days from
+          read_today rather than guessing.
+
+
           Now and then, and nowhere near every time, bring back something from a
           year ago with recall_entry. It is worth doing when it rhymes with the
           day they are having, and not worth doing otherwise. Show it in your
@@ -326,6 +332,18 @@ flows:
           name, a relationship, what they are working towards — and never for the
           content of a single day, which belongs in that day's note instead. Use
           search_memory before saying you do not know something.
+
+
+          The people in their life go somewhere else: who someone is to them,
+          their birthday, something worth knowing about them. Those belong in
+          the people tools, not in remember, which stays for what is true of
+          the person you are talking to. Look someone up with find_people
+          before adding them, so nobody is written down twice; add to someone
+          already there with remember_fact, and change who they are with
+          remember_person and their id. When somebody comes up by name, look
+          them up with find_people and read_person before asking something
+          they already told you. Do it quietly, the way you keep the note —
+          never narrate it.
 
 
           Two things are worth knowing about someone and are not worth an
@@ -599,6 +617,116 @@ flows:
               - type: flow-ref
                 name: arrange
                 settings: { flow: page-arrange }
+
+          - name: find_people
+            description: >
+              The people in their life: each one's name, who they are to them
+              and their birthday. With a query, only the people whose name or
+              relation holds it. Look here before adding someone, and when
+              somebody comes up by name.
+            inputSchema: |
+              {
+                "type": "object",
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: flow-ref
+                name: find
+                settings: { flow: people-find }
+
+          - name: read_person
+            description: >
+              One person in full, by the id find_people gave you: who they are
+              to them, their birthday, the notes kept about them, and every
+              fact, each with its own id.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string" } }
+              }
+            process:
+              - type: flow-ref
+                name: read
+                settings: { flow: person-read }
+
+          - name: remember_person
+            description: >
+              Add someone to the people in their life, or change who someone
+              already there is. Without an id it adds a new person, and name is
+              required. With an id it changes only the fields you give; a field
+              you leave out stays as it was. relation is who they are to them,
+              in their words ("my sister", "climbing partner"). birthday is
+              YYYY-MM-DD, or MM-DD when the year is not known — never anything
+              else. notes is a few lines of context and replaces the notes
+              there, so read_person first and keep what is still true; a single
+              thing worth knowing goes in remember_fact instead.
+            inputSchema: |
+              {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "relation": { "type": "string" },
+                  "birthday": { "type": "string" },
+                  "notes": { "type": "string" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: remember
+                settings: { flow: person-remember }
+
+          - name: remember_fact
+            description: >
+              Keep one thing worth knowing about someone already in their
+              people — something they like, something that happened to them,
+              something not to bring up. personId is the id find_people gave
+              you. One fact a call, in a sentence.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["personId", "fact"],
+                "properties": {
+                  "personId": { "type": "string" },
+                  "fact": { "type": "string" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: remember-fact
+                settings: { flow: person-fact-add }
+
+          - name: forget_fact
+            description: >
+              Let go of one fact about someone, by the fact's id from
+              read_person — when it stopped being true, or they asked you to.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["id"],
+                "properties": { "id": { "type": "string" } }
+              }
+            process:
+              - type: flow-ref
+                name: forget-fact
+                settings: { flow: person-fact-forget }
+
+          - name: upcoming_birthdays
+            description: >
+              The birthdays coming up among the people in their life, soonest
+              first, counted from their today, which comes back with them. A
+              birthday with no year is MM-DD. How many days away each one is is
+              yours to count.
+            inputSchema: |
+              {
+                "type": "object",
+                "properties": { "limit": { "type": "integer" } }
+              }
+            process:
+              - type: flow-ref
+                name: birthdays
+                settings: { flow: birthdays-upcoming }
 
           - name: search_books
             description: >
