@@ -1,4 +1,5 @@
 import { entryFromEntity, type EntryEntity } from "@/features/entries/types";
+import { isLayout } from "@/features/shell/layout";
 import type { AgentFrame } from "./types";
 import type { ToolFrame } from "./tool_steps";
 import type { SseEvent } from "./sse";
@@ -100,6 +101,14 @@ function imageFrame(body: unknown): AgentFrame | null {
   return typeof entryId === "string" ? { kind: "image", entryId } : null;
 }
 
+// Only a layout the page has; anything else would leave it arranged in a way
+// no control can show or undo.
+function layoutFrame(body: unknown): AgentFrame | null {
+  const layout = (body as { layout?: unknown } | null)?.layout;
+
+  return isLayout(layout) ? { kind: "layout", layout } : null;
+}
+
 export function frameFrom(event: SseEvent): AgentFrame | null {
   const body = parsed(event.data);
 
@@ -117,6 +126,10 @@ export function frameFrom(event: SseEvent): AgentFrame | null {
 
   if (event.name === "image") {
     return imageFrame(body);
+  }
+
+  if (event.name === "layout") {
+    return layoutFrame(body);
   }
 
   if (typeof body !== "object" || body === null) {

@@ -1,0 +1,62 @@
+# The tool that rearranges the reader's page. Nothing here touches the
+# database.
+#
+# No case supplies `sseStream`, which is the point of the guard around the
+# frame: a tool invoked with nobody reading still has to answer the model.
+flow: page-arrange
+
+cases:
+  - name: a layout the page has is arranged even when nobody is reading
+    input:
+      data: { layout: writing }
+    expect:
+      body:
+        arranged: true
+        layout: writing
+    spies:
+      page-arrange.can-arrange[1].tell-the-reader[then].layout-frame:
+        count: 0
+
+  # The frame itself is stood in for: there is no stream under test to write it
+  # to. What this proves is that a page being read is told, and told what.
+  - name: a page being read is told which layout to take
+    input:
+      data: { layout: conversation }
+      vars: { sseStream: dolphin-reader }
+    mocks:
+      page-arrange.can-arrange[1].tell-the-reader[then].layout-frame:
+        default: { body: {} }
+    expect:
+      body:
+        arranged: true
+        layout: conversation
+    spies:
+      page-arrange.can-arrange[1].tell-the-reader[then].layout-frame:
+        count: 1
+        records:
+          - input:
+              vars: { layout: conversation }
+
+  - name: hiding the conversation is one of them
+    input:
+      data: { layout: focus }
+    expect:
+      body:
+        arranged: true
+        layout: focus
+
+  - name: a layout the page does not have is refused, and says so
+    input:
+      data: { layout: sideways }
+    expect:
+      that:
+        - body.arranged == false
+        - body.reason != ""
+        - '!has(body.layout)'
+
+  - name: no layout at all is refused rather than arranging nothing
+    input:
+      data: {}
+    expect:
+      that:
+        - body.arranged == false

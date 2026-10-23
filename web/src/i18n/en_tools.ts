@@ -41,6 +41,11 @@ const tools = {
     done: "Opened an entry",
     failed: "Could not open the entry",
   },
+  arrange_page: {
+    running: "Rearranging your page...",
+    done: "Rearranged your page",
+    failed: "Could not rearrange your page",
+  },
   search_books: {
     running: "Looking the book up...",
     done: "Looked the book up",

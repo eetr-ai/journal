@@ -10,6 +10,7 @@ import { ChatActionType, useChat, type ChatError, type SentMessage } from "./cha
 import { EntriesActionType, useEntries } from "@/features/entries/entries_state";
 import { useOpenEntry } from "@/features/entries/use_open_entry";
 import { viewHref } from "@/features/shell/view_url";
+import { chooseLayout } from "@/features/shell/layout_store";
 import type { AgentFrame, ChatAsk } from "./types";
 import type { Attachment } from "@/features/images/types";
 import { asksForAnswer, tapLine, withTaps, type Tap } from "@/features/widgets/taps";
@@ -110,13 +111,20 @@ function refusal(status: number): ChatError {
 type Dispatcher = (action: { type: ChatActionType; data?: unknown }) => void;
 type PanelDispatcher = (action: { type: EntriesActionType; data?: unknown }) => void;
 
-/** Drains one run into the two reducers it feeds. */
+/** Drains one run into the two reducers it feeds, and the page's layout. */
 async function pump(
   body: ReadableStream<Uint8Array>,
   dispatch: Dispatcher,
   panel: PanelDispatcher,
 ): Promise<void> {
   for await (const frame of readFrames(body)) {
+    // Kept on this device as if they had chosen it themselves: they asked.
+    if (frame.kind === "layout") {
+      chooseLayout(frame.layout);
+
+      continue;
+    }
+
     const moved = panelAction(frame);
 
     if (moved) {
