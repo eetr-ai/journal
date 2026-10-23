@@ -1,0 +1,631 @@
+# The people in a person's life, and what is worth knowing about each of them.
+#
+#   GET    /people/{subject}                     everyone, sealed, without their facts
+#   POST   /people/{subject}                     add someone
+#   GET    /people/{subject}/{id}                one person and their facts, sealed
+#   PUT    /people/{subject}/{id}                replace who they are
+#   DELETE /people/{subject}/{id}                forget them, and their facts with them
+#   POST   /people/{subject}/{id}/facts          add something worth knowing
+#   DELETE /people/{subject}/{id}/facts/{fact}   forget one thing
+#
+# and, below the routes, the sourceless flows behind the agent's people tools.
+# What a tool is told:
+#   vars.subject   whose people these are — the whole access check
+#   vars.dataKey   the key this run seals and opens under, base64, kept nowhere
+#   vars.today     the reader's date, YYYY-MM-DD, which birthdays count from
+#
+# Everything about a person is sealed, the birthday included, so nothing here
+# can filter or order by value: every lookup reads all of a person's people and
+# opens them in the run. Rows leave the routes sealed; the browser opens them.
+# The tools open them here, because the model has to read them. They give
+# proximity as a number, 5 the innermost circle and 1 the most distant, or null
+# when it is not known, rather than the text it is stored as; the number is
+# wrapped in dyn() because both arms of a CEL ternary must share a type.
+#
+# Ids are matched as text, so one that is not a uuid names nobody rather than
+# failing the statement.
+flows:
+  - name: people
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /people/{subject}
+        methods: [GET, POST]
+    process:
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "POST"'
+            process:
+              - type: flow-ref
+                name: create
+                settings: { flow: person-create }
+          - when: "true"
+            process:
+              # Someone with nobody written down is an ordinary answer.
+              - type: sql
+                name: select-people
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
+                    FROM person
+                    WHERE oidc_subject = $1
+                    ORDER BY created_at
+                  args:
+                    - vars.subject
+              - type: set-payload
+                name: wrap
+                settings:
+                  value: '{"people": body}'
+
+  # Scoped by subject as well as id throughout, so holding an id is not enough
+  # to read, change or forget somebody else's people.
+  - name: person
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /people/{subject}/{id}
+        methods: [GET, PUT, DELETE]
+    process:
+      - type: switch
+        name: route
+        cases:
+          - when: 'vars.method == "PUT"'
+            process:
+              - type: flow-ref
+                name: replace
+                settings: { flow: person-replace }
+
+          - when: 'vars.method == "DELETE"'
+            process:
+              # Their facts go with them through the foreign key, so forgetting
+              # someone cannot leave what was known about them behind.
+              - type: sql
+                name: delete-person
+                settings:
+                  connector: db
+                  query: |
+                    DELETE FROM person WHERE oidc_subject = $1 AND id::text = lower($2)
+                    RETURNING id
+                  args:
+                    - vars.subject
+                    - vars.id
+                  single: true
+              - type: set-payload
+                name: done
+                settings:
+                  value: '{"deleted": body != null}'
+
+          - when: "true"
+            process:
+              - type: sql
+                name: select-person
+                settings:
+                  connector: db
+                  query: |
+                    SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
+                    FROM person
+                    WHERE oidc_subject = $1 AND id::text = lower($2)
+                  args:
+                    - vars.subject
+                    - vars.id
+                  single: true
+              - type: if
+                name: check-found
+                condition: 'body == null'
+                then:
+                  process:
+                    - type: set-variable
+                      settings: { name: httpStatus, value: "404" }
+                    - type: set-payload
+                      settings:
+                        value: '{"error": "person not found"}'
+                else:
+                  process:
+                    - type: set-variable
+                      name: hold-person
+                      settings: { name: person, value: body }
+                    - type: sql
+                      name: select-facts
+                      settings:
+                        connector: db
+                        query: |
+                          SELECT id, person_id, fact, created_at
+                          FROM person_fact
+                          WHERE oidc_subject = $1 AND person_id::text = lower($2)
+                          ORDER BY created_at
+                        args:
+                          - vars.subject
+                          - vars.id
+                    - type: set-payload
+                      name: wrap
+                      settings:
+                        value: '{"person": vars.person, "facts": body}'
+
+  # Something worth knowing about someone: {key, fact}. Only a person who is
+  # theirs takes one; anything else is a 404.
+  - name: person-facts
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /people/{subject}/{id}/facts
+        methods: [POST]
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: seal-fact
+        settings:
+          name: sealedFact
+          value: '"enc1:" + base64.encode(toAes(has(body.fact) ? body.fact : "", base64.decode(vars.dataKey)))'
+      # The ownership check is part of the insert, so a foreign person takes
+      # nothing.
+      - type: sql
+        name: insert-fact
+        settings:
+          connector: db
+          query: |
+            INSERT INTO person_fact (person_id, oidc_subject, fact)
+            SELECT p.id, p.oidc_subject, $3
+            FROM person p
+            WHERE p.oidc_subject = $1 AND p.id::text = lower($2)
+            RETURNING id, person_id, fact, created_at
+          args:
+            - vars.subject
+            - vars.id
+            - vars.sealedFact
+          single: true
+      - type: if
+        name: check-added
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-variable
+              settings: { name: httpStatus, value: "404" }
+            - type: set-payload
+              settings: { value: '{"added": false, "error": "person not found"}' }
+        else:
+          process:
+            - type: set-payload
+              settings: { value: '{"added": true, "fact": body}' }
+
+  # One that names nothing is `deleted: false` rather than an error: asking
+  # twice for the same thing to be forgotten is the same request.
+  - name: person-fact
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /people/{subject}/{id}/facts/{fact}
+        methods: [DELETE]
+    process:
+      - type: sql
+        name: delete-fact
+        settings:
+          connector: db
+          query: |
+            DELETE FROM person_fact
+            WHERE oidc_subject = $1 AND person_id::text = lower($2) AND id::text = lower($3)
+            RETURNING id
+          args:
+            - vars.subject
+            - vars.id
+            - vars.fact
+          single: true
+      - type: set-payload
+        name: done
+        settings:
+          value: '{"deleted": body != null}'
+
+  # Add someone written down by hand: {key, name, relation, birthday, notes,
+  # proximity}. Every field is sealed, an empty one included, so the stored row
+  # does not say which of them is known.
+  - name: person-create
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: seal-person
+        settings:
+          name: sealed
+          value: >
+            {"name": "enc1:" + base64.encode(toAes(has(body.name) ? body.name : "", base64.decode(vars.dataKey))),
+             "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
+             "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
+             "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
+             "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? body.proximity : "", base64.decode(vars.dataKey)))}
+      - type: sql
+        name: insert-person
+        settings:
+          connector: db
+          query: |
+            INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
+          args:
+            - vars.subject
+            - vars.sealed.name
+            - vars.sealed.relation
+            - vars.sealed.birthday
+            - vars.sealed.notes
+            - vars.sealed.proximity
+          single: true
+
+  # Replace who someone is, every field at once, the way the form submits it.
+  - name: person-replace
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: seal-person
+        settings:
+          name: sealed
+          value: >
+            {"name": "enc1:" + base64.encode(toAes(has(body.name) ? body.name : "", base64.decode(vars.dataKey))),
+             "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
+             "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
+             "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
+             "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? body.proximity : "", base64.decode(vars.dataKey)))}
+      - type: sql
+        name: update-person
+        settings:
+          connector: db
+          query: |
+            UPDATE person
+            SET name = $3, relation = $4, birthday = $5, notes = $6, proximity = $7, updated_at = now()
+            WHERE oidc_subject = $1 AND id::text = lower($2)
+            RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
+          args:
+            - vars.subject
+            - vars.id
+            - vars.sealed.name
+            - vars.sealed.relation
+            - vars.sealed.birthday
+            - vars.sealed.notes
+            - vars.sealed.proximity
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-variable
+              settings: { name: httpStatus, value: "404" }
+            - type: set-payload
+              settings: { value: '{"error": "person not found"}' }
+
+  # --- the agent's tools -----------------------------------------------------
+
+  # Everyone, or the people whose name or relation holds the query. Matching is
+  # case-insensitive for ASCII letters only; for now an accented capital has to
+  # be typed as it was written.
+  - name: people-find
+    process:
+      - type: set-variable
+        name: hold-needle
+        settings:
+          name: needle
+          value: 'has(body.query) ? body.query.trim().lowerAscii() : ""'
+      - type: sql
+        name: select-people
+        settings:
+          connector: db
+          query: SELECT id, name, relation, birthday, proximity FROM person WHERE oidc_subject = $1
+          args:
+            - vars.subject
+      - type: set-variable
+        name: open-people
+        settings:
+          name: opened
+          value: >
+            body.map(r, {
+              "id": r.id,
+              "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
+              "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
+              "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday,
+              "proximity": r.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(r.proximity.substring(5)), base64.decode(vars.dataKey))) : r.proximity
+            })
+      - type: set-payload
+        name: found
+        settings:
+          value: >
+            {"people": vars.opened.filter(p, vars.needle == ""
+                || p.name.lowerAscii().contains(vars.needle)
+                || p.relation.lowerAscii().contains(vars.needle))
+              .sortBy(p, p.name.lowerAscii())
+              .map(p, {
+                "id": p.id, "name": p.name, "relation": p.relation, "birthday": p.birthday,
+                "proximity": p.proximity.matches("^[0-9]+$") ? dyn(int(p.proximity)) : null
+              })}
+
+  # One person, opened, with everything known about them.
+  - name: person-read
+    process:
+      - type: sql
+        name: select-person
+        settings:
+          connector: db
+          query: |
+            SELECT id, name, relation, birthday, notes, proximity
+            FROM person
+            WHERE oidc_subject = $1 AND id::text = lower($2)
+          args:
+            - vars.subject
+            - body.id
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-payload
+              settings: { value: '{"found": false}' }
+        else:
+          process:
+            - type: set-variable
+              name: hold-person
+              settings: { name: person, value: body }
+            - type: set-variable
+              name: open-proximity
+              settings:
+                name: proximity
+                value: 'body.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode(vars.dataKey))) : body.proximity'
+            - type: sql
+              name: select-facts
+              settings:
+                connector: db
+                query: |
+                  SELECT id, fact FROM person_fact
+                  WHERE oidc_subject = $1 AND person_id::text = lower($2)
+                  ORDER BY created_at
+                args:
+                  - vars.subject
+                  - vars.person.id
+            - type: set-payload
+              name: opened
+              settings:
+                value: >
+                  {"found": true, "id": vars.person.id,
+                   "name": vars.person.name.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.name.substring(5)), base64.decode(vars.dataKey))) : vars.person.name,
+                   "relation": vars.person.relation.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.relation.substring(5)), base64.decode(vars.dataKey))) : vars.person.relation,
+                   "birthday": vars.person.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.birthday.substring(5)), base64.decode(vars.dataKey))) : vars.person.birthday,
+                   "notes": vars.person.notes.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.notes.substring(5)), base64.decode(vars.dataKey))) : vars.person.notes,
+                   "proximity": vars.proximity.matches("^[0-9]+$") ? dyn(int(vars.proximity)) : null,
+                   "facts": body.map(f, {
+                     "id": f.id,
+                     "fact": f.fact.startsWith("enc1:") ? string(fromAes(base64.decode(f.fact.substring(5)), base64.decode(vars.dataKey))) : f.fact
+                   })}
+
+  # Add someone, or change who someone is.
+  #
+  # With an id, only the fields given change: an absent field is passed as ''
+  # and leaves its column alone. A field given as empty still clears it, because
+  # an empty string sealed is not an empty string. Proximity arrives as a number
+  # and is sealed as its digits.
+  - name: person-remember
+    process:
+      # The refusals are the only judgements this flow makes, so the model is
+      # told plainly what went wrong rather than the tool failing under it. A
+      # birthday is refused unless it is a day the calendar has; empty clears it.
+      - type: switch
+        name: new-or-known
+        cases:
+          - when: >
+              has(body.birthday) && body.birthday != ""
+                && !(body.birthday.matches("^([0-9]{4}-)?(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$")
+                  && !body.birthday.matches("(02-3[01]|(0[469]|11)-31)$")
+                  && (!body.birthday.matches("^[0-9]{4}-02-29$")
+                    || (int(body.birthday.substring(0, 4)) % 4 == 0
+                      && (int(body.birthday.substring(0, 4)) % 100 != 0
+                        || int(body.birthday.substring(0, 4)) % 400 == 0))))
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"saved": false, "reason": "birthday is YYYY-MM-DD, or MM-DD when the year is not known"}'
+          - when: 'has(body.id) && body.id != ""'
+            process:
+              - type: set-variable
+                name: seal-given
+                settings:
+                  name: sealed
+                  value: >
+                    {"name": has(body.name) ? "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))) : "",
+                     "relation": has(body.relation) ? "enc1:" + base64.encode(toAes(body.relation, base64.decode(vars.dataKey))) : "",
+                     "birthday": has(body.birthday) ? "enc1:" + base64.encode(toAes(body.birthday, base64.decode(vars.dataKey))) : "",
+                     "notes": has(body.notes) ? "enc1:" + base64.encode(toAes(body.notes, base64.decode(vars.dataKey))) : "",
+                     "proximity": has(body.proximity) ? "enc1:" + base64.encode(toAes(string(int(body.proximity)), base64.decode(vars.dataKey))) : ""}
+              - type: sql
+                name: update-person
+                settings:
+                  connector: db
+                  query: |
+                    UPDATE person
+                    SET name     = CASE WHEN $3 = '' THEN name ELSE $3 END,
+                        relation = CASE WHEN $4 = '' THEN relation ELSE $4 END,
+                        birthday = CASE WHEN $5 = '' THEN birthday ELSE $5 END,
+                        notes    = CASE WHEN $6 = '' THEN notes ELSE $6 END,
+                        proximity = CASE WHEN $7 = '' THEN proximity ELSE $7 END,
+                        updated_at = now()
+                    WHERE oidc_subject = $1 AND id::text = lower($2)
+                    RETURNING id, name, proximity
+                  args:
+                    - vars.subject
+                    - body.id
+                    - vars.sealed.name
+                    - vars.sealed.relation
+                    - vars.sealed.birthday
+                    - vars.sealed.notes
+                    - vars.sealed.proximity
+                  single: true
+          - when: '!has(body.name) || body.name.trim() == ""'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"saved": false, "reason": "a name is needed to add someone"}'
+          - when: "true"
+            process:
+              - type: set-variable
+                name: seal-all
+                settings:
+                  name: sealed
+                  value: >
+                    {"name": "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))),
+                     "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
+                     "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
+                     "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
+                     "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? string(int(body.proximity)) : "", base64.decode(vars.dataKey)))}
+              - type: sql
+                name: insert-person
+                settings:
+                  connector: db
+                  query: |
+                    INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    RETURNING id, name, proximity
+                  args:
+                    - vars.subject
+                    - vars.sealed.name
+                    - vars.sealed.relation
+                    - vars.sealed.birthday
+                    - vars.sealed.notes
+                    - vars.sealed.proximity
+                  single: true
+      # A refusal above already answered; anything else is the row written, or
+      # null for an id that named nobody of theirs. Who was saved is named back
+      # with their proximity as it now stands.
+      - type: if
+        name: answer
+        condition: 'body == null || !has(body.saved)'
+        then:
+          process:
+            - type: if
+              name: check-saved
+              condition: 'body == null'
+              then:
+                process:
+                  - type: set-payload
+                    settings:
+                      value: '{"saved": false, "reason": "there is no one with that id; look them up with find_people"}'
+              else:
+                process:
+                  - type: set-variable
+                    name: open-proximity
+                    settings:
+                      name: proximity
+                      value: 'body.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode(vars.dataKey))) : body.proximity'
+                  - type: set-payload
+                    settings:
+                      value: >
+                        {"saved": true, "id": body.id,
+                         "name": body.name.startsWith("enc1:") ? string(fromAes(base64.decode(body.name.substring(5)), base64.decode(vars.dataKey))) : body.name,
+                         "proximity": vars.proximity.matches("^[0-9]+$") ? dyn(int(vars.proximity)) : null}
+
+  # Something worth knowing about someone already written down.
+  - name: person-fact-add
+    process:
+      - type: set-variable
+        name: seal-fact
+        settings:
+          name: sealedFact
+          value: '"enc1:" + base64.encode(toAes(has(body.fact) ? body.fact : "", base64.decode(vars.dataKey)))'
+      - type: sql
+        name: insert-fact
+        settings:
+          connector: db
+          query: |
+            INSERT INTO person_fact (person_id, oidc_subject, fact)
+            SELECT p.id, p.oidc_subject, $3
+            FROM person p
+            WHERE p.oidc_subject = $1 AND p.id::text = lower($2)
+            RETURNING id
+          args:
+            - vars.subject
+            - body.personId
+            - vars.sealedFact
+          single: true
+      - type: if
+        name: check-saved
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-payload
+              settings:
+                value: '{"saved": false, "reason": "there is no one with that id; look them up with find_people"}'
+        else:
+          process:
+            - type: set-payload
+              settings: { value: '{"saved": true, "id": body.id}' }
+
+  - name: person-fact-forget
+    process:
+      - type: sql
+        name: delete-fact
+        settings:
+          connector: db
+          query: |
+            DELETE FROM person_fact WHERE oidc_subject = $1 AND id::text = lower($2)
+            RETURNING id
+          args:
+            - vars.subject
+            - body.id
+          single: true
+      - type: set-payload
+        name: done
+        settings:
+          value: '{"forgotten": body != null}'
+
+  # The birthdays coming up, soonest first, counted from the reader's today.
+  #
+  # Ordered by month and day alone, rotated so today comes first: a day later
+  # in the year than today sorts ahead of one earlier, which comes round next
+  # year. No date arithmetic, so a 29 February is simply a day between the 28th
+  # and the 1st. How many days away each one is is left to the reader of the
+  # answer, which has today beside it. A birthday not written as YYYY-MM-DD or
+  # MM-DD is skipped rather than guessed at.
+  - name: birthdays-upcoming
+    process:
+      - type: set-variable
+        name: hold-limit
+        settings:
+          name: soonest
+          value: 'has(body.limit) && body.limit > 0 ? int(body.limit) : 5'
+      # Without a today the rotation starts at the beginning of the year.
+      - type: set-variable
+        name: hold-today
+        settings:
+          name: fromDay
+          value: 'has(vars.today) && size(vars.today) >= 10 ? vars.today.substring(5, 10) : ""'
+      - type: sql
+        name: select-people
+        settings:
+          connector: db
+          query: SELECT id, name, relation, birthday FROM person WHERE oidc_subject = $1
+          args:
+            - vars.subject
+      - type: set-variable
+        name: open-birthdays
+        settings:
+          name: dated
+          value: >
+            body.map(r, {
+              "id": r.id,
+              "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
+              "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
+              "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday
+            }).filter(p, p.birthday.matches("^([0-9]{4}-)?[0-9]{2}-[0-9]{2}$"))
+      - type: set-payload
+        name: soonest-first
+        settings:
+          value: >
+            {"today": has(vars.today) ? vars.today : "",
+             "upcoming": vars.dated.sortBy(p,
+                 (p.birthday.substring(size(p.birthday) - 5) >= vars.fromDay ? "0" : "1")
+                 + p.birthday.substring(size(p.birthday) - 5))
+               .slice(0, int(math.least(vars.soonest, size(vars.dated))))}

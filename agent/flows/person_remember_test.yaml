@@ -1,0 +1,238 @@
+# See people_test.yaml. This suite owns the tool that adds someone or changes
+# who they are. `dolphin-people-write` is written here, a row per case.
+flow: person-remember
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: someone new is added, sealed, and named back
+    input:
+      data: { name: Marta, relation: my dentist, birthday: "1980-06-01", proximity: 2 }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.id != ""
+        - body.name == "Marta"
+        - body.proximity == 2
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.name.startsWith("enc1:")
+                - vars.sealed.birthday.startsWith("enc1:")
+                - '!vars.sealed.relation.contains("dentist")'
+                - vars.sealed.proximity.startsWith("enc1:")
+                # Not given, and still sealed: the row does not say it is empty.
+                - vars.sealed.notes.startsWith("enc1:")
+
+  - name: someone added without a proximity is not placed yet
+    input:
+      data: { name: Nico }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.proximity == null
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.proximity.startsWith("enc1:")
+
+  - name: nobody is added without a name
+    input:
+      data: { relation: someone from the gym }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("name")
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 0
+
+  - name: a name of only spaces is no name
+    input:
+      data: { name: "   " }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+
+  # Only the birthday is given. The name and the proximity coming back opened
+  # are what prove the other fields were left alone rather than blanked.
+  - name: changing one field leaves the others as they were
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000011, birthday: "05-06" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        saved: true
+        id: eeeeeeee-0000-4000-8000-000000000011
+        name: Written down
+        proximity: 4
+    spies:
+      person-remember.new-or-known[1].update-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.name == ""
+                - vars.sealed.notes == ""
+                - vars.sealed.proximity == ""
+                - vars.sealed.birthday.startsWith("enc1:")
+
+  # Given as a double, the way a number in a model's JSON arrives, and sealed
+  # as its digits.
+  - name: changing how close someone is changes only that
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000015, proximity: 2.0 }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        saved: true
+        id: eeeeeeee-0000-4000-8000-000000000015
+        name: Written down
+        proximity: 2
+    spies:
+      person-remember.new-or-known[1].update-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.name == ""
+                - vars.sealed.relation == ""
+                - vars.sealed.birthday == ""
+                - vars.sealed.notes == ""
+                - string(fromAes(base64.decode(vars.sealed.proximity.substring(5)), base64.decode(vars.dataKey))) == "2"
+
+  - name: a field given as empty is cleared, not skipped
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000014, notes: "" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+    spies:
+      person-remember.new-or-known[1].update-person:
+        records:
+          - input:
+              that:
+                - vars.sealed.notes.startsWith("enc1:")
+
+  - name: another person's people are not changed
+    input:
+      data: { id: ffffffff-0000-4000-8000-000000000001, name: Overwritten }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("find_people")
+
+  - name: an id that is not a uuid names nobody
+    input:
+      data: { id: eeeeeeee-0000, name: Overwritten }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("find_people")
+
+  # A birthday the calendar does not have is refused before anything is
+  # sealed, so it cannot be kept and then skipped when birthdays are counted.
+  - name: a birthday that is not a date is refused
+    input:
+      data: { name: Someone, birthday: March 3rd }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("YYYY-MM-DD")
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 0
+
+  - name: a day past the end of its month is refused
+    input:
+      data: { name: Someone, birthday: "2023-02-31" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("YYYY-MM-DD")
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 0
+
+  - name: a thirteenth month is refused
+    input:
+      data: { name: Someone, birthday: "13-01" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 0
+
+  - name: 29 February of a year that is not a leap year is refused
+    input:
+      data: { name: Someone, birthday: "2023-02-29" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 0
+
+  # Divisible by 4 and by 100 but not by 400.
+  - name: 29 February of a century that is not a leap year is refused
+    input:
+      data: { name: Someone, birthday: "1900-02-29" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 0
+
+  - name: an impossible birthday is not written over someone known
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000011, birthday: "04-31" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("YYYY-MM-DD")
+    spies:
+      person-remember.new-or-known[1].update-person:
+        count: 0
+
+  - name: 29 February of a leap year is kept
+    input:
+      data: { name: Leap, birthday: "2024-02-29" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        records:
+          - input:
+              that:
+                - string(fromAes(base64.decode(vars.sealed.birthday.substring(5)), base64.decode(vars.dataKey))) == "2024-02-29"
+
+  - name: 29 February with no year is kept
+    input:
+      data: { name: Leap, birthday: "02-29" }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        count: 1

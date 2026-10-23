@@ -1,0 +1,51 @@
+# See people_test.yaml. This suite owns the route that forgets one fact.
+flow: person-fact
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a fact is forgotten
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people-delete
+        id: eeeeeeee-0000-4000-8000-000000000022
+        fact: fa000000-0000-4000-8000-0000000000e2
+    expect:
+      body:
+        deleted: true
+
+  - name: another person's fact is forgotten by nothing
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people-delete
+        id: ffffffff-0000-4000-8000-000000000001
+        fact: fa000000-0000-4000-8000-0000000000f1
+    expect:
+      body:
+        deleted: false
+
+  # The person in the path has to be the fact's own, not just any of theirs.
+  - name: a fact named under the wrong person is forgotten by nothing
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people-delete
+        id: eeeeeeee-0000-4000-8000-000000000021
+        fact: fa000000-0000-4000-8000-0000000000e4
+    expect:
+      body:
+        deleted: false
+
+  - name: ids that are not uuids forget nothing
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people-delete
+        id: eeeeeeee-0000-4000-8000-000000000022
+        fact: not-a-fact
+    expect:
+      body:
+        deleted: false

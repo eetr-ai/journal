@@ -1,0 +1,57 @@
+# See people_test.yaml. This suite owns the tool that says whose birthday is
+# coming up. The fixtures' birthdays are 10-25, 11-02 (with a year), 03-14 and
+# 10-23; carla has none and Fede's is not a date.
+flow: birthdays-upcoming
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  # Diego's has just gone, so he is last rather than ahead of Ana: the year
+  # turns before his comes round again.
+  - name: soonest first, today's first of all, the ones just gone at the end
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        today: "2026-10-25"
+    expect:
+      that:
+        - body.today == "2026-10-25"
+        - body.upcoming.map(p, p.name) == ["Elena", "Ana Torres", "Bruno", "Diego"]
+        - body.upcoming[1].birthday == "1990-11-02"
+        - body.upcoming[1].relation == "my sister"
+
+  - name: counted from the reader's today, not from any other
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        today: "2026-12-31"
+    expect:
+      that:
+        - body.upcoming.map(p, p.name) == ["Bruno", "Diego", "Elena", "Ana Torres"]
+
+  - name: a limit keeps the soonest
+    input:
+      data: { limit: 2 }
+      vars:
+        subject: dolphin-people
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        today: "2026-10-23"
+    expect:
+      that:
+        - body.upcoming.map(p, p.name) == ["Diego", "Elena"]
+
+  - name: only their own people's birthdays
+    input:
+      data: {}
+      vars:
+        subject: dolphin-people-other
+        dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        today: "2026-10-25"
+    expect:
+      that:
+        - body.upcoming.map(p, p.name) == ["Not yours"]

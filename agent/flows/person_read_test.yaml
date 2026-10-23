@@ -1,0 +1,52 @@
+# See people_test.yaml. This suite owns the tool that reads one person.
+flow: person-read
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a person comes back opened, with their facts in the order they were added
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000001 }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: true
+        id: eeeeeeee-0000-4000-8000-000000000001
+        name: Ana Torres
+        relation: my sister
+        birthday: "1990-11-02"
+        notes: Lives in Rosario.
+        proximity: 5
+        facts:
+          - id: fa000000-0000-4000-8000-000000000001
+            fact: Allergic to cats.
+          - id: fa000000-0000-4000-8000-000000000002
+            fact: Started a new job at the library.
+
+  - name: someone with nothing known about them has no facts
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000003 }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.found == true
+        - body.name == "carla"
+        - body.proximity == null
+        - body.facts == []
+
+  - name: another person's people are not found with an id alone
+    input:
+      data: { id: ffffffff-0000-4000-8000-000000000001 }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false
+
+  - name: an id that is not a uuid is not found
+    input:
+      data: { id: Ana Torres }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      body:
+        found: false

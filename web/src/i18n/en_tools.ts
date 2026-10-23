@@ -87,6 +87,36 @@ const tools = {
     done: "Thought back",
     failed: "Could not think back",
   },
+  find_people: {
+    running: "Thinking of who that is...",
+    done: "Thought of who that is",
+    failed: "Could not think of who that is",
+  },
+  read_person: {
+    running: "Remembering them...",
+    done: "Remembered them",
+    failed: "Could not remember them",
+  },
+  remember_person: {
+    running: "Remembering who they are...",
+    done: "Remembered who they are",
+    failed: "Could not remember who they are",
+  },
+  remember_fact: {
+    running: "Keeping that in mind...",
+    done: "Kept that in mind",
+    failed: "Could not keep that in mind",
+  },
+  forget_fact: {
+    running: "Letting that go...",
+    done: "Let that go",
+    failed: "Could not let that go",
+  },
+  upcoming_birthdays: {
+    running: "Checking for birthdays...",
+    done: "Checked for birthdays",
+    failed: "Could not check for birthdays",
+  },
   other: {
     running: "Looking something up...",
     done: "Looked something up",

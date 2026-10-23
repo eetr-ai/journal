@@ -1,0 +1,41 @@
+# See people_test.yaml. This suite owns the tool that keeps a fact about
+# someone already written down.
+flow: person-fact-add
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a fact is kept with the person, sealed
+    input:
+      data: { personId: eeeeeeee-0000-4000-8000-000000000013, fact: Hates being sung to. }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.id != ""
+    spies:
+      person-fact-add.insert-fact:
+        records:
+          - input:
+              that:
+                - vars.sealedFact.startsWith("enc1:")
+                - '!vars.sealedFact.contains("sung")'
+
+  - name: another person's people take nothing
+    input:
+      data: { personId: ffffffff-0000-4000-8000-000000000001, fact: Should not land. }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("find_people")
+
+  - name: an id that is not a uuid takes nothing
+    input:
+      data: { personId: Ana, fact: Should not land. }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.reason.contains("find_people")

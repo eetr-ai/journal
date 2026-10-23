@@ -78,6 +78,10 @@ and change the other.
   under the same key, as its base64 text; only its MIME type is stored in the
   clear. Like words, the bytes are in server memory only for the request that
   carried them, and the browser opens what it fetches.
+- **People are content.** Everything about a person in somebody's life is
+  sealed in the flow under the same key — name, relation, notes, facts, how
+  close they are, and the birthday too. Nothing about them is embedded, so they are found by name,
+  opened in the run that looks.
 - **What is tolerated, and must stay tolerated rather than grow:** plaintext and
   the key in server memory for the length of a request the person initiated.
   Never written down, never logged.

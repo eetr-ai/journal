@@ -3,6 +3,7 @@ import tools from "./es_tools";
 import images from "./es_images";
 import widgets from "./es_widgets";
 import editor from "./es_editor";
+import people from "./es_people";
 
 // Typed as Dictionary rather than inferred, which is what makes a missing or
 // misspelled key fail the build instead of silently falling back to English.
@@ -287,6 +288,7 @@ const es: Dictionary = {
   images,
   widgets,
   editor,
+  people,
 
   validation: {
     required: "Esto no puede estar vacío",
