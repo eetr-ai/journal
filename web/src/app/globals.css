@@ -37,6 +37,12 @@
   --color-user-bubble-border: var(--user-bubble-border);
   --color-on-user-bubble: var(--on-user-bubble);
   --color-highlight: var(--highlight);
+  --color-constellation-1: var(--constellation-1);
+  --color-constellation-2: var(--constellation-2);
+  --color-constellation-3: var(--constellation-3);
+  --color-constellation-4: var(--constellation-4);
+  --color-constellation-5: var(--constellation-5);
+  --color-constellation-6: var(--constellation-6);
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -60,6 +66,14 @@
   --user-bubble: #4f9e33;
   --user-bubble-border: #4f9e33;
   --on-user-bubble: #ffffff;
+  /* The groups in a constellation, in the order they are handed out. Green is
+     left out: it is the reader's own colour. */
+  --constellation-1: #2a78d6;
+  --constellation-2: #eb6834;
+  --constellation-3: #1baf7a;
+  --constellation-4: #eda100;
+  --constellation-5: #e87ba4;
+  --constellation-6: #6250d6;
 }
 
 .dark {
@@ -79,6 +93,12 @@
   --user-bubble: #273a1b;
   --user-bubble-border: #3c5a2b;
   --on-user-bubble: #eef2e6;
+  --constellation-1: #3987e5;
+  --constellation-2: #d95926;
+  --constellation-3: #199e70;
+  --constellation-4: #c98500;
+  --constellation-5: #d55181;
+  --constellation-6: #9085e9;
 }
 
 /*
