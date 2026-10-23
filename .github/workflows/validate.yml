@@ -6,6 +6,11 @@ on:
     branches:
       - main
 
+# Read-only: every job here checks code out and validates it, and one of them
+# runs binaries installed at @latest, which should hold nothing that can write.
+permissions:
+  contents: read
+
 jobs:
   web:
     name: web
