@@ -7,6 +7,6 @@
 #
 # The runtime version is pinned here, which makes it the one place that says
 # which octo a release of this app is a release of.
-FROM juancavallotti/octo-api:0.11.7
+FROM juancavallotti/octo-api:0.11.13
 
 COPY flows/ /etc/octo/integrations/
