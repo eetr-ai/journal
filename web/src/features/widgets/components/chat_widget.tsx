@@ -1,5 +1,6 @@
 "use client";
 
+import ConstellationWidget from "./constellation_widget";
 import LyricsWidget from "./lyrics_widget";
 import MemoryWidget from "./memory_widget";
 import QuoteWidget from "./quote_widget";
@@ -39,6 +40,8 @@ export default function ChatWidget(options: ChatWidgetOptions) {
       return <QuoteWidget place={place} quote={widget} t={options.t} />;
     case "lyrics":
       return <LyricsWidget lyrics={widget} place={place} t={options.t} />;
+    case "constellation":
+      return <ConstellationWidget constellation={widget} t={options.t} />;
     default:
       return null;
   }

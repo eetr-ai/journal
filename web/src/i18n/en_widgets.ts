@@ -23,6 +23,29 @@ const widgets = {
     sent: "Sent ✓",
     source: "Full lyrics",
   },
+  constellation: {
+    label: "People",
+    title: "Your people",
+    you: "You",
+    others: "Others",
+    expand: "Expand",
+    close: "Close",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    fit: "Fit to view",
+    // What the picture means, channel by channel.
+    nearer: "Closer to the centre is closer to you",
+    colour: "Colour is the circle they belong to",
+    size: "Size is how connected they are",
+    // The rings, innermost first; the last is for people whose closeness is not known.
+    rings: ["closest", "close", "in between", "further", "distant", "not sure yet"],
+    // What a screen reader is told instead of the picture.
+    picture: "{title}, a map of {count} people",
+    list: "Who is in it",
+    closeness: "closeness {near} of {of}",
+    unknown: "closeness not known yet",
+    between: "{one} and {other}",
+  },
   search: {
     label: "From your journal",
   },

@@ -13,8 +13,8 @@ import type { JSONContent, MarkdownToken } from "@tiptap/core";
 export const VERBATIM = "verbatim";
 
 const CARD =
-  /^(?::::(?:quote|lyrics)\{[^\n]*\}(?:\n[\s\S]*?)?\n:::[ \t]*|::memory\{[^\n]*\}[ \t]*)(?:\n|$)/u;
-const CARD_START = /^:{2,3}(?:quote|lyrics|memory)\{/mu;
+  /^(?::::(?:quote|lyrics|constellation)\{[^\n]*\}(?:\n[\s\S]*?)?\n:::[ \t]*|::memory\{[^\n]*\}[ \t]*)(?:\n|$)/u;
+const CARD_START = /^:{2,3}(?:quote|lyrics|constellation|memory)\{/mu;
 
 interface VerbatimToken extends MarkdownToken {
   source: string;
