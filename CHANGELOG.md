@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.17](https://github.com/eetr-ai/journal/compare/v0.0.16...v0.0.17) (2026-10-23)
+
+
+### Features
+
+* a sealed db of the people in your life, kept by the journal ([#66](https://github.com/eetr-ai/journal/issues/66)) ([e6016d7](https://github.com/eetr-ai/journal/commit/e6016d76476eeb8905c9e0ad7a8363497a0347e7))
+* draw the people in your life as a constellation ([#69](https://github.com/eetr-ai/journal/issues/69)) ([c2d7454](https://github.com/eetr-ai/journal/commit/c2d7454333fb776547a48b0539222de5ac9922c8))
+* open a new conversation on the birthdays coming up ([#67](https://github.com/eetr-ai/journal/issues/67)) ([0382ee6](https://github.com/eetr-ai/journal/commit/0382ee6fb37598991adf16f3f342124115aec575))
+* put the entry in the middle of the page, or on its own ([#65](https://github.com/eetr-ai/journal/issues/65)) ([8589f53](https://github.com/eetr-ai/journal/commit/8589f53eaa6d18de4f9df015ced937470612e3a3))
+
+
+### Bug Fixes
+
+* **agent:** run on octo 0.11.13 for CVE-2026-111943 ([#70](https://github.com/eetr-ai/journal/issues/70)) ([5406e07](https://github.com/eetr-ai/journal/commit/5406e0789835a2ab4e387cf922f32554108dfa86))
+* **web:** Enter in the password field unlocks the journal ([#62](https://github.com/eetr-ai/journal/issues/62)) ([b90be09](https://github.com/eetr-ai/journal/commit/b90be090557e23073bfc25e1c37490acec66a5c3))
+
 ## [0.0.16](https://github.com/eetr-ai/journal/compare/v0.0.15...v0.0.16) (2026-10-18)
 
 
