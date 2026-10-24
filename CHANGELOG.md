@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.19](https://github.com/eetr-ai/journal/compare/v0.0.18...v0.0.19) (2026-10-24)
+
+
+### Features
+
+* Wikipedia as a search source in the chat ([#76](https://github.com/eetr-ai/journal/issues/76)) ([baa816c](https://github.com/eetr-ai/journal/commit/baa816c3d3ce716fd75e283de4b0bdb61842cf0b))
+
 ## [0.0.18](https://github.com/eetr-ai/journal/compare/v0.0.17...v0.0.18) (2026-10-24)
 
 
