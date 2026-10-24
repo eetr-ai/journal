@@ -1,6 +1,7 @@
 "use client";
 
 import { useAgentKey } from "@/features/chat/use_agent_key";
+import { OverlayBody } from "@/components/overlay_dialog";
 import PeopleList from "./people_list";
 import PersonView from "./person_view";
 import { usePeople } from "../people_state";
@@ -15,7 +16,10 @@ export interface PeopleBodyOptions {
   t: Dictionary;
 }
 
-/** Nothing is shown until the key is read: a list of ciphertext is not a list. */
+/**
+ * Nothing is shown until the key is read: a list of ciphertext is not a list.
+ * Each view lays out the cover's body and footer itself.
+ */
 export default function PeopleBody(options: PeopleBodyOptions) {
   const key = useAgentKey(options.subject);
   const { state } = usePeople();
@@ -25,12 +29,16 @@ export default function PeopleBody(options: PeopleBodyOptions) {
   usePersonFacts(key, t.people.unreadable);
 
   if (!key) {
-    return <p className="text-sm text-muted">{t.people.opening}</p>;
+    return (
+      <OverlayBody>
+        <p className="text-sm text-muted">{t.people.opening}</p>
+      </OverlayBody>
+    );
   }
 
   if (state.selected === null) {
     return <PeopleList locale={options.locale} t={t} timezone={options.timezone} />;
   }
 
-  return <PersonView agentKey={key} t={t} />;
+  return <PersonView agentKey={key} key={state.selected} locale={options.locale} t={t} />;
 }

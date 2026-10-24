@@ -1,7 +1,7 @@
 "use client";
 
 import { SimpleProvider } from "@eetr/react-reducer-utils";
-import OverlayDialog from "@/components/overlay_dialog";
+import OverlayDialog, { OverlayBody } from "@/components/overlay_dialog";
 import PeopleBody from "./people_body";
 import {
   initialPeopleState,
@@ -34,6 +34,7 @@ export default function PeopleOverlay(options: PeopleOverlayOptions) {
     <OverlayDialog
       closeHref={href(`/${options.locale}`)}
       closeLabel={t.close}
+      width="narrow"
       subtitle={t.people.subtitle}
       title={t.people.title}
     >
@@ -52,7 +53,9 @@ export default function PeopleOverlay(options: PeopleOverlayOptions) {
           />
         </SimpleProvider>
       ) : (
-        <p className="text-sm text-accent">{t.people.loadFailed}</p>
+        <OverlayBody>
+          <p className="text-sm text-accent">{t.people.loadFailed}</p>
+        </OverlayBody>
       )}
     </OverlayDialog>
   );

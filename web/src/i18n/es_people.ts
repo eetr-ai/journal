@@ -10,6 +10,11 @@ const people: PeopleDictionary = {
   empty:
     "Todavía no hay nadie. Agregá a alguien, o mencionalo en una conversación y el diario lo va a recordar.",
   add: "Agregar a alguien",
+  search: "Buscar por nombre o por quién es",
+  noMatch: "Nadie coincide con eso.",
+  page: "{from}–{to} de {total}",
+  previousPage: "Anteriores",
+  nextPage: "Siguientes",
   noBirthday: "Sin cumpleaños",
   today: "Cumple hoy",
   tomorrow: "Cumple mañana",
@@ -20,7 +25,10 @@ const people: PeopleDictionary = {
   relation: "Quién es para vos",
   relationHint: "Con tus palabras: mi hermana, compañero de escalada, un viejo amigo.",
   birthday: "Cumpleaños",
-  birthdayHint: "AAAA-MM-DD, o MM-DD si no sabés el año.",
+  birthdayHint: "El año, solo si lo sabés.",
+  birthdayDay: "Día",
+  birthdayMonth: "Mes",
+  birthdayYear: "Año",
   notes: "Notas",
   notesHint: "Lo que valga la pena tener presente sobre esta persona.",
   proximity: "Qué tan cerca está",
@@ -56,7 +64,7 @@ const people: PeopleDictionary = {
     cancel: "Conservarla",
   },
   deleteFailed: "No se pudo olvidar a esta persona. Sigue acá — probá en un momento.",
-  badBirthday: "Escribilo como AAAA-MM-DD, o MM-DD, con un mes y un día reales.",
+  badBirthday: "Elegí el día y el mes; el año, si lo ponés, con cuatro cifras.",
 };
 
 export default people;
