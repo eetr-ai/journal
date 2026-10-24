@@ -17,11 +17,13 @@ ON CONFLICT (oidc_subject) DO UPDATE SET
   config = EXCLUDED.config;
 
 -- Facts: `dolphin-facts` is written by its suite, and `dolphin-facts-kept`
--- holds a seal the profile PUT must leave standing. Reset every run.
+-- holds a seal the profile PUT must leave standing — a real one under the
+-- suites' throwaway key, {"birthday": "1970-01-01"}, so it opens. Reset every run.
 INSERT INTO user_profile (oidc_subject, email, name, config, facts)
 VALUES
   ('dolphin-facts',      'facts@example.com',      'Facts',      '{}'::jsonb, ''),
-  ('dolphin-facts-kept', 'facts-kept@example.com', 'Facts Kept', '{}'::jsonb, 'enc1:kept')
+  ('dolphin-facts-kept', 'facts-kept@example.com', 'Facts Kept', '{}'::jsonb,
+   'enc1:lEaaBtS+f+iP5zDk3Q81Pj7iNQkbqbG4zKRb8p0Ffxny9tqN5ZxdehyK8zPkhrBxiA5YHtU=')
 ON CONFLICT (oidc_subject) DO UPDATE SET
   email = EXCLUDED.email,
   name = EXCLUDED.name,

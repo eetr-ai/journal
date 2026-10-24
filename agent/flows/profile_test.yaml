@@ -82,5 +82,5 @@ cases:
       vars: { method: PUT, subject: dolphin-facts-kept }
     expect:
       that:
-        - body.facts == "enc1:kept"
+        - fromJson(string(fromAes(base64.decode(body.facts.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=")))).birthday == "1970-01-01"
         - fromJson(body.config).theme == "light"
