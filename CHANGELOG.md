@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.18](https://github.com/eetr-ai/journal/compare/v0.0.17...v0.0.18) (2026-10-24)
+
+
+### Features
+
+* **agent:** sealed profile facts and entry icons ([#71](https://github.com/eetr-ai/journal/issues/71)) ([50899b3](https://github.com/eetr-ai/journal/commit/50899b30f467c594473bac60d877dacc24b7920b))
+* covers that scroll inside, a reusable date picker, and nicknames for people ([#73](https://github.com/eetr-ai/journal/issues/73)) ([3c60520](https://github.com/eetr-ai/journal/commit/3c605209eecf52406c85db7dbcdeaa7b53c78804))
+* write straight away, mark birthdays, give entries an icon ([#72](https://github.com/eetr-ai/journal/issues/72)) ([53c755c](https://github.com/eetr-ai/journal/commit/53c755c436d44961e4e64b65f6b183d40989ace0))
+
 ## [0.0.17](https://github.com/eetr-ai/journal/compare/v0.0.16...v0.0.17) (2026-10-23)
 
 
