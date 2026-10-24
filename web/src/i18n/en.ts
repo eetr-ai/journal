@@ -1,6 +1,7 @@
 import tools from "./en_tools";
 import images from "./en_images";
 import widgets from "./en_widgets";
+import datePicker from "./en_date_picker";
 import editor from "./en_editor";
 import people from "./en_people";
 
@@ -295,6 +296,8 @@ const en = {
   widgets,
   editor,
   people,
+
+  datePicker,
 
   validation: {
     required: "This cannot be empty",

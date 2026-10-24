@@ -9,8 +9,7 @@ export interface TextFieldOptions {
   label: string;
   hint?: string;
   error?: string;
-  type?: "text" | "email" | "date";
-  disabled?: boolean;
+  type?: "text" | "email";
   /** Offered as completions. The field still accepts anything typed into it. */
   suggestions?: readonly string[];
 }
@@ -29,7 +28,6 @@ export default function TextField(options: TextFieldOptions) {
         aria-describedby={describedBy(id, options)}
         list={options.suggestions ? listId : undefined}
         aria-invalid={options.error ? true : undefined}
-        disabled={options.disabled}
         className="rounded-lg border border-border bg-surface px-3 py-2 text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 md:text-sm aria-[invalid]:border-accent"
         id={id}
         onChange={(event) =>

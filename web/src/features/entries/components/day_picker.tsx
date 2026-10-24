@@ -5,7 +5,7 @@ import { CakeIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useEntries } from "../entries_state";
 import { useShowEntry } from "../use_show_entry";
 import { entriesOnDayAction } from "../actions";
-import { gridFor, monthLabel, monthOf, shiftMonth, weekdayInitials } from "../calendar";
+import { gridFor, monthLabel, monthOf, shiftMonth, weekdayInitials } from "@/components/calendar";
 import { useBirthdays } from "@/features/people/birthdays_provider";
 import { birthdaysOn, type Readable } from "@/features/people/birthdays";
 import { format } from "@/i18n/format";

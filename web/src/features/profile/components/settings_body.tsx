@@ -114,7 +114,7 @@ export default function SettingsBody(options: SettingsBodyOptions) {
             away by the snapshot coming back. */}
         <fieldset className="contents" disabled={pending}>
           <div className="flex flex-col gap-5">
-            <SettingsFields t={options.t} />
+            <SettingsFields locale={options.locale} t={options.t} />
           </div>
         </fieldset>
       </OverlayBody>

@@ -3,6 +3,7 @@
 import { CakeIcon } from "@phosphor-icons/react";
 import ProximityDots from "./proximity_dots";
 import { birthdayIn, type Placed } from "../birthdays";
+import { calledBy } from "../types";
 import { PeopleActionType, usePeople } from "../people_state";
 import { format } from "@/i18n/format";
 import type { Dictionary } from "@/i18n/en";
@@ -44,11 +45,14 @@ export default function PersonRow(options: PersonRowOptions) {
       >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium">{person.name}</span>
+            <span className="truncate text-sm font-medium">{calledBy(person)}</span>
             <ProximityDots t={options.t} value={person.proximity} />
           </span>
-          {person.relation && (
-            <span className="block truncate text-xs text-muted">{person.relation}</span>
+          {/* The full name under a nickname is what tells two Camis apart. */}
+          {(person.nickname || person.relation) && (
+            <span className="block truncate text-xs text-muted">
+              {[person.nickname && person.name, person.relation].filter(Boolean).join(" · ")}
+            </span>
           )}
         </span>
         <span className="shrink-0 text-right text-xs text-muted">

@@ -34,6 +34,7 @@ export default function PeopleOverlay(options: PeopleOverlayOptions) {
     <OverlayDialog
       closeHref={href(`/${options.locale}`)}
       closeLabel={t.close}
+      fill
       width="narrow"
       subtitle={t.people.subtitle}
       title={t.people.title}

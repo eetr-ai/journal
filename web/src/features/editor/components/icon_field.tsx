@@ -2,7 +2,8 @@
 
 import { useCallback, useRef, useState } from "react";
 import { SmileyIcon } from "@phosphor-icons/react";
-import IconPicker, { useDismiss } from "./icon_picker";
+import IconPicker from "./icon_picker";
+import { useDismiss } from "@/components/use_dismiss";
 import { EditorActionType, useEditorState } from "../editor_state";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";

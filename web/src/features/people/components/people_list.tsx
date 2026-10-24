@@ -51,7 +51,9 @@ function matching(rows: Placed[], query: string): Placed[] {
 
   return wanted === ""
     ? rows
-    : rows.filter(({ person }) => folded(`${person.name} ${person.relation}`).includes(wanted));
+    : rows.filter(({ person }) =>
+        folded(`${person.name} ${person.nickname} ${person.relation}`).includes(wanted),
+      );
 }
 
 /** Soonest birthday first, a page at a time, narrowed by what is typed. */
@@ -84,7 +86,7 @@ export default function PeopleList(options: PeopleListOptions) {
           <Rows empty={state.people.length === 0} locale={options.locale} shown={shown} t={t} />
         </div>
       </OverlayBody>
-      {pages > 1 && (
+      {rows.length > 0 && (
         <OverlayFooter>
           <Pager at={at} onPage={setPage} pages={pages} t={t} total={rows.length} />
         </OverlayFooter>

@@ -15,6 +15,8 @@ export interface OverlayDialogOptions {
   closeHref: string;
   /** "narrow" for a list and one record; settings-sized otherwise. */
   width?: "narrow" | "wide";
+  /** As tall as the screen allows whatever is in it, for a list that pages. */
+  fill?: boolean;
   /** An `OverlayBody`, and an `OverlayFooter` when there is something to keep in reach. */
   children: React.ReactNode;
 }
@@ -90,7 +92,7 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
       <dialog
         aria-labelledby="overlay-title"
         aria-modal
-        className={`relative m-0 flex max-h-full w-full flex-col rounded-lg border border-border bg-background p-0 text-foreground shadow-2xl ${WIDTHS[options.width ?? "wide"]}`}
+        className={`relative m-0 flex max-h-full w-full flex-col rounded-lg border border-border bg-background p-0 text-foreground shadow-2xl ${WIDTHS[options.width ?? "wide"]} ${options.fill ? "h-full" : ""}`}
         open
       >
         <header className="flex shrink-0 items-start gap-4 border-b border-border px-6 py-4">

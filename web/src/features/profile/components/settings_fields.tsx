@@ -3,6 +3,9 @@
 import SelectField from "./select_field";
 import SettingsSection from "./settings_section";
 import TextField from "./text_field";
+import DatePicker from "@/components/date_picker";
+import { SettingsActionType } from "../settings_state";
+import type { Locale } from "@/i18n/config";
 import { sexes, treatments } from "../types";
 import { themes } from "@/theme/config";
 import { locales } from "@/i18n/config";
@@ -13,6 +16,7 @@ import type { ProfileDraft } from "../rules";
 
 export interface SettingsFieldsOptions {
   t: Dictionary;
+  locale: Locale;
 }
 
 const localeNames: Record<string, string> = { en: "English", es: "Español" };
@@ -47,22 +51,36 @@ function Identity(options: SettingsFieldsOptions) {
   );
 }
 
+const BIRTHDAY_ID = "profile-birthday";
+
 // Sealed, so it can be edited only once this browser has opened it.
 function AboutYou(options: SettingsFieldsOptions) {
-  const { state } = useSettings();
-  const error = useFieldError(options.t);
+  const { state, dispatch } = useSettings();
+  const error = useFieldError(options.t)("birthday");
   const t = options.t;
 
   return (
     <SettingsSection title={t.profile.aboutYou}>
-      <TextField
-        disabled={state.facts !== "open"}
-        error={error("birthday")}
-        field="birthday"
-        hint={state.facts === "sealed" ? t.profile.birthdaySealed : t.profile.birthdayHint}
-        label={t.profile.birthday}
-        type="date"
-      />
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" htmlFor={BIRTHDAY_ID}>
+          {t.profile.birthday}
+        </label>
+        <DatePicker
+          describedBy={`${BIRTHDAY_ID}-note`}
+          disabled={state.facts !== "open"}
+          id={BIRTHDAY_ID}
+          invalid={error ? true : undefined}
+          labels={t.datePicker}
+          locale={options.locale}
+          onChange={(value) =>
+            dispatch({ type: SettingsActionType.Edit, data: { field: "birthday", value } })
+          }
+          value={state.draft.birthday}
+        />
+        <p className={`text-xs ${error ? "text-accent" : "text-muted"}`} id={`${BIRTHDAY_ID}-note`}>
+          {error ?? (state.facts === "sealed" ? t.profile.birthdaySealed : t.profile.birthdayHint)}
+        </p>
+      </div>
     </SettingsSection>
   );
 }
@@ -138,10 +156,10 @@ function Appearance(options: SettingsFieldsOptions) {
 export default function SettingsFields(options: SettingsFieldsOptions) {
   return (
     <>
-      <Identity t={options.t} />
-      <AboutYou t={options.t} />
-      <Preferences t={options.t} />
-      <Appearance t={options.t} />
+      <Identity locale={options.locale} t={options.t} />
+      <AboutYou locale={options.locale} t={options.t} />
+      <Preferences locale={options.locale} t={options.t} />
+      <Appearance locale={options.locale} t={options.t} />
     </>
   );
 }

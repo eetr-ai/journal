@@ -11,7 +11,7 @@ const people = {
   empty:
     "Nobody here yet. Add someone, or mention them in a conversation and the journal will remember them.",
   add: "Add someone",
-  search: "Search by name or who they are",
+  search: "Search by name, nickname or who they are",
   noMatch: "Nobody matches that.",
   page: "{from}–{to} of {total}",
   previousPage: "Previous",
@@ -22,14 +22,13 @@ const people = {
   inDays: "Birthday in {days} days",
   back: "Everyone",
   newPerson: "Someone new",
-  name: "Name",
+  name: "Full name",
+  nickname: "What you call them",
+  nicknameHint: "Tells them apart from someone with the same name.",
   relation: "Who they are to you",
   relationHint: "In your words: my sister, a climbing partner, an old friend.",
   birthday: "Birthday",
-  birthdayHint: "The year only if you know it.",
-  birthdayDay: "Day",
-  birthdayMonth: "Month",
-  birthdayYear: "Year",
+  birthdayHint: "If you don't know the year, tick “I don't know the year”.",
   notes: "Notes",
   notesHint: "Anything worth keeping in mind about them.",
   proximity: "How close they are",
@@ -65,7 +64,7 @@ const people = {
     cancel: "Keep them",
   },
   deleteFailed: "This person could not be forgotten. They are still here — try again in a moment.",
-  badBirthday: "Pick the day and the month; a year, if you add one, has four digits.",
+  badBirthday: "That is not a day of the year.",
 };
 
 export type PeopleDictionary = typeof people;

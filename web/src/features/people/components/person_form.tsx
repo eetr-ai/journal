@@ -45,6 +45,11 @@ export default function PersonForm(options: PersonFormOptions) {
         <div className="grid gap-4 sm:grid-cols-2">
           <PersonField {...field("name")} label={t.people.name} />
           <PersonField
+            {...field("nickname")}
+            hint={t.people.nicknameHint}
+            label={t.people.nickname}
+          />
+          <PersonField
             {...field("relation")}
             hint={t.people.relationHint}
             label={t.people.relation}
