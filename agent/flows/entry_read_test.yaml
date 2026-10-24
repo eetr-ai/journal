@@ -18,6 +18,8 @@ cases:
         # What a write has to name to land on what was read.
         version: 1
         title: A slow, good morning
+        # Written before there were icons, so there is none to open.
+        icon: ""
         content: Woke up before the alarm for once.
 
   - name: another person's entry is not readable with its id alone

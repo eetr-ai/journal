@@ -51,7 +51,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1
               AND ($2 = '' OR entry_date = $2::date)
@@ -94,7 +94,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+                    SELECT id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -149,7 +149,7 @@ flows:
             UPDATE journal_entry
             SET bookmarked = $3, updated_at = now()
             WHERE oidc_subject = $1 AND id = $2::uuid
-            RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+            RETURNING id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
           args:
             - vars.subject
             - vars.id
@@ -256,7 +256,7 @@ flows:
           query: |
             SELECT * FROM (
               SELECT DISTINCT ON (e.id)
-                     e.id, e.thread_key, e.entry_date, e.title, e.content,
+                     e.id, e.thread_key, e.entry_date, e.title, e.icon, e.content,
                      e.bookmarked, e.version, e.created_at, e.updated_at,
                      (c.embedding <=> $2::vector) AS distance
               FROM journal_entry e
@@ -388,6 +388,7 @@ flows:
                         "thread_key": f.thread_key,
                         "entry_date": f.entry_date,
                         "title": f.title,
+                        "icon": f.icon,
                         "content": f.content,
                         "bookmarked": f.bookmarked,
                         "version": f.version,
@@ -427,8 +428,11 @@ flows:
         name: the-write
         settings:
           value: >
-            {"title": body.title, "content": body.content,
-             "version": has(body.version) ? body.version : 0}
+            has(body.icon)
+              ? {"title": body.title, "content": body.content, "icon": body.icon,
+                 "version": has(body.version) ? body.version : 0}
+              : {"title": body.title, "content": body.content,
+                 "version": has(body.version) ? body.version : 0}
       - type: flow-ref
         name: write
         settings: { flow: entry-write }
@@ -437,7 +441,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1 AND id = $2::uuid
           args:
@@ -556,6 +560,18 @@ flows:
         settings:
           name: sealedContent
           value: '"enc1:" + base64.encode(toAes(body.content, base64.decode(vars.dataKey)))'
+      # A writer that says nothing about the icon leaves the stored one alone;
+      # an empty one is a choice to have none, and is sealed like any other.
+      - type: set-variable
+        name: seal-icon
+        settings:
+          name: sealedIcon
+          value: 'has(body.icon) ? "enc1:" + base64.encode(toAes(body.icon, base64.decode(vars.dataKey))) : ""'
+      - type: set-variable
+        name: hold-icon-given
+        settings:
+          name: iconGiven
+          value: 'has(body.icon) ? "true" : "false"'
       - type: switch
         name: new-or-known
         cases:
@@ -571,17 +587,20 @@ flows:
                   UPDATE journal_entry
                   SET title = $3,
                       content = $4,
+                      icon = CASE WHEN $6::boolean THEN $7 ELSE icon END,
                       version = version + 1,
                       updated_at = now()
                   WHERE oidc_subject = $1 AND id = $2::uuid
                     AND version = $5::bigint
-                  RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+                  RETURNING id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
                 args:
                   - vars.subject
                   - body.id
                   - vars.sealedTitle
                   - vars.sealedContent
                   - vars.readVersion
+                  - vars.iconGiven
+                  - vars.sealedIcon
                 single: true
 
           # The entry the reader has open, which they may have started
@@ -595,8 +614,8 @@ flows:
                 connector: db
                 query: |
                   INSERT INTO journal_entry
-                    (id, oidc_subject, thread_key, entry_date, title, content)
-                  SELECT $2::uuid, $1, '', COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5
+                    (id, oidc_subject, thread_key, entry_date, title, content, icon)
+                  SELECT $2::uuid, $1, '', COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5, $8
                   -- A version names a row that exists. Without this, a write
                   -- from a read of an entry thrown away since would bring it
                   -- back; with it, only a writer that read nothing creates.
@@ -611,11 +630,12 @@ flows:
                   ON CONFLICT (id) DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
+                    icon = CASE WHEN $7::boolean THEN EXCLUDED.icon ELSE journal_entry.icon END,
                     version = journal_entry.version + 1,
                     updated_at = now()
                   WHERE journal_entry.oidc_subject = $1
                     AND journal_entry.version = $6::bigint
-                  RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+                  RETURNING id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
                 args:
                   - vars.subject
                   - vars.entryId
@@ -623,6 +643,8 @@ flows:
                   - vars.sealedTitle
                   - vars.sealedContent
                   - vars.readVersion
+                  - vars.iconGiven
+                  - vars.sealedIcon
                 single: true
 
           - when: "true"
@@ -637,8 +659,8 @@ flows:
                 connector: db
                 query: |
                   INSERT INTO journal_entry
-                    (oidc_subject, thread_key, entry_date, title, content)
-                  SELECT $1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5
+                    (oidc_subject, thread_key, entry_date, title, content, icon)
+                  SELECT $1, $2, COALESCE(NULLIF($3, '')::date, CURRENT_DATE), $4, $5, $8
                   -- As above: a version is a write onto a note that exists.
                   WHERE $6::bigint = 0
                      OR EXISTS (
@@ -654,10 +676,11 @@ flows:
                   DO UPDATE SET
                     title = EXCLUDED.title,
                     content = EXCLUDED.content,
+                    icon = CASE WHEN $7::boolean THEN EXCLUDED.icon ELSE journal_entry.icon END,
                     version = journal_entry.version + 1,
                     updated_at = now()
                   WHERE journal_entry.version = $6::bigint
-                  RETURNING id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+                  RETURNING id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
                 args:
                   - vars.subject
                   - vars.threadId
@@ -665,6 +688,8 @@ flows:
                   - vars.sealedTitle
                   - vars.sealedContent
                   - vars.readVersion
+                  - vars.iconGiven
+                  - vars.sealedIcon
                 single: true
       - type: set-variable
         name: hold-written
@@ -860,7 +885,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, entry_date, title, content, version
+                    SELECT id, entry_date, title, icon, content, version
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -874,7 +899,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, entry_date, title, content, version
+                    SELECT id, entry_date, title, icon, content, version
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND id = $2::uuid
                   args:
@@ -888,7 +913,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, entry_date, title, content, version
+                    SELECT id, entry_date, title, icon, content, version
                     FROM journal_entry
                     WHERE oidc_subject = $1 AND thread_key = $2 AND thread_key <> ''
                   args:
@@ -918,6 +943,7 @@ flows:
                   {"found": true, "id": body.id, "date": body.entry_date.substring(0, 10),
                    "version": body.version,
                    "title": body.title.startsWith("enc1:") ? string(fromAes(base64.decode(body.title.substring(5)), base64.decode(vars.dataKey))) : body.title,
+                   "icon": body.icon.startsWith("enc1:") ? string(fromAes(base64.decode(body.icon.substring(5)), base64.decode(vars.dataKey))) : body.icon,
                    "content": body.content.startsWith("enc1:") ? string(fromAes(base64.decode(body.content.substring(5)), base64.decode(vars.dataKey))) : body.content}
 
   # Changes part of an entry rather than all of it: one passage swapped for
@@ -943,6 +969,13 @@ flows:
           value: >
             vars.target == null ? "" :
             vars.target.title.startsWith("enc1:") ? string(fromAes(base64.decode(vars.target.title.substring(5)), base64.decode(vars.dataKey))) : vars.target.title
+      - type: set-variable
+        name: open-icon
+        settings:
+          name: oldIcon
+          value: >
+            vars.target == null ? "" :
+            vars.target.icon.startsWith("enc1:") ? string(fromAes(base64.decode(vars.target.icon.substring(5)), base64.decode(vars.dataKey))) : vars.target.icon
       - type: set-variable
         name: open-content
         settings:
@@ -995,6 +1028,7 @@ flows:
                   value: >
                     {"id": vars.target.id,
                      "title": has(vars.ask.title) && vars.ask.title != "" ? vars.ask.title : vars.oldTitle,
+                     "icon": has(vars.ask.icon) && vars.ask.icon != "" ? vars.ask.icon : vars.oldIcon,
                      "version": vars.target.version,
                      "content": vars.find != "" ? vars.oldContent.replace(vars.find, vars.text, 1)
                        : vars.text == "" ? vars.oldContent
@@ -1080,7 +1114,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, thread_key, entry_date, title, content, bookmarked, version, created_at, updated_at
+            SELECT id, thread_key, entry_date, title, icon, content, bookmarked, version, created_at, updated_at
             FROM journal_entry
             WHERE oidc_subject = $1 AND id = $2::uuid
           args:

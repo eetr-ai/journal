@@ -243,7 +243,8 @@ flows:
           the words it was said in.
 
 
-          Give the day a face. An emoji in the title, and one or two in the body
+          Give the day a face. One emoji as the entry's icon rather than in
+          the title, and one or two in the body
           where they actually carry something — a day is easier to find again a
           year later when it looks like the day it was, and a wall of plain
           paragraphs is not what anybody wants to reread. A row of them in one
@@ -411,7 +412,8 @@ flows:
           - name: read_profile
             description: >
               What this person has told us about themselves: their name, the
-              language to answer them in, and their timezone. Read it at the
+              language to answer them in, their timezone, and in facts what
+              they told us about their own life, such as their birthday. Read it at the
               start of a conversation, before answering. It does not change
               within one, so read it once.
             process:
@@ -419,7 +421,7 @@ flows:
                 name: select-profile
                 settings:
                   connector: db
-                  query: SELECT name, config FROM user_profile WHERE oidc_subject = $1
+                  query: SELECT name, config, facts FROM user_profile WHERE oidc_subject = $1
                   args:
                     - vars.subject
                   single: true
@@ -438,7 +440,9 @@ flows:
                     # that happens to look like some.
                     - type: set-payload
                       settings:
-                        value: '{"found": true, "name": body.name, "preferences": fromJson(body.config)}'
+                        value: >
+                          {"found": true, "name": body.name, "preferences": fromJson(body.config),
+                           "facts": body.facts.startsWith("enc1:") ? fromJson(string(fromAes(base64.decode(body.facts.substring(5)), base64.decode(vars.dataKey)))) : {}}
 
           - name: read_today
             description: >
@@ -463,7 +467,8 @@ flows:
               conversation is keeping, so there is no need to remember one.
               When the entry already has words, version is required: the one
               read_entry just gave you. Without it, or with an older one, the
-              write is refused rather than losing what is there.
+              write is refused rather than losing what is there. icon is one
+              emoji for the day; leave it out to keep the one it has.
             inputSchema: |
               {
                 "type": "object",
@@ -471,6 +476,7 @@ flows:
                 "properties": {
                   "title": { "type": "string" },
                   "content": { "type": "string" },
+                  "icon": { "type": "string" },
                   "id": { "type": "string" },
                   "date": { "type": "string" },
                   "version": { "type": "integer" }
@@ -496,7 +502,7 @@ flows:
               Change part of an entry without rewriting it. Give find, a passage
               copied exactly from read_entry, and text to put in its place (empty
               to take it out); or leave find out and text is added as a new
-              paragraph at the end. A title changes the title. Without an id it
+              paragraph at the end. A title changes the title, an icon the icon. Without an id it
               changes the entry write_entry would write into. The passage has to
               appear exactly once; if it is refused, the reason says what to fix.
             inputSchema: |
@@ -506,6 +512,7 @@ flows:
                   "find": { "type": "string" },
                   "text": { "type": "string" },
                   "title": { "type": "string" },
+                  "icon": { "type": "string" },
                   "id": { "type": "string" }
                 }
               }
