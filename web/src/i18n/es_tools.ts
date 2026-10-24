@@ -56,6 +56,11 @@ const tools: ToolDictionary = {
     done: "Encontré el pasaje",
     failed: "No encontré el pasaje",
   },
+  search_wikipedia: {
+    running: "Buscando en Wikipedia...",
+    done: "Busqué en Wikipedia",
+    failed: "No pude llegar a Wikipedia",
+  },
   search_scripture: {
     running: "Buscando el versículo...",
     done: "Encontré el versículo",

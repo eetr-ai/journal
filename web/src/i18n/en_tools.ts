@@ -56,6 +56,11 @@ const tools = {
     done: "Found the passage",
     failed: "Could not find the passage",
   },
+  search_wikipedia: {
+    running: "Looking it up on Wikipedia...",
+    done: "Looked it up on Wikipedia",
+    failed: "Could not reach Wikipedia",
+  },
   search_scripture: {
     running: "Finding the verse...",
     done: "Found the verse",

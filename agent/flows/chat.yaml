@@ -804,6 +804,30 @@ flows:
                   maxResults: 5
                   maxCharsTotal: 6000
 
+          - name: search_wikipedia
+            description: >
+              Look something up on Wikipedia — a person, a place, an event, an
+              idea. Use it when a fact matters and you would otherwise be going
+              from memory: a date, who someone was, what something is.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["query"],
+                "properties": { "query": { "type": "string" } }
+              }
+            process:
+              - type: parallel-search
+                name: wikipedia
+                settings:
+                  connector: research
+                  # Every language edition, so a subject that only has a page in
+                  # theirs is still found.
+                  objective: '"Find what Wikipedia says about this: " + body.query'
+                  searchQueries: '["site:wikipedia.org " + body.query]'
+                  mode: fast
+                  maxResults: 5
+                  maxCharsTotal: 6000
+
           - name: search_lyrics
             description: >
               Find a song's lyrics by its title, its artist, or a line they
