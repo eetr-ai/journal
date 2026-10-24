@@ -17,12 +17,16 @@ export async function openForBirthdays(
     people.map(async (person) => ({
       id: person.id,
       name: await openSealed(person.name, key),
+      nickname: await openSealed(person.nickname, key),
       relation: await openSealed(person.relation, key),
       birthday: await openSealed(person.birthday, key),
     })),
   );
 
-  return opened.flatMap(({ id, name, relation, birthday }) =>
-    name && birthday ? [{ id, person: { name, relation: relation ?? "", birthday } }] : [],
+  // Named the way the reader calls them, which is what a reminder should say.
+  return opened.flatMap(({ id, name, nickname, relation, birthday }) =>
+    name && birthday
+      ? [{ id, person: { name: nickname || name, relation: relation ?? "", birthday } }]
+      : [],
   );
 }

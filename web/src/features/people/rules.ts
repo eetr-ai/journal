@@ -11,6 +11,7 @@ export type PersonIssueCode = "required" | "tooLong" | "badBirthday" | "notAllow
 /** A person as the form submits them, in the clear. */
 export interface PersonDraft {
   name: string;
+  nickname: string;
   relation: string;
   birthday: string;
   notes: string;
@@ -33,6 +34,7 @@ export interface FactWrite {
 
 export const EMPTY_DRAFT: PersonDraft = {
   name: "",
+  nickname: "",
   relation: "",
   birthday: "",
   notes: "",
@@ -46,6 +48,7 @@ export type ProximityLevel = (typeof PROXIMITY_LEVELS)[number];
 
 const MAX_NAME = 120;
 const MAX_RELATION = 120;
+const MAX_NICKNAME = 60;
 const MAX_NOTES = 4_000;
 export const MAX_FACT = 1_000;
 
@@ -122,6 +125,7 @@ export function validatePerson(draft: PersonDraft): PersonIssues {
   const ret: PersonIssues = {};
   const found: [keyof PersonDraft, PersonIssueCode | undefined][] = [
     ["name", text(draft.name, MAX_NAME, true)],
+    ["nickname", text(draft.nickname, MAX_NICKNAME, false)],
     ["relation", text(draft.relation, MAX_RELATION, false)],
     ["birthday", birthday(draft.birthday)],
     ["notes", text(draft.notes, MAX_NOTES, false)],
@@ -141,6 +145,7 @@ export function validatePerson(draft: PersonDraft): PersonIssues {
 export function tidyDraft(draft: PersonDraft): PersonDraft {
   return {
     name: draft.name.trim(),
+    nickname: draft.nickname.trim(),
     relation: draft.relation.trim(),
     birthday: draft.birthday.trim(),
     notes: draft.notes.trim(),
@@ -154,7 +159,7 @@ function draftFrom(value: unknown): PersonDraft | null {
   }
 
   const candidate = value as Record<string, unknown>;
-  const fields = ["name", "relation", "birthday", "notes", "proximity"] as const;
+  const fields = ["name", "nickname", "relation", "birthday", "notes", "proximity"] as const;
 
   if (!fields.every((field) => typeof candidate[field] === "string")) {
     return null;
@@ -162,6 +167,7 @@ function draftFrom(value: unknown): PersonDraft | null {
 
   return {
     name: candidate.name as string,
+    nickname: candidate.nickname as string,
     relation: candidate.relation as string,
     birthday: candidate.birthday as string,
     notes: candidate.notes as string,

@@ -9,6 +9,7 @@
 export interface Person {
   id: string;
   name: string;
+  nickname: string;
   relation: string;
   birthday: string;
   notes: string;
@@ -18,6 +19,8 @@ export interface Person {
 export interface PersonEntity {
   id: string;
   name: string;
+  /** Absent from an agent that predates nicknames. */
+  nickname?: string;
   relation: string;
   birthday: string;
   notes: string;
@@ -54,11 +57,14 @@ export interface FactAddedEntity {
   fact?: PersonFactEntity;
 }
 
-export type PersonField = "name" | "relation" | "birthday" | "notes" | "proximity";
+export type PersonField = "name" | "nickname" | "relation" | "birthday" | "notes" | "proximity";
 
 /** A person opened under the key, as the page shows and edits them. */
 export interface OpenedPerson {
+  /** Their full name, as far as it is known. */
   name: string;
+  /** What they are called day to day; empty when it is just their name. */
+  nickname: string;
   relation: string;
   birthday: string;
   notes: string;
@@ -77,11 +83,17 @@ export function personFromEntity(entity: PersonEntity): Person {
   return {
     id: entity.id,
     name: entity.name,
+    nickname: entity.nickname ?? "",
     relation: entity.relation,
     birthday: entity.birthday,
     notes: entity.notes,
     proximity: entity.proximity,
   };
+}
+
+/** What the reader calls someone: their nickname, else their name. */
+export function calledBy(person: { name: string; nickname: string }): string {
+  return person.nickname || person.name;
 }
 
 export function factFromEntity(entity: PersonFactEntity): PersonFact {

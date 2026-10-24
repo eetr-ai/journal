@@ -1,6 +1,6 @@
 "use client";
 
-import OverlayDialog from "@/components/overlay_dialog";
+import OverlayDialog, { OverlayBody } from "@/components/overlay_dialog";
 import VaultSettings from "./vault_settings";
 import { useViewHref } from "@/features/shell/use_view_href";
 import type { Dictionary } from "@/i18n/en";
@@ -27,12 +27,14 @@ export default function VaultOverlay(options: VaultOverlayOptions) {
       subtitle={options.t.vault.summary}
       title={options.t.vault.title}
     >
-      <VaultSettings
-        identity={options.identity}
-        passkeys={options.passkeys}
-        t={options.t}
-        vault={options.vault}
-      />
+      <OverlayBody>
+        <VaultSettings
+          identity={options.identity}
+          passkeys={options.passkeys}
+          t={options.t}
+          vault={options.vault}
+        />
+      </OverlayBody>
     </OverlayDialog>
   );
 }

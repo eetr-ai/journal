@@ -15,7 +15,7 @@ import type { OpenedPerson, Person, PersonField } from "./types";
  * is named in `unreadable` so the gap is never mistaken for what is kept.
  */
 
-const FIELDS: PersonField[] = ["name", "relation", "birthday", "notes", "proximity"];
+const FIELDS: PersonField[] = ["name", "nickname", "relation", "birthday", "notes", "proximity"];
 
 async function openOne(person: Person, key: string, unreadable: string): Promise<OpenedPerson> {
   const ret: OpenedPerson = { ...EMPTY_DRAFT, unreadable: [] };

@@ -2,6 +2,7 @@ import type { Dictionary } from "./en";
 import tools from "./es_tools";
 import images from "./es_images";
 import widgets from "./es_widgets";
+import datePicker from "./es_date_picker";
 import editor from "./es_editor";
 import people from "./es_people";
 
@@ -293,6 +294,8 @@ const es: Dictionary = {
   widgets,
   editor,
   people,
+
+  datePicker,
 
   validation: {
     required: "Esto no puede estar vacío",

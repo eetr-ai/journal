@@ -3,6 +3,7 @@
 import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import SaveBar from "./save_bar";
+import { OverlayBody, OverlayFooter } from "@/components/overlay_dialog";
 import SettingsFields from "./settings_fields";
 import { saveProfileAction } from "../actions";
 import { openFacts } from "../facts";
@@ -105,13 +106,21 @@ export default function SettingsBody(options: SettingsBodyOptions) {
   }
 
   return (
-    <form className="flex flex-col gap-5" onSubmit={submit}>
-      {/* Frozen while the save is in flight: an edit made now would be thrown
-          away by the snapshot coming back. */}
-      <fieldset className="contents" disabled={pending}>
-        <SettingsFields t={options.t} />
-      </fieldset>
-      <SaveBar pending={pending} t={options.t} />
+    // The form spans the cover's body and footer, so the save button stays in
+    // reach while the fields scroll.
+    <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
+      <OverlayBody>
+        {/* Frozen while the save is in flight: an edit made now would be thrown
+            away by the snapshot coming back. */}
+        <fieldset className="contents" disabled={pending}>
+          <div className="flex flex-col gap-5">
+            <SettingsFields locale={options.locale} t={options.t} />
+          </div>
+        </fieldset>
+      </OverlayBody>
+      <OverlayFooter>
+        <SaveBar pending={pending} t={options.t} />
+      </OverlayFooter>
     </form>
   );
 }

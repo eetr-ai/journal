@@ -1,5 +1,4 @@
 import { ChatsCircleIcon } from "@phosphor-icons/react/dist/ssr";
-import NewChatLink from "@/features/chat/components/new_chat_link";
 import ConversationList from "@/features/chat/components/conversation_list";
 import EntryList from "@/features/entries/components/entry_list";
 import type { Conversation } from "@/features/chat/types";
@@ -31,16 +30,9 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
           <span className="shrink-0 text-muted">
             <ChatsCircleIcon size={ICON_SIZE} weight="fill" />
           </span>
-          {/* Truncated rather than wrapped: the heading shares its line with the
-              action beside it, and "Charlas recientes" is two words too many for
-              a 16rem drawer. */}
           <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
             {options.t.shell.transcripts}
           </h2>
-          {/* A compose icon, which is what every chat app uses for this now,
-              rather than a second run of words competing with the heading. The
-              name is still there for anyone not reading pixels. */}
-          <NewChatLink label={options.t.chat.newChat} locale={options.locale} />
         </header>
         <ConversationList
           conversations={options.conversations}

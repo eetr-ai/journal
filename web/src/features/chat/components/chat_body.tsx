@@ -1,6 +1,7 @@
 "use client";
 
 import { TrashIcon } from "@phosphor-icons/react";
+import NewChatLink from "./new_chat_link";
 import ChatNotice from "./chat_notice";
 import ConfirmDialog from "@/components/confirm_dialog";
 import Composer from "./composer";
@@ -41,6 +42,7 @@ export default function ChatBody(options: ChatBodyOptions) {
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-background">
       <ChatHeader
+        locale={options.locale}
         onForget={going.ask}
         started={state.turns.length > 0 || options.unavailable}
         t={options.t}
@@ -128,6 +130,7 @@ function Nothing(options: NothingOptions) {
 
 interface ChatHeaderOptions {
   t: Dictionary;
+  locale: Locale;
   /** Nothing stored yet has nothing to forget, and the agent has never been
    *  told this id, so asking it to would only 404. A conversation whose turns
    *  would not load is the other way round — it is there, it is just not
@@ -154,6 +157,9 @@ function ChatHeader(options: ChatHeaderOptions) {
           <TrashIcon size={ICON_SIZE} />
         </button>
       )}
+      {/* Last, where a new one is started: the conversation it replaces is
+          the one on this bar. */}
+      <NewChatLink label={t.newChat} locale={options.locale} />
     </header>
   );
 }

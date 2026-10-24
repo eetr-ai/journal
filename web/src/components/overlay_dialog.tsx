@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { XIcon } from "@phosphor-icons/react";
 
 const ICON_SIZE = 18;
+const WIDTHS = { narrow: "max-w-2xl", wide: "max-w-3xl" };
 
 export interface OverlayDialogOptions {
   title: string;
@@ -12,6 +13,11 @@ export interface OverlayDialogOptions {
   closeLabel: string;
   /** Where closing goes. Closing is a navigation, not hidden state. */
   closeHref: string;
+  /** "narrow" for a list and one record; settings-sized otherwise. */
+  width?: "narrow" | "wide";
+  /** As tall as the screen allows whatever is in it, for a list that pages. */
+  fill?: boolean;
+  /** An `OverlayBody`, and an `OverlayFooter` when there is something to keep in reach. */
   children: React.ReactNode;
 }
 
@@ -41,6 +47,9 @@ function useCoverFocus() {
 /**
  * A cover over the page behind it, with a URL of its own — so it survives a
  * reload, can be linked, and the back button does what it looks like it does.
+ *
+ * Never taller than the screen: the header and any footer stay put and only the
+ * body scrolls, so a save button is never something to scroll for.
  */
 export default function OverlayDialog(options: OverlayDialogOptions) {
   const router = useRouter();
@@ -65,7 +74,7 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
   }, [router, options.closeHref]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8">
+    <div className="fixed inset-0 z-30 flex items-start justify-center bg-black/40 p-4 sm:p-8">
       {/* The backdrop closes on click; the panel stops the click reaching it.
           Out of the tab order and hidden from assistive tech, because the close
           button in the header is the same action with a real label. */}
@@ -83,10 +92,10 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
       <dialog
         aria-labelledby="overlay-title"
         aria-modal
-        className="relative m-0 w-full max-w-3xl rounded-lg border border-border bg-background p-0 text-foreground shadow-2xl"
+        className={`relative m-0 flex max-h-full w-full flex-col rounded-lg border border-border bg-background p-0 text-foreground shadow-2xl ${WIDTHS[options.width ?? "wide"]} ${options.fill ? "h-full" : ""}`}
         open
       >
-        <header className="flex items-start gap-4 border-b border-border px-6 py-4">
+        <header className="flex shrink-0 items-start gap-4 border-b border-border px-6 py-4">
           <div className="flex-1">
             <h1 className="text-lg font-semibold" id="overlay-title">
               {options.title}
@@ -104,8 +113,28 @@ export default function OverlayDialog(options: OverlayDialogOptions) {
           </button>
         </header>
 
-        <div className="p-6">{options.children}</div>
+        {options.children}
       </dialog>
     </div>
+  );
+}
+
+export interface OverlayPartOptions {
+  children: React.ReactNode;
+}
+
+/** The part of a cover that scrolls. */
+export function OverlayBody(options: OverlayPartOptions) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">{options.children}</div>
+  );
+}
+
+/** Kept below the body whatever it scrolls to: where a form's submit belongs. */
+export function OverlayFooter(options: OverlayPartOptions) {
+  return (
+    <footer className="shrink-0 border-t border-border px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {options.children}
+    </footer>
   );
 }

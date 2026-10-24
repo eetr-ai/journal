@@ -21,39 +21,6 @@ export interface IconPickerOptions {
   onChoose: (icon: string) => void;
 }
 
-/** Closes on Escape and on a press anywhere outside `box`, while `open`. */
-export function useDismiss(
-  box: React.RefObject<HTMLElement | null>,
-  open: boolean,
-  onClose: () => void,
-) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    function outside(event: PointerEvent) {
-      if (box.current && !box.current.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-
-    function escape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    document.addEventListener("pointerdown", outside);
-    document.addEventListener("keydown", escape);
-
-    return () => {
-      document.removeEventListener("pointerdown", outside);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [box, open, onClose]);
-}
-
 function CategoryHeader(params: EmojiPickerListCategoryHeaderProps) {
   const { category, ...rest } = params;
 

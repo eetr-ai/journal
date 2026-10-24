@@ -3,9 +3,17 @@
 import { useRef, useState } from "react";
 import { CakeIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useEntries } from "../entries_state";
+import DayPeek from "./day_peek";
 import { useShowEntry } from "../use_show_entry";
 import { entriesOnDayAction } from "../actions";
-import { gridFor, monthLabel, monthOf, shiftMonth, weekdayInitials } from "../calendar";
+import {
+  gridFor,
+  monthLabel,
+  monthOf,
+  shiftMonth,
+  weekdayInitials,
+  type Month,
+} from "@/components/calendar";
 import { useBirthdays } from "@/features/people/birthdays_provider";
 import { birthdaysOn, type Readable } from "@/features/people/birthdays";
 import { format } from "@/i18n/format";
@@ -55,27 +63,7 @@ export default function DayPicker(options: DayPickerOptions) {
 
   return (
     <div className="border-b border-border px-4 pb-3">
-      <header className="flex items-center gap-1 pb-2">
-        <button
-          aria-label={t.previous}
-          className="tap-target rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
-          onClick={() => setMonth(shiftMonth(month, -A_MONTH))}
-          type="button"
-        >
-          <CaretLeftIcon size={ICON_SIZE} weight="bold" />
-        </button>
-        <span className="flex-1 text-center text-xs font-medium">
-          {monthLabel(month, options.locale)}
-        </span>
-        <button
-          aria-label={t.next}
-          className="tap-target rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
-          onClick={() => setMonth(shiftMonth(month, A_MONTH))}
-          type="button"
-        >
-          <CaretRightIcon size={ICON_SIZE} weight="bold" />
-        </button>
-      </header>
+      <MonthHeading labels={t} locale={options.locale} month={month} onMonth={setMonth} />
       <div aria-hidden className="grid grid-cols-7 gap-1 pb-1 text-center text-xs text-muted">
         {weekdayInitials(options.locale).map((initial, at) => (
           <span key={`${initial}-${at}`}>{initial}</span>
@@ -86,6 +74,7 @@ export default function DayPicker(options: DayPickerOptions) {
           <Cell
             day={day}
             key={day.date}
+            locale={options.locale}
             onPick={() => void pick(day.date)}
             birthdays={birthdaysOn(celebrated, day.date).map(({ person }) => person.name)}
             today={day.date === state.today}
@@ -107,6 +96,7 @@ function useCelebrated(you: string): { person: Readable }[] {
 
 interface CellOptions {
   day: { date: string; inMonth: boolean };
+  locale: Locale;
   written: boolean;
   /** Whose birthday it is, by name. */
   birthdays: string[];
@@ -117,38 +107,106 @@ interface CellOptions {
 
 const DAY_OF_MONTH = -2;
 
-function Cell(options: CellOptions) {
+// What a reader hears for a day: the date, whether anything is written, whose birthday.
+function labelOf(options: CellOptions): string {
   const t = options.t.entries.days;
-  const celebrating = options.birthdays.length > 0;
-  const said = celebrating ? format(t.birthday, { names: options.birthdays.join(", ") }) : "";
-  const label = [options.day.date, options.written ? t.written : t.nothing, said]
+  const said = options.birthdays.length
+    ? format(t.birthday, { names: options.birthdays.join(", ") })
+    : "";
+
+  return [options.day.date, options.written ? t.written : t.nothing, said]
     .filter(Boolean)
     .join(" — ");
-  const number = options.day.date.slice(DAY_OF_MONTH).replace(/^0/u, "");
-  const tone = options.written ? "font-semibold" : "text-muted";
+}
+
+function looksOf(options: CellOptions): string {
+  const tone = options.written
+    ? "font-semibold hover:bg-surface-muted"
+    : "cursor-default text-muted";
   const faded = options.day.inMonth ? "" : "opacity-40";
   const ring = options.today ? "ring-1 ring-highlight" : "";
 
+  return `relative grid aspect-square w-full place-items-center rounded text-center text-xs pointer-coarse:min-h-9 ${tone} ${faded} ${ring}`;
+}
+
+// The card opens on hover and on focus. It hangs off a wrapper, because a
+// disabled button — a birthday nobody wrote on — hears no pointer at all.
+function Cell(options: CellOptions) {
+  const [peeking, setPeeking] = useState(false);
+  const cell = useRef<HTMLDivElement>(null);
+  const celebrating = options.birthdays.length > 0;
+  const number = options.day.date.slice(DAY_OF_MONTH).replace(/^0/u, "");
+  const worth = celebrating || options.written;
+
   return (
-    <button
-      aria-label={label}
-      className={`relative grid aspect-square place-items-center rounded text-center text-xs pointer-coarse:min-h-9 ${tone} ${faded} ${ring} ${
-        options.written ? "hover:bg-surface-muted" : "cursor-default"
-      }`}
-      disabled={!options.written}
-      onClick={options.onPick}
-      title={said || undefined}
-      type="button"
+    <div
+      className="relative"
+      ref={cell}
+      onBlur={() => setPeeking(false)}
+      onFocus={() => setPeeking(true)}
+      onPointerEnter={() => setPeeking(true)}
+      onPointerLeave={() => setPeeking(false)}
     >
-      {number}
-      {celebrating && (
-        <CakeIcon
-          aria-hidden
-          className="absolute top-0 right-0 text-highlight"
-          size={CAKE_SIZE}
-          weight="fill"
+      <button
+        aria-label={labelOf(options)}
+        className={looksOf(options)}
+        disabled={!options.written}
+        onClick={options.onPick}
+        type="button"
+      >
+        {number}
+        {celebrating && (
+          <CakeIcon
+            aria-hidden
+            className="absolute top-0 right-0 text-highlight"
+            size={CAKE_SIZE}
+            weight="fill"
+          />
+        )}
+      </button>
+      {peeking && worth && (
+        <DayPeek
+          anchor={cell}
+          birthdays={options.birthdays}
+          date={options.day.date}
+          locale={options.locale}
+          t={options.t}
+          written={options.written}
         />
       )}
-    </button>
+    </div>
+  );
+}
+
+interface MonthHeadingOptions {
+  month: Month;
+  locale: Locale;
+  labels: Dictionary["entries"]["days"];
+  onMonth: (month: Month) => void;
+}
+
+function MonthHeading(options: MonthHeadingOptions) {
+  return (
+    <header className="flex items-center gap-1 pb-2">
+      <button
+        aria-label={options.labels.previous}
+        className="tap-target rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
+        onClick={() => options.onMonth(shiftMonth(options.month, -A_MONTH))}
+        type="button"
+      >
+        <CaretLeftIcon size={ICON_SIZE} weight="bold" />
+      </button>
+      <span className="flex-1 text-center text-xs font-medium">
+        {monthLabel(options.month, options.locale)}
+      </span>
+      <button
+        aria-label={options.labels.next}
+        className="tap-target rounded p-1 text-muted hover:bg-surface-muted hover:text-foreground"
+        onClick={() => options.onMonth(shiftMonth(options.month, A_MONTH))}
+        type="button"
+      >
+        <CaretRightIcon size={ICON_SIZE} weight="bold" />
+      </button>
+    </header>
   );
 }
