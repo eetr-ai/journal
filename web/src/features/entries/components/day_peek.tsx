@@ -1,5 +1,7 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { CakeIcon, NotebookIcon } from "@phosphor-icons/react";
 import { useEntries } from "../entries_state";
 import { dayIn } from "../days";
@@ -8,15 +10,15 @@ import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
 const ICON_SIZE = 12;
-const DAYS_IN_WEEK = 7;
-// Columns that open the card leftward or rightward, so it stays in the drawer.
-const LEFT_COLUMNS = 3;
-const RIGHT_COLUMNS = 4;
+// Room kept between the card and the day, and between the card and the window.
+const GAP_PX = 4;
+const MARGIN_PX = 8;
+const HALF = 2;
 
 export interface DayPeekOptions {
   date: string;
-  /** Its place in the grid, which decides which way the card opens. */
-  at: number;
+  /** The day it is about, which the card is placed against. */
+  anchor: RefObject<HTMLElement | null>;
   /** Whose birthday it is, by name. */
   birthdays: string[];
   written: boolean;
@@ -24,14 +26,34 @@ export interface DayPeekOptions {
   t: Dictionary;
 }
 
-function side(at: number): string {
-  const column = at % DAYS_IN_WEEK;
+/**
+ * Where the card goes: centred under the day, slid sideways to stay inside the
+ * window, and above the day when there is no room below. Rendered into the
+ * body, so nothing around the calendar can clip it.
+ */
+function placed(anchor: DOMRect, card: DOMRect): CSSProperties {
+  const centred = anchor.left + anchor.width / HALF - card.width / HALF;
+  const left = Math.min(Math.max(centred, MARGIN_PX), window.innerWidth - card.width - MARGIN_PX);
+  const below = anchor.bottom + GAP_PX;
+  const fits = below + card.height <= window.innerHeight - MARGIN_PX;
 
-  if (column < LEFT_COLUMNS) {
-    return "left-0";
-  }
+  return { left, top: fits ? below : anchor.top - GAP_PX - card.height };
+}
 
-  return column >= RIGHT_COLUMNS ? "right-0" : "left-1/2 -translate-x-1/2";
+// Measured before paint, so the card never shows in the wrong place first.
+function usePlacement(anchor: RefObject<HTMLElement | null>) {
+  const card = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
+
+  useLayoutEffect(() => {
+    if (anchor.current && card.current) {
+      setStyle(
+        placed(anchor.current.getBoundingClientRect(), card.current.getBoundingClientRect()),
+      );
+    }
+  }, [anchor]);
+
+  return { card, style };
 }
 
 /**
@@ -43,38 +65,42 @@ export default function DayPeek(options: DayPeekOptions) {
   const { state } = useEntries();
   const t = options.t.entries.days;
   const held = state.entries.filter((entry) => entry.date === options.date && !isDraft(entry));
+  const { card, style } = usePlacement(options.anchor);
 
-  return (
+  return createPortal(
     <div
-      className={`pointer-events-none absolute top-full z-30 mt-1 w-56 rounded-lg border border-border bg-surface p-2.5 text-left shadow-lg ${side(options.at)}`}
+      className="pointer-events-none fixed z-50 w-64 max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-surface p-2.5 text-left shadow-lg"
+      ref={card}
       role="tooltip"
+      style={style}
     >
       <p className="pb-1.5 text-xs font-semibold first-letter:uppercase">
         {dayIn(options.date, options.locale)}
       </p>
       <ul className="flex flex-col gap-1 text-xs">
         {options.birthdays.map((name) => (
-          <li className="flex items-center gap-1.5" key={name}>
-            <CakeIcon className="shrink-0 text-highlight" size={ICON_SIZE} weight="fill" />
-            <span className="truncate">{name}</span>
+          <li className="flex items-start gap-1.5" key={name}>
+            <CakeIcon className="mt-0.5 shrink-0 text-highlight" size={ICON_SIZE} weight="fill" />
+            <span className="line-clamp-2">{name}</span>
           </li>
         ))}
         {held.map((entry) => {
           const opened = state.opened[entry.id];
 
           return (
-            <li className="flex items-center gap-1.5" key={entry.id}>
+            <li className="flex items-start gap-1.5" key={entry.id}>
               {opened?.icon ? (
                 <span className="shrink-0">{opened.icon}</span>
               ) : (
-                <NotebookIcon className="shrink-0 text-muted" size={ICON_SIZE} />
+                <NotebookIcon className="mt-0.5 shrink-0 text-muted" size={ICON_SIZE} />
               )}
-              <span className="truncate">{opened?.title || options.t.entries.untitled}</span>
+              <span className="line-clamp-2">{opened?.title || options.t.entries.untitled}</span>
             </li>
           );
         })}
         {options.written && held.length === 0 && <li className="text-muted">{t.written}</li>}
       </ul>
-    </div>
+    </div>,
+    document.body,
   );
 }

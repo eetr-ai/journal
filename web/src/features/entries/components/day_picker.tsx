@@ -70,9 +70,8 @@ export default function DayPicker(options: DayPickerOptions) {
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {gridFor(month, options.locale).map((day, at) => (
+        {gridFor(month, options.locale).map((day) => (
           <Cell
-            at={at}
             day={day}
             key={day.date}
             locale={options.locale}
@@ -97,7 +96,6 @@ function useCelebrated(you: string): { person: Readable }[] {
 
 interface CellOptions {
   day: { date: string; inMonth: boolean };
-  at: number;
   locale: Locale;
   written: boolean;
   /** Whose birthday it is, by name. */
@@ -135,6 +133,7 @@ function looksOf(options: CellOptions): string {
 // disabled button — a birthday nobody wrote on — hears no pointer at all.
 function Cell(options: CellOptions) {
   const [peeking, setPeeking] = useState(false);
+  const cell = useRef<HTMLDivElement>(null);
   const celebrating = options.birthdays.length > 0;
   const number = options.day.date.slice(DAY_OF_MONTH).replace(/^0/u, "");
   const worth = celebrating || options.written;
@@ -142,6 +141,7 @@ function Cell(options: CellOptions) {
   return (
     <div
       className="relative"
+      ref={cell}
       onBlur={() => setPeeking(false)}
       onFocus={() => setPeeking(true)}
       onPointerEnter={() => setPeeking(true)}
@@ -166,7 +166,7 @@ function Cell(options: CellOptions) {
       </button>
       {peeking && worth && (
         <DayPeek
-          at={options.at}
+          anchor={cell}
           birthdays={options.birthdays}
           date={options.day.date}
           locale={options.locale}
