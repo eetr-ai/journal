@@ -97,7 +97,6 @@ const en = {
   },
 
   entries: {
-    empty: "Nothing written down yet. Keep talking, and this fills in.",
     // The entry is there; the key has not been through it yet.
     opening: "Unlocking...",
     unreadable: "This could not be unlocked with your key.",
@@ -139,6 +138,7 @@ const en = {
       next: "Next month",
       written: "Something written",
       nothing: "Nothing written",
+      birthday: "Birthday: {names}",
     },
   },
 
@@ -192,6 +192,10 @@ const en = {
     identity: "Identity",
     name: "Name",
     email: "Email",
+    aboutYou: "About you",
+    birthday: "Birthday",
+    birthdayHint: "Kept sealed under your key, like everything you write.",
+    birthdaySealed: "Your birthday is locked to a key this browser does not have.",
     preferences: "Preferences",
     pronouns: "Pronouns",
     pronounsHint: "Pick one or write your own.",
@@ -298,6 +302,7 @@ const en = {
     notAllowed: "Pick one of the options",
     badEmail: "That does not look like an email address",
     badTimezone: "That is not a time zone this browser knows",
+    badBirthday: "That is not a day of the year",
   },
 };
 

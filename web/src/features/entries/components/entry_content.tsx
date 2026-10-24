@@ -108,15 +108,25 @@ interface EntryWordsOptions {
   pictures: ReturnType<typeof usePicturesOf>;
 }
 
-// No entry, an entry still sealed, and the words themselves, written in place.
+// The current words once opened, else the older ones standing in for them.
+function wordsOf(options: EntryContentOptions, content: string): OpenedEntry {
+  const standing = options.opened ?? options.previous;
+
+  return { title: standing?.title ?? "", content, icon: standing?.icon ?? "" };
+}
+
+// An entry still sealed, and the words themselves, written in place.
 function EntryWords(params: EntryWordsOptions) {
   const { options, content, changedFrom, pictures } = params;
   const entry = options.entry;
 
-  if (!entry || content === undefined) {
-    return (
-      <p className="text-muted">{entry ? options.t.entries.opening : options.t.entries.empty}</p>
-    );
+  // No entry is the instant before today's page is put out.
+  if (!entry) {
+    return null;
+  }
+
+  if (content === undefined) {
+    return <p className="text-muted">{options.t.entries.opening}</p>;
   }
 
   return (
@@ -133,7 +143,7 @@ function EntryWords(params: EntryWordsOptions) {
       subject={options.subject}
       t={options.t}
       toolbar={options.toolbar}
-      words={{ title: options.opened?.title ?? options.previous?.title ?? "", content }}
+      words={wordsOf(options, content)}
     />
   );
 }

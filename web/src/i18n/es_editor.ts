@@ -1,8 +1,16 @@
 import type { EditorDictionary } from "./en_editor";
 
 const editor: EditorDictionary = {
+  icon: {
+    add: "Agregar ícono",
+    change: "Cambiar el ícono",
+    choose: "Elegir un ícono",
+    paste: "O pegá cualquier emoji",
+    remove: "Sacar el ícono",
+  },
   titlePlaceholder: "Ponele un título al día",
-  placeholder: "Escribí lo que pasó, o escribí / para un título, una lista, una foto o una cita",
+  placeholder:
+    "Escribí lo que pasó, o seguí charlando y esto se va llenando. Escribí / para un título, una lista, una foto o una cita",
   save: {
     save: "Guardar",
     saving: "Guardando...",
@@ -14,6 +22,7 @@ const editor: EditorDictionary = {
       "No se pudo guardar. Lo que escribiste sigue acá: seguí escribiendo, o apretá ⌘S para intentarlo de nuevo.",
     titleTooLong: "El título es demasiado largo para guardarlo. Acortalo y se guarda solo.",
     contentTooLong: "Esta entrada es demasiado larga para guardarla. Dividila y se guarda sola.",
+    badIcon: "El ícono tiene que ser un solo emoji. Elegí otro y se guarda solo.",
     pictures:
       "Una foto de acá no está guardada con esta entrada, así que no se pudo guardar. Sacala y agregala de nuevo.",
   },

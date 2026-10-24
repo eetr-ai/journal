@@ -6,7 +6,6 @@ import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
 export interface BirthdaysLandingOptions {
-  subject: string;
   /** The reader's zone, which "today" is counted in. */
   timezone: string;
   locale: Locale;
@@ -20,7 +19,7 @@ export interface BirthdaysLandingOptions {
  * a failed fetch all show nothing, and the conversation works without it.
  */
 export default function BirthdaysLanding(options: BirthdaysLandingOptions) {
-  const birthdays = useUpcomingBirthdays(options.subject, options.timezone);
+  const birthdays = useUpcomingBirthdays(options.timezone, options.t.widgets.birthdays.you);
 
   if (birthdays.length === 0) {
     return null;

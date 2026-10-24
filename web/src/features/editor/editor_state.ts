@@ -28,6 +28,8 @@ export interface Selection {
 export interface Snapshot {
   title: string;
   markdown: string;
+  /** One emoji, or empty. Undone and saved with the words. */
+  icon: string;
   selection: Selection;
 }
 
@@ -35,8 +37,12 @@ export interface Snapshot {
 export interface Version {
   title: string;
   markdown: string;
+  icon: string;
   version: number;
 }
+
+/** What a save compares: the words and the icon, not where the caret is. */
+type Words = Pick<Snapshot, "title" | "markdown" | "icon">;
 
 export type SaveStatus = "idle" | "saving" | "saved" | "failed" | "stale" | "invalid";
 
@@ -77,13 +83,18 @@ export type EditorAction = ReducerAction<EditorActionType>;
 export interface TypedData {
   snapshot: Snapshot;
   at: number;
-  /** The top-level block the caret is in; -1 for the title. */
+  /** The top-level block the caret is in; -1 for the title, -2 for the icon. */
   block: number;
 }
 
 export function initialEditorState(opened: Version): EditorState {
   return {
-    present: { title: opened.title, markdown: opened.markdown, selection: { from: 0, to: 0 } },
+    present: {
+      title: opened.title,
+      markdown: opened.markdown,
+      icon: opened.icon,
+      selection: { from: 0, to: 0 },
+    },
     past: [],
     future: [],
     saved: opened,
@@ -96,8 +107,13 @@ export function initialEditorState(opened: Version): EditorState {
   };
 }
 
-function sameWords(a: { title: string; markdown: string }, b: { title: string; markdown: string }) {
-  return a.title === b.title && a.markdown === b.markdown;
+function sameWords(a: Words, b: Words) {
+  return a.title === b.title && a.markdown === b.markdown && a.icon === b.icon;
+}
+
+/** Whether an entry never stored still has nothing in it but, at most, an icon. */
+export function isBlankDraft(state: EditorState): boolean {
+  return state.saved.version === 0 && state.present.title === "" && state.present.markdown === "";
 }
 
 /** Whether there is anything the server does not have yet. */
@@ -164,6 +180,7 @@ function loaded(state: EditorState, version: Version): EditorState {
     present: {
       title: version.title,
       markdown: version.markdown,
+      icon: version.icon,
       selection: state.present.selection,
     },
     past: remembered(state.past, state.present),

@@ -68,18 +68,38 @@ export function searchFrom(query: string, key: string, locale: string): SearchAs
 // a runaway paste before it is sealed, embedded and paid for.
 export const MAX_TITLE_CHARS = 200;
 export const MAX_CONTENT_CHARS = 50_000;
+// An emoji can be several code points — a flag, a family, a skin tone — so the
+// cap is on graphemes, with a generous ceiling on the code units behind them.
+const MAX_ICON_UNITS = 32;
 
 /** An entry as the reader saves it by hand. */
 export interface EntrySave {
   id: string;
   title: string;
   content: string;
+  /** One emoji, or empty for none. */
+  icon: string;
   date: string;
   /** The version the reader's copy was opened at; 0 for one never written. */
   version: number;
 }
 
-export type SaveProblem = "titleTooLong" | "contentTooLong" | "pictures";
+export type SaveProblem = "titleTooLong" | "contentTooLong" | "badIcon" | "pictures";
+
+/** Whether this is an icon: one grapheme, or nothing at all. */
+export function isIcon(value: string): boolean {
+  if (value === "") {
+    return true;
+  }
+
+  if (value.length > MAX_ICON_UNITS || value.trim() !== value) {
+    return false;
+  }
+
+  return (
+    [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)].length === 1
+  );
+}
 
 /**
  * What stops a save, or null. `pictures` is the ids kept with the entry: a save
@@ -87,9 +107,13 @@ export type SaveProblem = "titleTooLong" | "contentTooLong" | "pictures";
  * for now pictures are added only through the conversation.
  */
 export function saveProblem(
-  save: Pick<EntrySave, "title" | "content">,
+  save: Pick<EntrySave, "title" | "content" | "icon">,
   pictures: ReadonlySet<string>,
 ): SaveProblem | null {
+  if (!isIcon(save.icon)) {
+    return "badIcon";
+  }
+
   if (save.title.length > MAX_TITLE_CHARS) {
     return "titleTooLong";
   }
@@ -133,6 +157,7 @@ export function saveFrom(value: unknown, key: string): EntrySave | null {
     id: save.id,
     title: save.title,
     content: save.content,
+    icon: isText(save.icon) ? save.icon : "",
     date: save.date,
     version: save.version,
   };

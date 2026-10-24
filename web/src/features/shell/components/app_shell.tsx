@@ -5,6 +5,7 @@ import ShellHeader from "./shell_header";
 import ShellPanels from "./shell_panels";
 import ShellProvider from "./shell_provider";
 import EntriesProvider from "@/features/entries/components/entries_provider";
+import { BirthdaysProvider } from "@/features/people/birthdays_provider";
 import SearchProvider from "@/features/entries/components/search_provider";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -37,7 +38,7 @@ export interface AppShellOptions {
 // The entries provider wraps the panels rather than the one that shows them,
 // because the agent writes into the journal while it answers: the frames
 // carrying that arrive in the conversation's stream, and the drawer has to hear
-// them too.
+// them too. It wraps the header as well, which starts new entries.
 export default function AppShell(options: AppShellOptions) {
   return (
     <ShellProvider>
@@ -46,33 +47,35 @@ export default function AppShell(options: AppShellOptions) {
         <DetectPreferences needed={needsDetection(options.profile.config)} />
         <VaultGuard locale={options.locale} subject={options.profile.subject} />
         <SearchProvider>
-          <ShellHeader
-            email={options.profile.email}
-            hasImage={options.hasImage}
-            locale={options.locale}
-            name={options.profile.name}
-            t={options.t}
-          />
-          <ImagesConfigProvider view={options.images}>
-            <EntriesProvider
-              days={options.journal.days}
-              entries={options.journal.entries}
-              showing={options.journal.showing}
-              today={options.journal.today}
-            >
-              <ShellPanels
-                conversations={options.conversations}
-                locale={options.locale}
-                subject={options.profile.subject}
-                t={options.t}
-                threadId={options.threadId}
-                timezone={options.profile.config.timezone}
-                todayWidth={options.profile.config.todayWidth}
-                turns={options.turns}
-                unavailable={options.unavailable}
-              />
-            </EntriesProvider>
-          </ImagesConfigProvider>
+          <EntriesProvider
+            days={options.journal.days}
+            entries={options.journal.entries}
+            showing={options.journal.showing}
+            today={options.journal.today}
+          >
+            <ShellHeader
+              email={options.profile.email}
+              hasImage={options.hasImage}
+              locale={options.locale}
+              name={options.profile.name}
+              t={options.t}
+            />
+            <ImagesConfigProvider view={options.images}>
+              <BirthdaysProvider facts={options.profile.facts} subject={options.profile.subject}>
+                <ShellPanels
+                  conversations={options.conversations}
+                  locale={options.locale}
+                  subject={options.profile.subject}
+                  t={options.t}
+                  threadId={options.threadId}
+                  timezone={options.profile.config.timezone}
+                  todayWidth={options.profile.config.todayWidth}
+                  turns={options.turns}
+                  unavailable={options.unavailable}
+                />
+              </BirthdaysProvider>
+            </ImagesConfigProvider>
+          </EntriesProvider>
         </SearchProvider>
       </div>
     </ShellProvider>

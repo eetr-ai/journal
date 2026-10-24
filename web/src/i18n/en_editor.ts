@@ -2,7 +2,15 @@
 // menu that turns one kind of block into another.
 const editor = {
   titlePlaceholder: "Give the day a title",
-  placeholder: "Write what happened, or type / for a heading, a list, a picture or a quote",
+  icon: {
+    add: "Add icon",
+    change: "Change the icon",
+    choose: "Choose an icon",
+    paste: "Or paste any emoji",
+    remove: "Remove the icon",
+  },
+  placeholder:
+    "Write what happened, or keep talking and this fills in. Type / for a heading, a list, a picture or a quote",
   save: {
     save: "Save",
     saving: "Saving...",
@@ -15,6 +23,7 @@ const editor = {
       "This could not be saved. What you wrote is still here — keep writing, or press ⌘S to try again.",
     titleTooLong: "The title is too long to save. Shorten it, and it saves on its own.",
     contentTooLong: "This entry is too long to save. Split it, and it saves on its own.",
+    badIcon: "The icon has to be a single emoji. Pick another, and it saves on its own.",
     pictures:
       "A picture here is not one kept with this entry, so it could not be saved. Take it out and add it again.",
   },

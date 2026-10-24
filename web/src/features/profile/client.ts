@@ -1,6 +1,12 @@
 import "server-only";
 import { RestClient } from "@eetr/ts-rest-utils";
-import { profileFromEntity, type Profile, type ProfileConfig, type ProfileEntity } from "./types";
+import {
+  profileFromEntity,
+  type Profile,
+  type ProfileConfig,
+  type ProfileEntity,
+  type ProfileFacts,
+} from "./types";
 
 /**
  * The only thing in the app that knows how profiles are stored.
@@ -21,6 +27,12 @@ export interface ProfileWrite {
   email: string;
   name: string;
   config: ProfileConfig;
+}
+
+/** The facts and the key the agent seals them under, for this request only. */
+export interface FactsWrite {
+  key: string;
+  facts: ProfileFacts;
 }
 
 let client: RestClient | undefined;
@@ -59,6 +71,13 @@ export const profileClient = {
   /** Insert or replace the profile, and return it as it was stored. */
   async save(subject: string, write: ProfileWrite): Promise<Profile> {
     const response = await agent().put<ProfileEntity>(profilePath(subject), write);
+
+    return profileFromEntity(response.getOrThrow());
+  },
+
+  /** Seal and store the facts, and return the profile carrying them. */
+  async saveFacts(subject: string, write: FactsWrite): Promise<Profile> {
+    const response = await agent().put<ProfileEntity>(`${profilePath(subject)}/facts`, write);
 
     return profileFromEntity(response.getOrThrow());
   },

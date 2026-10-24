@@ -1,10 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import SaveBar from "./save_bar";
 import SettingsFields from "./settings_fields";
 import { saveProfileAction } from "../actions";
+import { openFacts } from "../facts";
+import { useAgentKey } from "@/features/chat/use_agent_key";
 import { draftFromProfile } from "../draft";
 import { SettingsActionType, useSettings } from "../settings_state";
 import type { SaveOutcome } from "../service";
@@ -14,12 +16,45 @@ import type { Locale } from "@/i18n/config";
 export interface SettingsBodyOptions {
   t: Dictionary;
   locale: Locale;
+  subject: string;
+  /** The profile's facts, still sealed. */
+  facts: string;
+}
+
+/** Opens the sealed facts into the form once the key is in this browser. */
+function useOpenedFacts(sealed: string, key: string | null) {
+  const { dispatch } = useSettings();
+
+  useEffect(() => {
+    if (!key) {
+      return;
+    }
+
+    let live = true;
+
+    void openFacts(sealed, key).then((facts) => {
+      if (live) {
+        dispatch(
+          facts
+            ? { type: SettingsActionType.FactsOpened, data: facts.birthday }
+            : { type: SettingsActionType.FactsSealed },
+        );
+      }
+    });
+
+    return () => {
+      live = false;
+    };
+  }, [sealed, key, dispatch]);
 }
 
 export default function SettingsBody(options: SettingsBodyOptions) {
   const { state, dispatch } = useSettings();
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const key = useAgentKey(options.subject);
+
+  useOpenedFacts(options.facts, key);
 
   function apply(outcome: SaveOutcome) {
     if (outcome.status === "invalid") {
@@ -32,7 +67,10 @@ export default function SettingsBody(options: SettingsBodyOptions) {
       return;
     }
 
-    dispatch({ type: SettingsActionType.Stored, data: draftFromProfile(outcome.profile) });
+    dispatch({
+      type: SettingsActionType.Stored,
+      data: draftFromProfile(outcome.profile, state.draft.birthday),
+    });
 
     // A language change moves the whole app, so the page it lands on is the
     // same settings page under the new locale rather than a refresh in the old.
@@ -51,7 +89,11 @@ export default function SettingsBody(options: SettingsBodyOptions) {
     event.preventDefault();
     dispatch({ type: SettingsActionType.Submit });
     startTransition(async () => {
-      const outcome = await saveProfileAction(state.draft).catch(() => null);
+      // The facts go only when they changed, because they go with the key.
+      const changed = state.facts === "open" && state.draft.birthday !== state.stored.birthday;
+      const outcome = await saveProfileAction(state.draft, changed && key ? key : undefined).catch(
+        () => null,
+      );
 
       if (!outcome) {
         dispatch({ type: SettingsActionType.Failed });

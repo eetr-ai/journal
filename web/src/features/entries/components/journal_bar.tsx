@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  BookmarkSimpleIcon,
-  CalendarBlankIcon,
-  NotePencilIcon,
-  NotebookIcon,
-} from "@phosphor-icons/react";
-import { EntriesActionType, useEntries } from "../entries_state";
-import { draftEntry } from "../types";
+import { BookmarkSimpleIcon, CalendarBlankIcon, NotebookIcon } from "@phosphor-icons/react";
 import DayPicker from "./day_picker";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
@@ -26,24 +19,15 @@ export interface JournalBarOptions {
 }
 
 /**
- * The journal's heading and the two ways into it.
+ * The journal's heading, the calendar and the bookmark filter.
  *
- * One panel at a time: the drawer is sixteen rems wide, and a calendar under a
- * search under a list is three things competing for the same column.
+ * The calendar starts open: a journal is found again by its days.
  */
 export default function JournalBar(options: JournalBarOptions) {
-  const { state, dispatch } = useEntries();
-  const [panel, setPanel] = useState<Panel>("none");
+  const [panel, setPanel] = useState<Panel>("days");
 
   function toggle(wanted: Panel) {
     setPanel((showing) => (showing === wanted ? "none" : wanted));
-  }
-
-  // Nothing is stored here. The entry exists in the browser, the address bar
-  // points at it, and the first thing the agent is told to write lands in it.
-  function start() {
-    setPanel("none");
-    dispatch({ type: EntriesActionType.Drafted, data: draftEntry(state.today) });
   }
 
   return (
@@ -53,12 +37,6 @@ export default function JournalBar(options: JournalBarOptions) {
           <NotebookIcon size={ICON_SIZE} weight="fill" />
         </span>
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{options.t.shell.entries}</h2>
-        {/* The same compose icon the conversations above use: starting an entry
-            and starting a chat are the same act on two lists, and two glyphs for
-            it read as two different things. */}
-        <Action label={options.t.entries.new} on={false} onPress={start}>
-          <NotePencilIcon size={ICON_SIZE} />
-        </Action>
         <Action
           label={panel === "days" ? options.t.entries.days.close : options.t.entries.days.open}
           on={panel === "days"}

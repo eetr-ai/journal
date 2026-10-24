@@ -9,6 +9,7 @@ import type { OpenedImage } from "@/features/images/types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 import BlockMenu from "./block_menu";
+import IconField from "./icon_field";
 import { SaveButton, SaveTrouble } from "./save_status";
 import { EntryEditorContext, type EntryEditorContextValue } from "../editor_context";
 import {
@@ -61,6 +62,7 @@ export default function EntryEditor(options: EntryEditorOptions) {
     initialEditorState({
       title: options.words.title,
       markdown: options.words.content,
+      icon: options.words.icon,
       // Older words standing in are at no version we know, so the current one,
       // once opened, replaces them.
       version: options.current ? options.entry.version : 0,
@@ -79,19 +81,21 @@ export default function EntryEditor(options: EntryEditorOptions) {
   );
 }
 
-function snapshotOf(editor: Editor, title: string): Snapshot {
+type Beside = Pick<Snapshot, "title" | "icon">;
+
+function snapshotOf(editor: Editor, beside: Beside): Snapshot {
   const { from, to } = editor.state.selection;
 
-  return { title, markdown: markdownOf(editor), selection: { from, to } };
+  return { ...beside, markdown: markdownOf(editor), selection: { from, to } };
 }
 
 // Every change in the words becomes a step the reducer can coalesce or keep.
-function useTyping(title: string): (editor: Editor) => void {
+function useTyping(beside: Beside): (editor: Editor) => void {
   const { dispatch } = useEditorState();
-  const latest = useRef(title);
+  const latest = useRef(beside);
 
   useEffect(() => {
-    latest.current = title;
+    latest.current = beside;
   });
 
   return useCallback(
@@ -156,7 +160,7 @@ function EditorBody(options: EntryEditorOptions) {
     placeholder: options.t.editor.placeholder,
     menu,
     onBlur: sync.flush,
-    onChange: useTyping(state.present.title),
+    onChange: useTyping({ title: state.present.title, icon: state.present.icon }),
     onPictures: upload.place,
   });
   const { fill } = upload;
@@ -176,6 +180,7 @@ function EditorBody(options: EntryEditorOptions) {
   return (
     <EntryEditorContext value={useContextValue(options, fillSlot)}>
       <div ref={box}>
+        <IconField labels={options.t.editor.icon} />
         <TitleField editor={editor} labels={options.t.editor} />
         <SaveButton labels={options.t.editor} onSave={sync.flush} slot={options.toolbar} />
         <SaveTrouble labels={options.t.editor} />

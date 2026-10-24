@@ -14,6 +14,7 @@ import { anchoredIn } from "@/features/images/rules";
 import { useAgentKey } from "@/features/chat/use_agent_key";
 import {
   EditorActionType,
+  isBlankDraft,
   isDirty,
   useEditorState,
   type EditorAction,
@@ -72,17 +73,17 @@ async function fetchNewer(attempt: Attempt): Promise<void> {
 }
 
 function settle(attempt: Attempt, outcome: SaveOutcome): void {
-  const { title, markdown } = attempt.state.present;
+  const { title, markdown, icon } = attempt.state.present;
 
   switch (outcome.status) {
     case "saved":
       attempt.dispatch({
         type: EditorActionType.Saved,
-        data: { title, markdown, version: outcome.entry.version },
+        data: { title, markdown, icon, version: outcome.entry.version },
       });
       attempt.entries({
         type: EntriesActionType.Saved,
-        data: { entry: outcome.entry, opened: { title, content: markdown } },
+        data: { entry: outcome.entry, opened: { title, content: markdown, icon } },
       });
       return;
     case "stale":
@@ -99,7 +100,11 @@ function settle(attempt: Attempt, outcome: SaveOutcome): void {
 
 async function send(attempt: Attempt): Promise<SaveOutcome | null> {
   const { state, options } = attempt;
-  const words = { title: state.present.title, content: state.present.markdown };
+  const words = {
+    title: state.present.title,
+    content: state.present.markdown,
+    icon: state.present.icon,
+  };
   // Anchors already stored stand while their pictures are still loading.
   const pictures = new Set([
     ...anchoredIn(state.saved.markdown),
@@ -128,9 +133,9 @@ async function send(attempt: Attempt): Promise<SaveOutcome | null> {
 // The version a save landed, carried into what the next flush reads. Once the
 // editor has unmounted nothing renders again to put it there.
 function landed(now: Latest, attempt: Attempt, version: number): Latest {
-  const { title, markdown } = attempt.state.present;
+  const { title, markdown, icon } = attempt.state.present;
 
-  return { ...now, state: { ...now.state, saved: { title, markdown, version } } };
+  return { ...now, state: { ...now.state, saved: { title, markdown, icon, version } } };
 }
 
 export interface EntrySync {
@@ -140,11 +145,13 @@ export interface EntrySync {
   kept: (id: string) => void;
 }
 
-// Whether there is anything for a flush to send.
+// Whether there is anything for a flush to send. A page never stored waits for
+// words: an icon on its own is not an entry.
 function wanted(now: Latest, force: unknown): boolean {
   const unstored = force === true && now.state.saved.version === 0;
+  const worth = unstored || (isDirty(now.state) && !isBlankDraft(now.state));
 
-  return Boolean(now.key) && (isDirty(now.state) || unstored) && !now.state.incoming;
+  return Boolean(now.key) && worth && !now.state.incoming;
 }
 
 export function useEntrySync(options: EntrySyncOptions): EntrySync {

@@ -1,15 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { CakeIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useEntries } from "../entries_state";
 import { useShowEntry } from "../use_show_entry";
 import { entriesOnDayAction } from "../actions";
 import { gridFor, monthLabel, monthOf, shiftMonth, weekdayInitials } from "../calendar";
+import { useBirthdays } from "@/features/people/birthdays_provider";
+import { birthdaysOn, type Readable } from "@/features/people/birthdays";
+import { format } from "@/i18n/format";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
 const ICON_SIZE = 14;
+const CAKE_SIZE = 10;
 const A_MONTH = 1;
 
 export interface DayPickerOptions {
@@ -34,6 +38,7 @@ export default function DayPicker(options: DayPickerOptions) {
   const wanted = useRef("");
   const t = options.t.entries.days;
   const written = new Set(state.days);
+  const celebrated = useCelebrated(options.t.widgets.birthdays.you);
 
   // A day the drawer's capped list does not hold is fetched; one it holds is
   // shown without a round trip.
@@ -82,6 +87,7 @@ export default function DayPicker(options: DayPickerOptions) {
             day={day}
             key={day.date}
             onPick={() => void pick(day.date)}
+            birthdays={birthdaysOn(celebrated, day.date).map(({ person }) => person.name)}
             today={day.date === state.today}
             t={options.t}
             written={written.has(day.date)}
@@ -92,9 +98,18 @@ export default function DayPicker(options: DayPickerOptions) {
   );
 }
 
+/** Everyone whose birthday the calendar marks, the reader listed as `you`. */
+function useCelebrated(you: string): { person: Readable }[] {
+  const { people, own } = useBirthdays();
+
+  return own ? [...people, { person: { name: you, relation: "", birthday: own } }] : people;
+}
+
 interface CellOptions {
   day: { date: string; inMonth: boolean };
   written: boolean;
+  /** Whose birthday it is, by name. */
+  birthdays: string[];
   today: boolean;
   t: Dictionary;
   onPick: () => void;
@@ -104,7 +119,11 @@ const DAY_OF_MONTH = -2;
 
 function Cell(options: CellOptions) {
   const t = options.t.entries.days;
-  const label = `${options.day.date} — ${options.written ? t.written : t.nothing}`;
+  const celebrating = options.birthdays.length > 0;
+  const said = celebrating ? format(t.birthday, { names: options.birthdays.join(", ") }) : "";
+  const label = [options.day.date, options.written ? t.written : t.nothing, said]
+    .filter(Boolean)
+    .join(" — ");
   const number = options.day.date.slice(DAY_OF_MONTH).replace(/^0/u, "");
   const tone = options.written ? "font-semibold" : "text-muted";
   const faded = options.day.inMonth ? "" : "opacity-40";
@@ -113,14 +132,23 @@ function Cell(options: CellOptions) {
   return (
     <button
       aria-label={label}
-      className={`grid aspect-square place-items-center rounded text-center text-xs pointer-coarse:min-h-9 ${tone} ${faded} ${ring} ${
+      className={`relative grid aspect-square place-items-center rounded text-center text-xs pointer-coarse:min-h-9 ${tone} ${faded} ${ring} ${
         options.written ? "hover:bg-surface-muted" : "cursor-default"
       }`}
       disabled={!options.written}
       onClick={options.onPick}
+      title={said || undefined}
       type="button"
     >
       {number}
+      {celebrating && (
+        <CakeIcon
+          aria-hidden
+          className="absolute top-0 right-0 text-highlight"
+          size={CAKE_SIZE}
+          weight="fill"
+        />
+      )}
     </button>
   );
 }

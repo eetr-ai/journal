@@ -149,6 +149,11 @@ export function upcoming(
   return ret.toSorted(soonestFirst);
 }
 
+/** Whose birthday falls on a day, by the same rule `daysUntil` counts with. */
+export function birthdaysOn<T extends { person: Readable }>(people: T[], date: string): T[] {
+  return people.filter(({ person }) => daysUntil(person.birthday, date) === 0);
+}
+
 /** The day a birthday falls on, as a reader says it: "Sunday, 25 October". */
 export function birthdayOn(on: string, locale: string): string {
   const [year, month, day] = on.split("-").map(Number);

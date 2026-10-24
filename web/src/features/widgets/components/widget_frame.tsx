@@ -16,6 +16,8 @@ export const WIDGET_PRIMARY = `${SHAPE} border-brand bg-brand text-on-brand hove
 export interface WidgetFrameOptions {
   /** What kind of card this is, and anything said about it after a dot. */
   label: ReactNode;
+  /** A glyph before the label, for the cards that have one. */
+  icon?: ReactNode;
   children: ReactNode;
   /** The buttons along the bottom, when the card has any. */
   actions?: ReactNode;
@@ -30,7 +32,10 @@ export interface WidgetFrameOptions {
 export default function WidgetFrame(options: WidgetFrameOptions) {
   return (
     <article className="not-prose my-3 flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
-      <p className="text-xs text-muted">{options.label}</p>
+      <p className="flex items-center gap-1.5 text-xs text-muted">
+        {options.icon}
+        <span className="min-w-0">{options.label}</span>
+      </p>
       {options.children}
       {options.actions ? <div className="flex flex-wrap gap-2 pt-1">{options.actions}</div> : null}
     </article>

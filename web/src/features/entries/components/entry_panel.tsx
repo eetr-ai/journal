@@ -5,9 +5,10 @@ import { BookmarkSimpleIcon, SunHorizonIcon, TrashIcon } from "@phosphor-icons/r
 import ConfirmDialog from "@/components/confirm_dialog";
 import EntryContent from "./entry_content";
 import PanelSheet from "@/features/shell/components/panel_sheet";
-import { EntriesActionType, entryShowing, useEntries } from "../entries_state";
+import { EntriesActionType, entryShowing, useEntries, type EntriesUiState } from "../entries_state";
 import { useOpenedEntries } from "../use_opened_entries";
 import { useEntryUrl } from "../use_entry_url";
+import { useTodayDraft } from "../use_today_draft";
 import { useThrowAway } from "../use_throw_away";
 import { useKeeping } from "../use_keeping";
 import { dayIn } from "../days";
@@ -32,6 +33,16 @@ export interface EntryPanelOptions {
  * reading it: the entry on screen is whatever the last frame said it was, not
  * what the page was rendered with.
  */
+// The entry on screen and what the key has made of it so far. `standing` is
+// what the header names it by: the current words, or older ones standing in.
+function onScreen(state: EntriesUiState) {
+  const entry = entryShowing(state);
+  const opened = entry ? state.opened[entry.id] : undefined;
+  const previous = entry ? state.previous[entry.id] : undefined;
+
+  return { entry, opened, previous, standing: opened ?? previous };
+}
+
 export default function EntryPanel(options: EntryPanelOptions) {
   const { state } = useEntries();
   const going = useThrowAway();
@@ -39,12 +50,11 @@ export default function EntryPanel(options: EntryPanelOptions) {
 
   useOpenedEntries(options.subject, options.t.entries.unreadable);
   useEntryUrl();
+  useTodayDraft();
 
   // The header's slot for the editor's save button, which lives with the words.
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null);
-  const entry = entryShowing(state);
-  const opened = entry ? state.opened[entry.id] : undefined;
-  const previous = entry ? state.previous[entry.id] : undefined;
+  const { entry, opened, previous, standing } = onScreen(state);
 
   return (
     <PanelSheet label={options.t.shell.dismiss} variant="entry">
@@ -59,7 +69,9 @@ export default function EntryPanel(options: EntryPanelOptions) {
           onKeep={keeping.keep}
           onThrowAway={going.ask}
           t={options.t}
-          title={opened?.title ?? previous?.title}
+          icon={standing?.icon ?? ""}
+          title={standing?.title}
+          todayPage={state.showing === null}
           today={state.today}
           toolbar={setToolbar}
         />
@@ -129,7 +141,11 @@ interface PanelHeaderOptions {
   entry: Entry | null;
   /** The opened title, absent until the key has been through it. */
   title?: string;
+  /** The opened icon, which stands in for the sun once there is one. */
+  icon: string;
   today: string;
+  /** On today rather than on an entry picked by id. */
+  todayPage: boolean;
   onThrowAway: () => void;
   onKeep: (entry: Entry) => void;
   toolbar: (element: HTMLElement | null) => void;
@@ -141,9 +157,15 @@ function PanelHeader(options: PanelHeaderOptions) {
 
   return (
     <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-      <span className="text-highlight">
-        <SunHorizonIcon size={ICON_SIZE} weight="fill" />
-      </span>
+      {options.icon ? (
+        <span aria-hidden className="text-base leading-none">
+          {options.icon}
+        </span>
+      ) : (
+        <span className="text-highlight">
+          <SunHorizonIcon size={ICON_SIZE} weight="fill" />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <h2 className="truncate text-sm font-semibold">{headingOf(options, showingToday)}</h2>
         <p className="text-xs text-muted">{dayLineOf(options, showingToday)}</p>
@@ -161,7 +183,7 @@ function PanelHeader(options: PanelHeaderOptions) {
         </button>
       )}
       <ToolbarSlot onSlot={options.toolbar} />
-      {options.entry && (
+      {hasActions(options) && options.entry && (
         <HeaderActions
           entry={options.entry}
           onKeep={options.onKeep}
@@ -171,6 +193,12 @@ function PanelHeader(options: PanelHeaderOptions) {
       )}
     </header>
   );
+}
+
+// Today's blank page has nothing to keep or throw away: it is not a row, and
+// throwing it away would only put out another.
+function hasActions(options: PanelHeaderOptions): boolean {
+  return options.entry !== null && !(options.todayPage && isDraft(options.entry));
 }
 
 // The entry's own title wins once it has one; "Today" only stands in for a

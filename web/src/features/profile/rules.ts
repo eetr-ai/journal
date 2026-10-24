@@ -1,5 +1,6 @@
 import { isLocale, locales } from "@/i18n/config";
 import { isTheme, themes, type Theme } from "@/theme/config";
+import { birthdayParts } from "@/features/people/rules";
 import { sexes, treatments, type ProfileConfig, type Sex, type Treatment } from "./types";
 import type { Locale } from "@/i18n/config";
 
@@ -7,7 +8,13 @@ import type { Locale } from "@/i18n/config";
  * The rules that decide whether a profile may be stored. They live here rather
  * than in the persistence layer, which will write whatever it is handed.
  */
-export type IssueCode = "required" | "tooLong" | "notAllowed" | "badEmail" | "badTimezone";
+export type IssueCode =
+  | "required"
+  | "tooLong"
+  | "notAllowed"
+  | "badEmail"
+  | "badTimezone"
+  | "badBirthday";
 
 /** A profile as the form submits it: every field is still a string. */
 export interface ProfileDraft {
@@ -20,6 +27,8 @@ export interface ProfileDraft {
   location: string;
   timezone: string;
   theme: string;
+  /** Sealed apart from the rest, so it is saved only when it changed. */
+  birthday: string;
 }
 
 export type ProfileIssues = Partial<Record<keyof ProfileDraft, IssueCode>>;
@@ -76,6 +85,17 @@ function timezone(value: string): IssueCode | undefined {
   }
 }
 
+// Optional, and a whole date: a person knows the year they were born.
+const OWN_BIRTHDAY = /^\d{4}-\d{2}-\d{2}$/u;
+
+function ownBirthday(value: string): IssueCode | undefined {
+  if (value === "") {
+    return undefined;
+  }
+
+  return OWN_BIRTHDAY.test(value) && birthdayParts(value) ? undefined : "badBirthday";
+}
+
 function choice(allowed: readonly string[], value: string): IssueCode | undefined {
   return allowed.includes(value) ? undefined : "notAllowed";
 }
@@ -99,6 +119,7 @@ export function validateProfile(draft: ProfileDraft): ProfileIssues {
   record(ret, "treatment", choice(treatments, draft.treatment));
   record(ret, "language", choice(locales, draft.language));
   record(ret, "theme", choice(themes, draft.theme));
+  record(ret, "birthday", ownBirthday(draft.birthday));
 
   return ret;
 }

@@ -98,7 +98,6 @@ const es: Dictionary = {
   },
 
   entries: {
-    empty: "Todavía no hay nada escrito. Seguí hablando y esto se va llenando.",
     opening: "Abriendo...",
     unreadable: "Esto no se pudo abrir con tu clave.",
     none: "Todavía no hay nada escrito.",
@@ -141,6 +140,7 @@ const es: Dictionary = {
       next: "Mes siguiente",
       written: "Algo escrito",
       nothing: "Nada escrito",
+      birthday: "Cumpleaños: {names}",
     },
   },
 
@@ -189,6 +189,10 @@ const es: Dictionary = {
     identity: "Identidad",
     name: "Nombre",
     email: "Correo electrónico",
+    aboutYou: "Sobre vos",
+    birthday: "Cumpleaños",
+    birthdayHint: "Se guarda sellado con tu clave, como todo lo que escribís.",
+    birthdaySealed: "Tu cumpleaños está cerrado con una clave que este navegador no tiene.",
     preferences: "Preferencias",
     pronouns: "Pronombres",
     pronounsHint: "Elegí uno o escribí el tuyo.",
@@ -296,6 +300,7 @@ const es: Dictionary = {
     notAllowed: "Elegí una de las opciones",
     badEmail: "Eso no parece una dirección de correo",
     badTimezone: "Esa zona horaria no la conoce este navegador",
+    badBirthday: "Ese no es un día del año",
   },
 };
 
