@@ -639,10 +639,11 @@ flows:
 
           - name: find_people
             description: >
-              The people in their life: each one's name, who they are to them,
-              their birthday and how close they are (proximity, 5 the innermost
-              circle, 1 distant, null when not known). With a query, only the
-              people whose name or relation holds it. Look here before adding
+              The people in their life: each one's name, what they are called
+              day to day (nickname), who they are to them, their birthday and
+              how close they are (proximity, 5 the innermost circle, 1 distant,
+              null when not known). With a query, only the people whose name,
+              nickname or relation holds it. Look here before adding
               someone, and when somebody comes up by name.
             inputSchema: |
               {
@@ -676,7 +677,10 @@ flows:
               Add someone to the people in their life, or change who someone
               already there is. Without an id it adds a new person, and name is
               required. With an id it changes only the fields you give; a field
-              you leave out stays as it was. relation is who they are to them,
+              you leave out stays as it was. name is their full name when it is
+              known; nickname is what they call them day to day ("Cami" for
+              Camila Pérez), which is what tells two people with one name apart.
+              relation is who they are to them,
               in their words ("my sister", "climbing partner"). birthday is
               YYYY-MM-DD, or MM-DD when the year is not known — never anything
               else. proximity is how close they are to them, 5 the innermost
@@ -690,6 +694,7 @@ flows:
                 "properties": {
                   "id": { "type": "string" },
                   "name": { "type": "string" },
+                  "nickname": { "type": "string" },
                   "relation": { "type": "string" },
                   "birthday": { "type": "string" },
                   "proximity": { "type": "integer", "minimum": 1, "maximum": 5 },

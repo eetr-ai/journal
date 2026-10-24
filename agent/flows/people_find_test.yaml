@@ -33,6 +33,15 @@ cases:
         # Bruno by his relation, climbing partner; carla by her name.
         - body.people.map(p, p.name) == ["Bruno", "carla"]
 
+  - name: a query finds someone by what they are called
+    input:
+      data: { query: GUITO }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.people.map(p, p.name) == ["Diego"]
+        - body.people[0].nickname == "Dieguito"
+
   - name: a query that matches nobody is an empty answer
     input:
       data: { query: nobody by this name }

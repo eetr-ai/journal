@@ -14,6 +14,8 @@ cases:
         found: true
         id: eeeeeeee-0000-4000-8000-000000000001
         name: Ana Torres
+        # Written before there were nicknames, so there is none to open.
+        nickname: ""
         relation: my sister
         birthday: "1990-11-02"
         notes: Lives in Rosario.

@@ -381,6 +381,10 @@ VALUES
    '',
    TIMESTAMPTZ '2026-01-01 10:00:00Z');
 
+-- Diego is known by a nickname, unmarked so it reads as itself: what the find
+-- suite looks him up by.
+UPDATE person SET nickname = 'Dieguito' WHERE id = UUID 'eeeeeeee-0000-4000-8000-000000000004';
+
 -- The same person five times over, one per write case, kept at proximity 4.
 INSERT INTO person (id, oidc_subject, name, relation, birthday, notes, proximity)
 SELECT id, 'dolphin-people-write',
