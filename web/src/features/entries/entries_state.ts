@@ -240,8 +240,11 @@ const handlers: Record<
   // Today's page, ready to be written on before anything has been. Like a
   // draft, but the panel stays on "today" rather than on its id: there is no row
   // for an address to name, and today's entry is still whatever is newest.
+  //
+  // It carries no time, so it sorts behind every written entry: one that turns
+  // up for today later — a search hit, a widget's read — is what today shows.
   [EntriesActionType.TodayDrafted]: (state, action) => {
-    const draft = action.data as Entry;
+    const draft = { ...(action.data as Entry), createdAt: "", updatedAt: "" };
 
     return { ...arrived(state, draft), days: state.days };
   },

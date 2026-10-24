@@ -18,11 +18,17 @@ const FILES: Record<string, Record<string, unknown>> = {
 // The data only changes with the package, and every deploy can change that.
 const CACHING = "public, max-age=86400";
 
+// Typed by hand rather than with Next's generated RouteContext, which a plain
+// `tsc` run has not generated.
+interface EmojiRoute {
+  params: Promise<{ locale: string; file: string }>;
+}
+
 function found(locale: string, file: string): unknown {
   return FILES[locale]?.[file];
 }
 
-export async function GET(_request: Request, ctx: RouteContext<"/api/emoji/[locale]/[file]">) {
+export async function GET(_request: Request, ctx: EmojiRoute) {
   const { locale, file } = await ctx.params;
   const body = found(locale, file);
 
@@ -37,7 +43,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/emoji/[loca
 }
 
 // Asked before the data, to see whether a cached copy is still current.
-export async function HEAD(request: Request, ctx: RouteContext<"/api/emoji/[locale]/[file]">) {
+export async function HEAD(request: Request, ctx: EmojiRoute) {
   const answer = await GET(request, ctx);
 
   return new Response(null, { status: answer.status, headers: answer.headers });

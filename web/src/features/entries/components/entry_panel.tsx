@@ -195,10 +195,10 @@ function PanelHeader(options: PanelHeaderOptions) {
   );
 }
 
-// Today's blank page has nothing to keep or throw away: it is not a row, and
-// throwing it away would only put out another.
+// A blank page has nothing to keep or throw away: it is not a row yet, and
+// leaving it is all it takes to be rid of it.
 function hasActions(options: PanelHeaderOptions): boolean {
-  return options.entry !== null && !(options.todayPage && isDraft(options.entry));
+  return options.entry !== null && !isDraft(options.entry);
 }
 
 // The entry's own title wins once it has one; "Today" only stands in for a

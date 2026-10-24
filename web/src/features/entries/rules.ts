@@ -71,6 +71,8 @@ export const MAX_CONTENT_CHARS = 50_000;
 // An emoji can be several code points — a flag, a family, a skin tone — so the
 // cap is on graphemes, with a generous ceiling on the code units behind them.
 const MAX_ICON_UNITS = 32;
+// A pictograph, a flag's regional letters, or a keycap: what makes a grapheme an emoji.
+const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u;
 
 /** An entry as the reader saves it by hand. */
 export interface EntrySave {
@@ -86,7 +88,7 @@ export interface EntrySave {
 
 export type SaveProblem = "titleTooLong" | "contentTooLong" | "badIcon" | "pictures";
 
-/** Whether this is an icon: one grapheme, or nothing at all. */
+/** Whether this is an icon: one emoji, joined or flagged or not, or nothing at all. */
 export function isIcon(value: string): boolean {
   if (value === "") {
     return true;
@@ -96,9 +98,9 @@ export function isIcon(value: string): boolean {
     return false;
   }
 
-  return (
-    [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)].length === 1
-  );
+  const graphemes = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)];
+
+  return graphemes.length === 1 && EMOJI.test(value);
 }
 
 /**
