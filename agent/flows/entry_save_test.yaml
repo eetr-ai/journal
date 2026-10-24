@@ -93,3 +93,47 @@ cases:
       that:
         - body.saved == false
         - vars.httpStatus == 404
+
+  # The icon rides the same save, sealed beside the title.
+  - name: an icon given with a save is stored sealed
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: With a face
+        content: Rain all day.
+        icon: "🌧️"
+        date: "2026-03-03"
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-00000000000a }
+    expect:
+      that:
+        - body.saved == true
+        - body.entry.icon.startsWith("enc1:")
+        - string(fromAes(base64.decode(body.entry.icon.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "🌧️"
+
+  - name: a save that says nothing about the icon keeps the one there
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: Still the same face
+        content: Words changed, the icon did not.
+        version: 2
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-000000000003 }
+    expect:
+      that:
+        - body.saved == true
+        - body.entry.icon == "enc1:kept"
+
+  - name: an empty icon is a choice to have none, and replaces the one there
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        title: No face
+        content: Taken away.
+        icon: ""
+        version: 2
+      vars: { subject: dolphin-entries-save, id: c5c5c5c5-0000-4000-8000-000000000004 }
+    expect:
+      that:
+        - body.saved == true
+        - body.entry.icon != "enc1:kept"
+        - string(fromAes(base64.decode(body.entry.icon.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == ""

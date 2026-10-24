@@ -71,3 +71,16 @@ cases:
       vars: { httpStatus: 404 }
       body:
         error: profile not found
+
+  # This write carries no key, so the sealed facts are not its to touch.
+  - name: a PUT of the profile leaves the sealed facts as they were
+    input:
+      data:
+        email: facts-kept@example.com
+        name: Facts Kept
+        config: { theme: light }
+      vars: { method: PUT, subject: dolphin-facts-kept }
+    expect:
+      that:
+        - fromJson(string(fromAes(base64.decode(body.facts.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=")))).birthday == "1970-01-01"
+        - fromJson(body.config).theme == "light"

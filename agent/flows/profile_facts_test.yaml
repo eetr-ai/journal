@@ -1,0 +1,45 @@
+# See profile_test.yaml. This suite owns PUT /profiles/{subject}/facts: what a
+# person told us about themselves, sealed whole under the key the request carried.
+#
+# `dolphin-facts` is this suite's alone; the seed puts it back empty every run.
+flow: profile-facts
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: the facts are stored sealed and open back to what was given
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        facts: { birthday: "1987-11-06" }
+      vars: { subject: dolphin-facts }
+    expect:
+      that:
+        - body.oidc_subject == "dolphin-facts"
+        - body.facts.startsWith("enc1:")
+        - '!body.facts.contains("1987")'
+        - fromJson(string(fromAes(base64.decode(body.facts.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=")))).birthday == "1987-11-06"
+        - '!has(vars.httpStatus)'
+
+  - name: the subject comes from the path, so a body cannot write another row
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        oidc_subject: dolphin-facts-kept
+        facts: { birthday: "01-01" }
+      vars: { subject: dolphin-facts }
+    expect:
+      that:
+        - body.oidc_subject == "dolphin-facts"
+
+  - name: a profile that does not exist is a 404, not a row made here
+    input:
+      data:
+        key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
+        facts: { birthday: "01-01" }
+      vars: { subject: dolphin-nobody }
+    expect:
+      vars: { httpStatus: 404 }
+      body:
+        error: profile not found

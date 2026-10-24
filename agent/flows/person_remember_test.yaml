@@ -28,6 +28,22 @@ cases:
                 # Not given, and still sealed: the row does not say it is empty.
                 - vars.sealed.notes.startsWith("enc1:")
 
+  # The full name and what they are called, both sealed.
+  - name: someone added with a nickname keeps it beside the full name
+    input:
+      data: { name: Camila Pérez, nickname: Cami }
+      vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.name == "Camila Pérez"
+    spies:
+      person-remember.new-or-known[3].insert-person:
+        records:
+          - input:
+              that:
+                - string(fromAes(base64.decode(vars.sealed.nickname.substring(5)), base64.decode(vars.dataKey))) == "Cami"
+
   - name: someone added without a proximity is not placed yet
     input:
       data: { name: Nico }
@@ -81,6 +97,7 @@ cases:
           - input:
               that:
                 - vars.sealed.name == ""
+                - vars.sealed.nickname == ""
                 - vars.sealed.notes == ""
                 - vars.sealed.proximity == ""
                 - vars.sealed.birthday.startsWith("enc1:")

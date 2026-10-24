@@ -38,6 +38,7 @@ cases:
       data:
         key: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE=
         name: Someone new
+        nickname: Newbie
         relation: ""
         birthday: "07-07"
         notes: ""
@@ -51,4 +52,5 @@ cases:
         - body.notes.startsWith("enc1:")
         - string(fromAes(base64.decode(body.name.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Someone new"
         - string(fromAes(base64.decode(body.birthday.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "07-07"
+        - string(fromAes(base64.decode(body.nickname.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "Newbie"
         - string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode("ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE="))) == "3"

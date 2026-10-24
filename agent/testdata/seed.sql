@@ -16,6 +16,20 @@ ON CONFLICT (oidc_subject) DO UPDATE SET
   name = EXCLUDED.name,
   config = EXCLUDED.config;
 
+-- Facts: `dolphin-facts` is written by its suite, and `dolphin-facts-kept`
+-- holds a seal the profile PUT must leave standing — a real one under the
+-- suites' throwaway key, {"birthday": "1970-01-01"}, so it opens. Reset every run.
+INSERT INTO user_profile (oidc_subject, email, name, config, facts)
+VALUES
+  ('dolphin-facts',      'facts@example.com',      'Facts',      '{}'::jsonb, ''),
+  ('dolphin-facts-kept', 'facts-kept@example.com', 'Facts Kept', '{}'::jsonb,
+   'enc1:lEaaBtS+f+iP5zDk3Q81Pj7iNQkbqbG4zKRb8p0Ffxny9tqN5ZxdehyK8zPkhrBxiA5YHtU=')
+ON CONFLICT (oidc_subject) DO UPDATE SET
+  email = EXCLUDED.email,
+  name = EXCLUDED.name,
+  config = EXCLUDED.config,
+  facts = EXCLUDED.facts;
+
 -- Vaults to read back. The values are not real key material; nothing in this
 -- table ever is anything but opaque bytes to the server.
 --
@@ -158,6 +172,13 @@ INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, cont
 VALUES
   (UUID 'c5c5c5c5-0000-4000-8000-000000000001', 'dolphin-entries-save', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 2),
   (UUID 'c5c5c5c5-0000-4000-8000-000000000002', 'dolphin-entries-save', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 2);
+
+-- Already wearing an icon, for the cases that keep it and the ones that take it
+-- away. Never opened: a save that keeps it hands back the same seal.
+INSERT INTO journal_entry (id, oidc_subject, thread_key, entry_date, title, content, icon, version)
+VALUES
+  (UUID 'c5c5c5c5-0000-4000-8000-000000000003', 'dolphin-entries-save', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 'enc1:kept', 2),
+  (UUID 'c5c5c5c5-0000-4000-8000-000000000004', 'dolphin-entries-save', '', DATE '2026-09-15', 'enc1:x', 'enc1:x', 'enc1:kept', 2);
 
 -- Chunks, for the suites that rank by meaning.
 --
@@ -361,6 +382,10 @@ VALUES
    'enc1:eIY3I1lJE9RVHy98koetldKuAx1YyuI1G5YLBA==',
    '',
    TIMESTAMPTZ '2026-01-01 10:00:00Z');
+
+-- Diego is known by a nickname, unmarked so it reads as itself: what the find
+-- suite looks him up by.
+UPDATE person SET nickname = 'Dieguito' WHERE id = UUID 'eeeeeeee-0000-4000-8000-000000000004';
 
 -- The same person five times over, one per write case, kept at proximity 4.
 INSERT INTO person (id, oidc_subject, name, relation, birthday, notes, proximity)

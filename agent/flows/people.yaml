@@ -49,7 +49,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
+                    SELECT id, name, nickname, relation, birthday, notes, proximity, created_at, updated_at
                     FROM person
                     WHERE oidc_subject = $1
                     ORDER BY created_at
@@ -106,7 +106,7 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    SELECT id, name, relation, birthday, notes, proximity, created_at, updated_at
+                    SELECT id, name, nickname, relation, birthday, notes, proximity, created_at, updated_at
                     FROM person
                     WHERE oidc_subject = $1 AND id::text = lower($2)
                   args:
@@ -222,8 +222,8 @@ flows:
         settings:
           value: '{"deleted": body != null}'
 
-  # Add someone written down by hand: {key, name, relation, birthday, notes,
-  # proximity}. Every field is sealed, an empty one included, so the stored row
+  # Add someone written down by hand: {key, name, nickname, relation, birthday,
+  # notes, proximity}. Every field is sealed, an empty one included, so the stored row
   # does not say which of them is known.
   - name: person-create
     process:
@@ -236,6 +236,7 @@ flows:
           name: sealed
           value: >
             {"name": "enc1:" + base64.encode(toAes(has(body.name) ? body.name : "", base64.decode(vars.dataKey))),
+             "nickname": "enc1:" + base64.encode(toAes(has(body.nickname) ? body.nickname : "", base64.decode(vars.dataKey))),
              "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
              "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
              "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
@@ -245,9 +246,9 @@ flows:
         settings:
           connector: db
           query: |
-            INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
+            INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity, nickname)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, name, nickname, relation, birthday, notes, proximity, created_at, updated_at
           args:
             - vars.subject
             - vars.sealed.name
@@ -255,6 +256,7 @@ flows:
             - vars.sealed.birthday
             - vars.sealed.notes
             - vars.sealed.proximity
+            - vars.sealed.nickname
           single: true
 
   # Replace who someone is, every field at once, the way the form submits it.
@@ -269,6 +271,7 @@ flows:
           name: sealed
           value: >
             {"name": "enc1:" + base64.encode(toAes(has(body.name) ? body.name : "", base64.decode(vars.dataKey))),
+             "nickname": "enc1:" + base64.encode(toAes(has(body.nickname) ? body.nickname : "", base64.decode(vars.dataKey))),
              "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
              "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
              "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
@@ -279,9 +282,10 @@ flows:
           connector: db
           query: |
             UPDATE person
-            SET name = $3, relation = $4, birthday = $5, notes = $6, proximity = $7, updated_at = now()
+            SET name = $3, relation = $4, birthday = $5, notes = $6, proximity = $7, nickname = $8,
+                updated_at = now()
             WHERE oidc_subject = $1 AND id::text = lower($2)
-            RETURNING id, name, relation, birthday, notes, proximity, created_at, updated_at
+            RETURNING id, name, nickname, relation, birthday, notes, proximity, created_at, updated_at
           args:
             - vars.subject
             - vars.id
@@ -290,6 +294,7 @@ flows:
             - vars.sealed.birthday
             - vars.sealed.notes
             - vars.sealed.proximity
+            - vars.sealed.nickname
           single: true
       - type: if
         name: check-found
@@ -303,7 +308,7 @@ flows:
 
   # --- the agent's tools -----------------------------------------------------
 
-  # Everyone, or the people whose name or relation holds the query. Matching is
+  # Everyone, or the people whose name, nickname or relation holds the query. Matching is
   # case-insensitive for ASCII letters only; for now an accented capital has to
   # be typed as it was written.
   - name: people-find
@@ -317,7 +322,7 @@ flows:
         name: select-people
         settings:
           connector: db
-          query: SELECT id, name, relation, birthday, proximity FROM person WHERE oidc_subject = $1
+          query: SELECT id, name, nickname, relation, birthday, proximity FROM person WHERE oidc_subject = $1
           args:
             - vars.subject
       - type: set-variable
@@ -328,6 +333,7 @@ flows:
             body.map(r, {
               "id": r.id,
               "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
+              "nickname": r.nickname.startsWith("enc1:") ? string(fromAes(base64.decode(r.nickname.substring(5)), base64.decode(vars.dataKey))) : r.nickname,
               "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
               "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday,
               "proximity": r.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(r.proximity.substring(5)), base64.decode(vars.dataKey))) : r.proximity
@@ -338,10 +344,11 @@ flows:
           value: >
             {"people": vars.opened.filter(p, vars.needle == ""
                 || p.name.lowerAscii().contains(vars.needle)
+                || p.nickname.lowerAscii().contains(vars.needle)
                 || p.relation.lowerAscii().contains(vars.needle))
               .sortBy(p, p.name.lowerAscii())
               .map(p, {
-                "id": p.id, "name": p.name, "relation": p.relation, "birthday": p.birthday,
+                "id": p.id, "name": p.name, "nickname": p.nickname, "relation": p.relation, "birthday": p.birthday,
                 "proximity": p.proximity.matches("^[0-9]+$") ? dyn(int(p.proximity)) : null
               })}
 
@@ -353,7 +360,7 @@ flows:
         settings:
           connector: db
           query: |
-            SELECT id, name, relation, birthday, notes, proximity
+            SELECT id, name, nickname, relation, birthday, notes, proximity
             FROM person
             WHERE oidc_subject = $1 AND id::text = lower($2)
           args:
@@ -394,6 +401,7 @@ flows:
                 value: >
                   {"found": true, "id": vars.person.id,
                    "name": vars.person.name.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.name.substring(5)), base64.decode(vars.dataKey))) : vars.person.name,
+                   "nickname": vars.person.nickname.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.nickname.substring(5)), base64.decode(vars.dataKey))) : vars.person.nickname,
                    "relation": vars.person.relation.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.relation.substring(5)), base64.decode(vars.dataKey))) : vars.person.relation,
                    "birthday": vars.person.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.birthday.substring(5)), base64.decode(vars.dataKey))) : vars.person.birthday,
                    "notes": vars.person.notes.startsWith("enc1:") ? string(fromAes(base64.decode(vars.person.notes.substring(5)), base64.decode(vars.dataKey))) : vars.person.notes,
@@ -437,6 +445,7 @@ flows:
                   name: sealed
                   value: >
                     {"name": has(body.name) ? "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))) : "",
+                     "nickname": has(body.nickname) ? "enc1:" + base64.encode(toAes(body.nickname, base64.decode(vars.dataKey))) : "",
                      "relation": has(body.relation) ? "enc1:" + base64.encode(toAes(body.relation, base64.decode(vars.dataKey))) : "",
                      "birthday": has(body.birthday) ? "enc1:" + base64.encode(toAes(body.birthday, base64.decode(vars.dataKey))) : "",
                      "notes": has(body.notes) ? "enc1:" + base64.encode(toAes(body.notes, base64.decode(vars.dataKey))) : "",
@@ -452,6 +461,7 @@ flows:
                         birthday = CASE WHEN $5 = '' THEN birthday ELSE $5 END,
                         notes    = CASE WHEN $6 = '' THEN notes ELSE $6 END,
                         proximity = CASE WHEN $7 = '' THEN proximity ELSE $7 END,
+                        nickname = CASE WHEN $8 = '' THEN nickname ELSE $8 END,
                         updated_at = now()
                     WHERE oidc_subject = $1 AND id::text = lower($2)
                     RETURNING id, name, proximity
@@ -463,6 +473,7 @@ flows:
                     - vars.sealed.birthday
                     - vars.sealed.notes
                     - vars.sealed.proximity
+                    - vars.sealed.nickname
                   single: true
           - when: '!has(body.name) || body.name.trim() == ""'
             process:
@@ -477,6 +488,7 @@ flows:
                   name: sealed
                   value: >
                     {"name": "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))),
+                     "nickname": "enc1:" + base64.encode(toAes(has(body.nickname) ? body.nickname : "", base64.decode(vars.dataKey))),
                      "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
                      "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
                      "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
@@ -486,8 +498,8 @@ flows:
                 settings:
                   connector: db
                   query: |
-                    INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity)
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity, nickname)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
                     RETURNING id, name, proximity
                   args:
                     - vars.subject
@@ -496,6 +508,7 @@ flows:
                     - vars.sealed.birthday
                     - vars.sealed.notes
                     - vars.sealed.proximity
+                    - vars.sealed.nickname
                   single: true
       # A refusal above already answered; anything else is the row written, or
       # null for an id that named nobody of theirs. Who was saved is named back
@@ -606,7 +619,7 @@ flows:
         name: select-people
         settings:
           connector: db
-          query: SELECT id, name, relation, birthday FROM person WHERE oidc_subject = $1
+          query: SELECT id, name, nickname, relation, birthday FROM person WHERE oidc_subject = $1
           args:
             - vars.subject
       - type: set-variable
@@ -617,6 +630,7 @@ flows:
             body.map(r, {
               "id": r.id,
               "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
+              "nickname": r.nickname.startsWith("enc1:") ? string(fromAes(base64.decode(r.nickname.substring(5)), base64.decode(vars.dataKey))) : r.nickname,
               "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
               "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday
             }).filter(p, p.birthday.matches("^([0-9]{4}-)?[0-9]{2}-[0-9]{2}$"))

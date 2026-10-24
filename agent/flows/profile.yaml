@@ -1,5 +1,6 @@
-# GET /profiles/{subject} -> the stored profile, 404 when there is none.
-# PUT /profiles/{subject} -> insert or replace it, and return what was stored.
+# GET /profiles/{subject}       -> the stored profile, 404 when there is none.
+# PUT /profiles/{subject}       -> insert or replace it, and return what was stored.
+# PUT /profiles/{subject}/facts -> seal and store what they told us about themselves.
 #
 # Persistence only. Nothing here decides whether a config value is meaningful:
 # the caller is trusted to have validated the body, and `subject` is taken from
@@ -41,7 +42,8 @@ flows:
             process:
               # The row is the whole profile, so an update replaces config
               # rather than merging into it. Partial edits are the caller's
-              # problem: it holds the full profile already.
+              # problem: it holds the full profile already. `facts` is not part
+              # of it: this write carries no key, so it leaves them as they are.
               - type: sql
                 name: upsert-profile
                 settings:
@@ -61,3 +63,47 @@ flows:
                     - body.name
                     - toJson(body.config)
                   single: true
+
+  # {key, facts}: the facts object is sealed whole, under the key this request
+  # carried, and the key is kept nowhere. The row comes back with them sealed;
+  # the browser opens them. A profile that does not exist yet is a 404 rather
+  # than a row made here, because only sign-in makes one.
+  - name: profile-facts
+    source:
+      connector: api
+      type: http
+      settings:
+        path: /profiles/{subject}/facts
+        methods: [PUT]
+    process:
+      - type: set-variable
+        name: hold-key
+        settings: { name: dataKey, value: body.key }
+      - type: set-variable
+        name: seal-facts
+        settings:
+          name: sealedFacts
+          value: '"enc1:" + base64.encode(toAes(toJson(has(body.facts) ? body.facts : {}), base64.decode(vars.dataKey)))'
+      - type: sql
+        name: update-facts
+        settings:
+          connector: db
+          query: |
+            UPDATE user_profile
+            SET facts = $2, updated_at = now()
+            WHERE oidc_subject = $1
+            RETURNING *
+          args:
+            - vars.subject
+            - vars.sealedFacts
+          single: true
+      - type: if
+        name: check-found
+        condition: 'body == null'
+        then:
+          process:
+            - type: set-variable
+              settings: { name: httpStatus, value: "404" }
+            - type: set-payload
+              settings:
+                value: '{"error": "profile not found"}'
