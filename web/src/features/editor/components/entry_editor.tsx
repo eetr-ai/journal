@@ -180,7 +180,7 @@ function EditorBody(options: EntryEditorOptions) {
   return (
     <EntryEditorContext value={useContextValue(options, fillSlot)}>
       <div ref={box}>
-        <IconField labels={options.t.editor.icon} />
+        <IconField labels={options.t.editor.icon} locale={options.locale} />
         <TitleField editor={editor} labels={options.t.editor} />
         <SaveButton labels={options.t.editor} onSave={sync.flush} slot={options.toolbar} />
         <SaveTrouble labels={options.t.editor} />

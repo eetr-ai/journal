@@ -6,7 +6,10 @@ const editor = {
     add: "Add icon",
     change: "Change the icon",
     choose: "Choose an icon",
-    paste: "Or paste any emoji",
+    search: "Search for an emoji",
+    loading: "Loading emoji...",
+    none: "No emoji by that name.",
+    skinTone: "Change the skin tone",
     remove: "Remove the icon",
   },
   placeholder:
