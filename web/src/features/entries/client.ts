@@ -145,6 +145,7 @@ export const entriesClient = {
       key,
       title: save.title,
       content: save.content,
+      icon: save.icon,
       date: save.date,
       version: save.version,
     };

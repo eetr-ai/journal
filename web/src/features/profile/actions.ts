@@ -7,11 +7,15 @@ import { clampTodayWidth } from "./types";
 import type { ProfileDraft } from "./rules";
 
 /**
- * Store a submitted profile and mirror the two settings the first paint needs
+ * Store a submitted profile, with its facts when `factsKey` says they changed,
+ * and mirror the two settings the first paint needs
  * into cookies, which the layout can read before any session is resolved.
  */
-export async function saveProfileAction(draft: ProfileDraft): Promise<SaveOutcome> {
-  const outcome = await saveProfile(draft);
+export async function saveProfileAction(
+  draft: ProfileDraft,
+  factsKey?: string,
+): Promise<SaveOutcome> {
+  const outcome = await saveProfile(draft, factsKey);
 
   if (outcome.status !== "saved") {
     return outcome;

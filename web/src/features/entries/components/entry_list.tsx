@@ -7,7 +7,7 @@ import JournalBar from "./journal_bar";
 import { useEntries } from "../entries_state";
 import { useShowEntry } from "../use_show_entry";
 import { shortDayIn } from "../days";
-import type { Entry } from "../types";
+import { isDraft, type Entry } from "../types";
 import type { Dictionary } from "@/i18n/en";
 import type { Locale } from "@/i18n/config";
 
@@ -32,7 +32,9 @@ export default function EntryList(options: EntryListOptions) {
   const show = useShowEntry();
   const [keptOnly, setKeptOnly] = useState(false);
   const showing = state.showing ?? state.entries.find((e) => e.date === state.today)?.id;
-  const shown = keptOnly ? state.entries.filter((entry) => entry.bookmarked) : state.entries;
+  // A page nobody has written on is not a day in the journal yet.
+  const written = state.entries.filter((entry) => !isDraft(entry));
+  const shown = keptOnly ? written.filter((entry) => entry.bookmarked) : written;
 
   if (shown.length === 0) {
     return (
@@ -55,11 +57,8 @@ export default function EntryList(options: EntryListOptions) {
               label={options.t.entries.open}
               locale={options.locale}
               onShow={() => show(entry)}
-              title={
-                // `||` not `??`: a draft opens to an empty title, which is a
-                // title nobody can read rather than one that has not arrived.
-                state.opened[entry.id]?.title || options.t.entries.untitled
-              }
+              icon={state.opened[entry.id]?.icon ?? ""}
+              title={state.opened[entry.id]?.title || options.t.entries.untitled}
             />
           </li>
         ))}
@@ -92,6 +91,7 @@ function Section(options: SectionOptions) {
 
 interface RowOptions {
   entry: Entry;
+  icon: string;
   title: string;
   label: string;
   locale: Locale;
@@ -116,6 +116,7 @@ function Row(options: RowOptions) {
             <BookmarkSimpleIcon size={ICON_SIZE} weight="fill" />
           </span>
         )}
+        {options.icon && <span className="shrink-0">{options.icon}</span>}
         <span className="truncate">{options.title}</span>
       </p>
       <p className="text-xs text-muted">{shortDayIn(options.entry.date, options.locale)}</p>

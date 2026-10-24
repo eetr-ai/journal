@@ -30,7 +30,12 @@ export default function SettingsForm(options: SettingsFormOptions) {
       reducer={settingsReducer}
       stateContext={SettingsStateContext}
     >
-      <SettingsBody locale={options.locale} t={options.t} />
+      <SettingsBody
+        facts={options.profile.facts}
+        locale={options.locale}
+        subject={options.profile.subject}
+        t={options.t}
+      />
     </SimpleProvider>
   );
 }

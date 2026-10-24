@@ -15,6 +15,8 @@ export interface SettingsState {
   stored: ProfileDraft;
   issues: ProfileIssues;
   status: "idle" | "saving" | "saved" | "failed";
+  /** The sealed facts: being opened, opened into the draft, or not openable here. */
+  facts: "opening" | "open" | "sealed";
 }
 
 export enum SettingsActionType {
@@ -23,6 +25,8 @@ export enum SettingsActionType {
   Stored = "stored",
   Rejected = "rejected",
   Failed = "failed",
+  FactsOpened = "factsOpened",
+  FactsSealed = "factsSealed",
 }
 
 export type SettingsAction = ReducerAction<SettingsActionType>;
@@ -33,7 +37,7 @@ export interface EditData {
 }
 
 export function initialSettingsState(draft: ProfileDraft): SettingsState {
-  return { draft, stored: draft, issues: {}, status: "idle" };
+  return { draft, stored: draft, issues: {}, status: "idle", facts: "opening" };
 }
 
 export function settingsReducer(state: SettingsState, action: SettingsAction): SettingsState {
@@ -55,7 +59,7 @@ export function settingsReducer(state: SettingsState, action: SettingsAction): S
     case SettingsActionType.Stored: {
       const stored = action.data as ProfileDraft;
 
-      return { draft: stored, stored, issues: {}, status: "saved" };
+      return { ...state, draft: stored, stored, issues: {}, status: "saved" };
     }
 
     case SettingsActionType.Rejected:
@@ -63,6 +67,22 @@ export function settingsReducer(state: SettingsState, action: SettingsAction): S
 
     case SettingsActionType.Failed:
       return { ...state, status: "failed" };
+
+    // Opened after the form was already showing, so it counts as stored rather
+    // than as an edit.
+    case SettingsActionType.FactsOpened: {
+      const birthday = action.data as string;
+
+      return {
+        ...state,
+        draft: { ...state.draft, birthday },
+        stored: { ...state.stored, birthday },
+        facts: "open",
+      };
+    }
+
+    case SettingsActionType.FactsSealed:
+      return { ...state, facts: "sealed" };
 
     default:
       return state;

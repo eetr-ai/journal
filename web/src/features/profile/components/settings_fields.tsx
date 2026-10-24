@@ -47,6 +47,26 @@ function Identity(options: SettingsFieldsOptions) {
   );
 }
 
+// Sealed, so it can be edited only once this browser has opened it.
+function AboutYou(options: SettingsFieldsOptions) {
+  const { state } = useSettings();
+  const error = useFieldError(options.t);
+  const t = options.t;
+
+  return (
+    <SettingsSection title={t.profile.aboutYou}>
+      <TextField
+        disabled={state.facts !== "open"}
+        error={error("birthday")}
+        field="birthday"
+        hint={state.facts === "sealed" ? t.profile.birthdaySealed : t.profile.birthdayHint}
+        label={t.profile.birthday}
+        type="date"
+      />
+    </SettingsSection>
+  );
+}
+
 function Preferences(options: SettingsFieldsOptions) {
   const { state } = useSettings();
   const error = useFieldError(options.t);
@@ -119,6 +139,7 @@ export default function SettingsFields(options: SettingsFieldsOptions) {
   return (
     <>
       <Identity t={options.t} />
+      <AboutYou t={options.t} />
       <Preferences t={options.t} />
       <Appearance t={options.t} />
     </>

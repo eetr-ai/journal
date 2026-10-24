@@ -118,12 +118,7 @@ function Nothing(options: NothingOptions) {
       </div>
       {options.unavailable ? null : (
         <>
-          <BirthdaysLanding
-            locale={options.locale}
-            subject={options.subject}
-            t={options.t}
-            timezone={options.timezone}
-          />
+          <BirthdaysLanding locale={options.locale} t={options.t} timezone={options.timezone} />
           <MemoryLanding locale={options.locale} t={options.t} />
         </>
       )}

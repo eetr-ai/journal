@@ -76,7 +76,8 @@ function Hit(options: HitOptions) {
   const { state } = useEntries();
   const search = useSearch();
   const show = useShowEntry();
-  const title = state.opened[options.hit.entry.id]?.title ?? options.t.entries.opening;
+  const opened = state.opened[options.hit.entry.id];
+  const title = opened ? `${opened.icon} ${opened.title}`.trim() : options.t.entries.opening;
 
   // Picking one is done asking. The entry comes up where this is, so leaving
   // the list over it would hide the thing that was just asked for.

@@ -58,6 +58,41 @@ function useModal(
   }, [open, dialog, field]);
 }
 
+/**
+ * A press on the dimmed page closes the box, as Escape does. The backdrop is
+ * part of the dialog element, so a click on it lands on the dialog itself;
+ * everything inside lands on the form, which is why the padding lives there.
+ */
+function useBackdropClose(
+  dialog: React.RefObject<HTMLDialogElement | null>,
+  open: boolean,
+  onClose: () => void,
+) {
+  const latest = useRef(onClose);
+
+  useEffect(() => {
+    latest.current = onClose;
+  });
+
+  useEffect(() => {
+    const element = dialog.current;
+
+    if (!open || !element) {
+      return;
+    }
+
+    function clicked(event: MouseEvent) {
+      if (event.target === element) {
+        latest.current();
+      }
+    }
+
+    element.addEventListener("click", clicked);
+
+    return () => element.removeEventListener("click", clicked);
+  }, [dialog, open]);
+}
+
 export default function SearchDialog(options: SearchDialogOptions) {
   const { state, dispatch } = useShell();
   const ask = useAsking(options.locale, options.subject);
@@ -66,15 +101,16 @@ export default function SearchDialog(options: SearchDialogOptions) {
   const field = useRef<HTMLInputElement>(null);
   const t = options.t.entries.search;
 
-  useModal(ref, field, state.searching);
-
-  if (!state.searching) {
-    return null;
-  }
-
   function close() {
     setQuery("");
     dispatch({ type: ShellActionType.SearchClosed });
+  }
+
+  useModal(ref, field, state.searching);
+  useBackdropClose(ref, state.searching, close);
+
+  if (!state.searching) {
+    return null;
   }
 
   function submit(event: React.FormEvent) {
@@ -93,14 +129,14 @@ export default function SearchDialog(options: SearchDialogOptions) {
   return (
     <dialog
       aria-label={t.open}
-      className="m-0 w-full max-w-lg rounded-xl border border-border bg-surface p-2 text-foreground shadow-2xl backdrop:bg-black/40 mx-auto mt-[15vh]"
+      className="m-0 w-full max-w-lg rounded-xl border border-border bg-surface text-foreground shadow-2xl backdrop:bg-black/40 mx-auto mt-[15vh]"
       onCancel={(event) => {
         event.preventDefault();
         close();
       }}
       ref={ref}
     >
-      <form onSubmit={submit}>
+      <form className="p-2" onSubmit={submit}>
         <div className="flex items-center gap-2 px-2">
           <span className="shrink-0 text-muted">
             <MagnifyingGlassIcon size={ICON_SIZE} />

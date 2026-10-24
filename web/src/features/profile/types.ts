@@ -31,6 +31,14 @@ export interface ProfileConfig {
   todayWidth: number;
 }
 
+/** What a person told us about themselves, once opened. Empty is not told. */
+export interface ProfileFacts {
+  /** YYYY-MM-DD. */
+  birthday: string;
+}
+
+export const noFacts: ProfileFacts = { birthday: "" };
+
 /** A person, as the rest of the app thinks about one. */
 export interface Profile {
   id: string;
@@ -38,6 +46,8 @@ export interface Profile {
   email: string;
   name: string;
   config: ProfileConfig;
+  /** Sealed; only a browser holding the key opens it. Empty when nothing was told. */
+  facts: string;
 }
 
 /**
@@ -50,6 +60,7 @@ export interface ProfileEntity {
   email: string;
   name: string;
   config: string;
+  facts?: string;
   created_at: string;
   updated_at: string;
 }
@@ -126,5 +137,21 @@ export function profileFromEntity(entity: ProfileEntity): Profile {
     email: entity.email,
     name: entity.name,
     config: configFromJson(entity.config),
+    facts: entity.facts ?? "",
   };
+}
+
+/** Opened facts back into their shape. Total, like `configFromJson`. */
+export function factsFromJson(raw: string): ProfileFacts {
+  try {
+    const value: unknown = JSON.parse(raw);
+
+    if (value !== null && typeof value === "object") {
+      return { birthday: text((value as Record<string, unknown>).birthday, noFacts.birthday) };
+    }
+  } catch {
+    // Facts that do not parse are facts nobody can use; they read as untold.
+  }
+
+  return noFacts;
 }

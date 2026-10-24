@@ -24,6 +24,8 @@
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
     "@tiptap/suggestion": "^3.32.0",
+    "emojibase-data": "^18.0.0",
+    "frimousse": "^0.4.0",
     "hash-wasm": "^4.12.0",
     "next": "16.3.5",
     "next-auth": "^5.0.0-beta.32",

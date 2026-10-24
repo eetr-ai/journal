@@ -21,6 +21,8 @@ async function openOne(entry: Entry, key: string, unreadable: string): Promise<O
   return {
     title: (await openSealed(entry.title, key)) ?? unreadable,
     content: (await openSealed(entry.content, key)) ?? unreadable,
+    // An icon that will not open is no icon, rather than words standing in for one.
+    icon: (await openSealed(entry.icon, key)) ?? "",
   };
 }
 

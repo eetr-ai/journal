@@ -59,6 +59,8 @@ const widgets: WidgetsDictionary = {
     tomorrow: "Mañana",
     inDays: "En {days} días",
     turns: "cumple {age}",
+    youTurn: "cumplís {age}",
+    you: "Vos",
     talk: "Planear algo",
     everyone: "Ver a todos",
   },

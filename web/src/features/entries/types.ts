@@ -20,6 +20,8 @@ export interface Entry {
   title: string;
   /** Sealed. */
   content: string;
+  /** Sealed; empty when it has none. */
+  icon: string;
   /** Kept by hand. In the clear, like the day it was written on. */
   bookmarked: boolean;
   /** Moves by one with every write of the words; 0 until the first. */
@@ -32,6 +34,8 @@ export interface Entry {
 export interface OpenedEntry {
   title: string;
   content: string;
+  /** One emoji, or empty. */
+  icon: string;
 }
 
 export interface EntryEntity {
@@ -40,6 +44,8 @@ export interface EntryEntity {
   entry_date: string;
   title: string;
   content: string;
+  /** Absent from an agent that predates icons. */
+  icon?: string;
   bookmarked: boolean;
   version: number;
   created_at: string;
@@ -60,6 +66,7 @@ export function entryFromEntity(entity: EntryEntity): Entry {
     date: entity.entry_date.slice(0, DAY_CHARS),
     title: entity.title,
     content: entity.content,
+    icon: entity.icon ?? "",
     bookmarked: entity.bookmarked,
     version: entity.version,
     createdAt: entity.created_at,
@@ -138,6 +145,7 @@ export function draftEntry(date: string): Entry {
     date,
     title: "",
     content: "",
+    icon: "",
     bookmarked: false,
     version: 0,
     createdAt: at,
@@ -150,6 +158,7 @@ export interface EntrySaveEntity {
   key: string;
   title: string;
   content: string;
+  icon: string;
   date: string;
   version: number;
 }

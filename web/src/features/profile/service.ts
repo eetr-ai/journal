@@ -2,7 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { auth } from "@/auth";
 import { requestLocale } from "@/i18n/server";
-import { profileClient } from "./client";
+import { isAgentKey } from "@/features/vault/rules";
+import { profileClient, type FactsWrite } from "./client";
 import { configFromDraft, validateProfile, type ProfileDraft, type ProfileIssues } from "./rules";
 import { defaultConfig, type Profile, type ProfileConfig } from "./types";
 
@@ -96,11 +97,16 @@ export type SaveOutcome =
   | { status: "invalid"; issues: ProfileIssues }
   | { status: "failed" };
 
-/** Validate a submitted draft and store it against the session's subject. */
-export async function saveProfile(draft: ProfileDraft): Promise<SaveOutcome> {
+/**
+ * Validate a submitted draft and store it against the session's subject.
+ *
+ * `factsKey` comes only when the birthday changed: the facts are sealed whole,
+ * so they are written with the key or not at all.
+ */
+export async function saveProfile(draft: ProfileDraft, factsKey?: string): Promise<SaveOutcome> {
   const current = await currentProfile();
 
-  if (!current) {
+  if (!current || (factsKey !== undefined && !isAgentKey(factsKey))) {
     return { status: "failed" };
   }
 
@@ -117,7 +123,13 @@ export async function saveProfile(draft: ProfileDraft): Promise<SaveOutcome> {
       config: configFromDraft(draft, current.config),
     });
 
-    return { status: "saved", profile };
+    if (factsKey === undefined) {
+      return { status: "saved", profile };
+    }
+
+    const facts: FactsWrite = { key: factsKey, facts: { birthday: draft.birthday } };
+
+    return { status: "saved", profile: await profileClient.saveFacts(current.subject, facts) };
   } catch {
     // The agent was unreachable or refused the write. The form says so and the
     // person can try again; there is nothing to recover here.

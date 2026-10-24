@@ -56,6 +56,7 @@ export enum EntriesActionType {
   Restored = "restored",
   DaysArrived = "daysArrived",
   Drafted = "drafted",
+  TodayDrafted = "todayDrafted",
   Kept = "kept",
   Saved = "saved",
   Pictured = "pictured",
@@ -236,6 +237,18 @@ const handlers: Record<
     return { ...arrived(state, draft), days: state.days, showing: draft.id };
   },
 
+  // Today's page, ready to be written on before anything has been. Like a
+  // draft, but the panel stays on "today" rather than on its id: there is no row
+  // for an address to name, and today's entry is still whatever is newest.
+  //
+  // It carries no time, so it sorts behind every written entry: one that turns
+  // up for today later — a search hit, a widget's read — is what today shows.
+  [EntriesActionType.TodayDrafted]: (state, action) => {
+    const draft = { ...(action.data as Entry), createdAt: "", updatedAt: "" };
+
+    return { ...arrived(state, draft), days: state.days };
+  },
+
   // Flipped where it stands, keeping whatever the key has already made of it —
   // an `Arrived` would drop the opened copy and blank the row while it was
   // decrypted again, for a change that touched no words at all.
@@ -282,8 +295,8 @@ export function useEntries() {
 
 /**
  * What the panel is looking at: what was opened, or else the newest thing
- * written today. A day nobody has written on yet shows nothing, which is the
- * honest answer — the agent fills it in as they talk.
+ * written today. A day nobody has written on yet shows nothing until today's
+ * draft is put there.
  */
 export function entryShowing(state: EntriesUiState): Entry | null {
   if (state.showing) {
@@ -291,4 +304,9 @@ export function entryShowing(state: EntriesUiState): Entry | null {
   }
 
   return state.entries.find((entry) => entry.date === state.today) ?? null;
+}
+
+/** Whether today has nothing to show, so a page has to be put out for it. */
+export function needsTodayDraft(state: EntriesUiState): boolean {
+  return state.showing === null && !state.entries.some((entry) => entry.date === state.today);
 }

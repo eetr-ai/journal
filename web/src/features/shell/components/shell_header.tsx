@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import LayoutSwitch from "./layout_switch";
+import NewEntryButton from "@/features/entries/components/new_entry_button";
 import PanelToggle from "./panel_toggle";
 import SearchButton from "./search_button";
 import UserMenu from "./user_menu";
@@ -33,6 +34,7 @@ export default function ShellHeader(options: ShellHeaderOptions) {
 
       <div className="flex-1" />
 
+      <NewEntryButton t={options.t} />
       <SearchButton t={options.t} />
 
       {/* Shown where the toggle beside it is not: one is for columns, the other

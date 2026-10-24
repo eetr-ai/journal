@@ -23,6 +23,9 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
   // push the panel past the box holding it and paint over the conversation.
   return (
     <aside className="flex min-h-0 w-full min-w-0 flex-1 flex-col divide-y divide-border border-r border-border bg-surface">
+      {/* The journal first: it is what the drawer is for, and the chats that
+          wrote it come second. */}
+      <EntryList locale={options.locale} subject={options.subject} t={options.t} />
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-2 px-4 py-3">
           <span className="shrink-0 text-muted">
@@ -48,7 +51,6 @@ export default function LeftDrawer(options: LeftDrawerOptions) {
           timezone={options.timezone}
         />
       </section>
-      <EntryList locale={options.locale} subject={options.subject} t={options.t} />
     </aside>
   );
 }

@@ -23,7 +23,12 @@ export function useIncoming(entry: Entry, opened: OpenedEntry | undefined): void
 
     dispatch({
       type: EditorActionType.Arrived,
-      data: { title: opened.title, markdown: opened.content, version: entry.version },
+      data: {
+        title: opened.title,
+        markdown: opened.content,
+        icon: opened.icon,
+        version: entry.version,
+      },
     });
   }, [dispatch, entry.version, held, opened]);
 }

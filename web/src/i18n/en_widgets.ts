@@ -55,6 +55,8 @@ const widgets = {
     tomorrow: "Tomorrow",
     inDays: "In {days} days",
     turns: "turns {age}",
+    youTurn: "you turn {age}",
+    you: "You",
     talk: "Plan something",
     everyone: "See everyone",
   },

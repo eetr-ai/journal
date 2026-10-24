@@ -1,56 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAgentKey } from "@/features/chat/use_agent_key";
+import { useMemo } from "react";
 import { momentFor } from "@/features/chat/now";
-import { peopleAction } from "@/features/people/actions";
+import { useBirthdays } from "@/features/people/birthdays_provider";
 import { upcoming, type Upcoming } from "@/features/people/birthdays";
-import { openForBirthdays } from "@/features/people/open_birthdays";
 
 // Two weeks: near enough to act on, far enough to still have time to.
 const WITHIN_DAYS = 14;
 const MOST_SHOWN = 5;
 
+/** Who the reader's own birthday is listed as, beside their people. */
+export const OWN_BIRTHDAY_ID = "own";
+
 /**
- * The birthdays coming up among the reader's people, opened under the key in
- * this browser, counted from their today in their zone.
- *
- * Fetched once the key is there. Empty while nothing is known, and for good
- * when the vault is locked or the people could not be fetched.
+ * The birthdays coming up among the reader's people, their own included,
+ * counted from their today in their zone. Empty while nothing is known.
  */
-export function useUpcomingBirthdays(subject: string, timezone: string): Upcoming[] {
-  const key = useAgentKey(subject);
-  const [ret, setRet] = useState<Upcoming[]>([]);
+export function useUpcomingBirthdays(timezone: string, you: string): Upcoming[] {
+  const { people, own } = useBirthdays();
 
-  useEffect(() => {
-    if (!key) {
-      return;
-    }
+  return useMemo(() => {
+    const everyone = own
+      ? [...people, { id: OWN_BIRTHDAY_ID, person: { name: you, relation: "", birthday: own } }]
+      : people;
 
-    let abandoned = false;
-
-    async function load(agentKey: string) {
-      // A server action that could not be reached rejects rather than answering.
-      const sealed = await peopleAction().catch(() => null);
-
-      if (!sealed || abandoned) {
-        return;
-      }
-
-      const readable = await openForBirthdays(sealed, agentKey);
-      const today = momentFor(timezone).date;
-
-      if (!abandoned) {
-        setRet(upcoming(readable, today, WITHIN_DAYS).slice(0, MOST_SHOWN));
-      }
-    }
-
-    void load(key);
-
-    return () => {
-      abandoned = true;
-    };
-  }, [key, timezone]);
-
-  return ret;
+    return upcoming(everyone, momentFor(timezone).date, WITHIN_DAYS).slice(0, MOST_SHOWN);
+  }, [people, own, timezone, you]);
 }
