@@ -215,11 +215,13 @@ function Star(options: StarOptions) {
         />
       ) : null}
       <StarName
+        extent={drawn.layout.extent}
         name={nameOf(constellation, person, t)}
         note={large ? who.note : ""}
         px={px}
         small={!large}
         strong={who.me || constellation.focus === person}
+        x={at[person].x}
         y={radius * HALO + LABEL_PX * px * SMALL_TEXT}
       />
     </g>

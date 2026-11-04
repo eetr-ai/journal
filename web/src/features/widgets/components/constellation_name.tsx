@@ -4,6 +4,19 @@ import { LABEL_PX, SMALL_TEXT, TEXT_HALO } from "./constellation_style";
 
 // The note's baseline below the name's, in lines of the name's size.
 const NOTE_LINE = 1.2;
+// Past this share of the picture's half-width from the centre, a label reads
+// inward from its star instead of centring on it, so it stays inside the frame.
+const EDGE_SHARE = 0.4;
+
+type Anchor = "start" | "middle" | "end";
+
+function anchorAt(x: number, extent: number): Anchor {
+  if (x > extent * EDGE_SHARE) {
+    return "end";
+  }
+
+  return x < -extent * EDGE_SHARE ? "start" : "middle";
+}
 
 export interface StarNameOptions {
   name: string;
@@ -16,6 +29,9 @@ export interface StarNameOptions {
   px: number;
   /** The name's baseline, below the star's centre. */
   y: number;
+  /** Where the star sits across the picture, and the picture's half-width. */
+  x: number;
+  extent: number;
 }
 
 /** A person's name under their star, and beneath it, smaller, why they are here. */
@@ -28,7 +44,7 @@ export default function StarName(options: StarNameOptions) {
       fontSize={size}
       paintOrder="stroke"
       strokeWidth={size * TEXT_HALO}
-      textAnchor="middle"
+      textAnchor={anchorAt(options.x, options.extent)}
       y={options.y}
     >
       {options.name}

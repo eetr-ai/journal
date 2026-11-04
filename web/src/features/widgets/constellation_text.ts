@@ -27,7 +27,12 @@ export function scaleOf(constellation: Constellation, t: Words): string {
 }
 
 function closenessOf(constellation: Constellation, at: number, t: Words): string {
-  const { near } = constellation.people[at];
+  const { near, me } = constellation.people[at];
+
+  // The reader is the centre, on no ring.
+  if (me) {
+    return "";
+  }
 
   if (constellation.rings.length > 0) {
     return ringName(constellation, near === null ? NEAREST : NEAREST - near, t);
