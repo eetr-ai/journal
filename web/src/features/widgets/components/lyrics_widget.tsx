@@ -12,6 +12,8 @@ export interface LyricsWidgetOptions {
   t: Dictionary;
   /** In an entry the words are already kept, so there is nothing to add them to. */
   place?: Place;
+  /** Still streaming, so not yet whole enough to add. */
+  live?: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
             {adding ? (
               <AddButton
                 added={t.added}
+                live={options.live ?? false}
                 label={t.add}
                 sent={t.sent}
                 source={lyricsDirective(lyrics)}

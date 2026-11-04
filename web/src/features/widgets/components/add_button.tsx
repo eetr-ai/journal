@@ -10,6 +10,8 @@ export interface AddButtonOptions {
   tap: Tap;
   /** The card as the entry keeps it, or null when it cannot be kept. */
   source: string | null;
+  /** The card is still streaming; adding now would keep half of it. */
+  live: boolean;
   label: string;
   /** Shown once the card is in the entry. */
   added: string;
@@ -43,7 +45,12 @@ export default function AddButton(options: AddButtonOptions) {
   };
 
   return (
-    <button className={WIDGET_PRIMARY} disabled={done !== null} onClick={add} type="button">
+    <button
+      className={WIDGET_PRIMARY}
+      disabled={done !== null || options.live}
+      onClick={add}
+      type="button"
+    >
       {done === null ? options.label : options[done]}
     </button>
   );

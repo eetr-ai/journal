@@ -69,7 +69,11 @@ export function useInsertTarget(editor: Editor | null): void {
     return inserts.register((source) => {
       editor
         .chain()
-        .insertContentAt(editor.state.doc.content.size, { type: VERBATIM, attrs: { source } })
+        .insertContentAt(
+          editor.state.doc.content.size,
+          { type: VERBATIM, attrs: { source } },
+          { updateSelection: false },
+        )
         .run();
     });
   }, [editor, inserts]);
