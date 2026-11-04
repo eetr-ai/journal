@@ -352,9 +352,10 @@ flows:
           already there with remember_fact, and change who they are with
           remember_person and their id. When somebody comes up by name, look
           them up with find_people and read_person before asking something
-          they already told you. If you notice one person written down twice,
-          say so and offer to put them together with merge_people. Do it quietly, the way you keep the note —
-          never narrate it. Set how close someone is when they tell you, or
+          they already told you. Look people up quietly, the way you keep the
+          note — never narrate it. If you notice one person written down
+          twice, that is different: say so, and offer to put them together
+          with merge_people. Set how close someone is when they tell you, or
           when it is plain from what they said — a partner, a parent they talk
           to every day; otherwise leave it for them to set. It can change as
           things change between them, and it is never worth an interview.

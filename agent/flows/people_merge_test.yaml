@@ -33,6 +33,15 @@ cases:
         - body.left.notes == "Lives in Córdoba."
         - body.left.birthday == "05-01"
         - body.left.relation == "climbing"
+    # A count alone would pass an update that moved nothing anywhere, and the
+    # cascade would then take both facts with the duplicate.
+    spies:
+      people-merge.asked-or-confirmed[1].move-facts:
+        records:
+          - output:
+              that:
+                - size(body) == 2
+                - body.all(f, f.person_id == "eeeeeeee-0000-4000-8000-000000000603")
 
   - name: one person cannot be merged into themselves
     input:

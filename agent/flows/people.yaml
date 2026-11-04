@@ -861,7 +861,7 @@ flows:
                     FROM person k
                     WHERE k.oidc_subject = $1 AND k.id::text = lower($2)
                       AND f.oidc_subject = $1 AND f.person_id::text = lower($3)
-                    RETURNING f.id
+                    RETURNING f.id, f.person_id
                   args:
                     - vars.subject
                     - body.keepId
