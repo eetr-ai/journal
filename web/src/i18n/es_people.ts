@@ -12,6 +12,12 @@ const people: PeopleDictionary = {
   add: "Agregar a alguien",
   search: "Buscar por nombre, apodo o quién es",
   noMatch: "Nadie coincide con eso.",
+  sortBy: "Ordenar por",
+  orders: {
+    birthday: "Próximo cumpleaños",
+    name: "Nombre",
+    closeness: "Más cercanos primero",
+  },
   page: "{from}–{to} de {total}",
   previousPage: "Anteriores",
   nextPage: "Siguientes",
