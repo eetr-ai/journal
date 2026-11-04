@@ -113,6 +113,16 @@ const tools: ToolDictionary = {
     done: "Lo dejé ir",
     failed: "No pude dejarlo ir",
   },
+  forget_person: {
+    running: "Repasando tu gente...",
+    done: "Repasé tu gente",
+    failed: "No pude repasar tu gente",
+  },
+  merge_people: {
+    running: "Repasando quién es quién...",
+    done: "Repasé quién es quién",
+    failed: "No pude repasar quién es quién",
+  },
   upcoming_birthdays: {
     running: "Mirando si hay cumpleaños...",
     done: "Miré si hay cumpleaños",

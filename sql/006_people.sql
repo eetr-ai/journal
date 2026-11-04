@@ -18,8 +18,8 @@
 --
 -- The trade we accepted: nothing can be looked up by value, so every lookup
 -- opens all of a person's rows in the flow — a circle is tens to hundreds of
--- rows, not thousands. And there is no embedding of anyone, on purpose: a
--- person is found by name, not by meaning.
+-- rows, not thousands. And no embedding of anyone is stored, on purpose: a
+-- search by meaning embeds the opened rows in the run and keeps nothing.
 
 CREATE TABLE IF NOT EXISTS person (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

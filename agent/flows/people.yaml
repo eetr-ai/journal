@@ -308,21 +308,47 @@ flows:
 
   # --- the agent's tools -----------------------------------------------------
 
-  # Everyone, or the people whose name, nickname or relation holds the query. Matching is
-  # case-insensitive for ASCII letters only; for now an accented capital has to
-  # be typed as it was written.
+  # Everyone, or the people a query finds, and the ones it is closest to in
+  # meaning.
+  #
+  # Without a query this is the roster: enough about each person — relation,
+  # notes, how many facts — to tell two of them apart without reading either.
+  # With one, a person matches when every word of it is somewhere in their name,
+  # nickname, relation, notes or facts, ignoring case and accents; for now only
+  # the accents of Spanish and Portuguese are folded.
+  #
+  # By meaning: the query, a line per person, their notes and every fact are
+  # embedded together in this run and ranked by cosine. No vector outlives the
+  # run, so nothing about anyone is embedded at rest; the price is one embedding
+  # call over the whole circle per search. Best effort: when it fails the word
+  # matches still answer and `related` is empty.
   - name: people-find
     process:
       - type: set-variable
-        name: hold-needle
+        name: hold-query
         settings:
-          name: needle
-          value: 'has(body.query) ? body.query.trim().lowerAscii() : ""'
+          name: query
+          value: 'has(body.query) ? body.query.trim() : ""'
+      - type: set-variable
+        name: fold-query
+        settings:
+          name: words
+          value: >
+            vars.query.lowerAscii().replace("á", "a").replace("à", "a").replace("â", "a").replace("ã", "a").replace("ä", "a").replace("é", "e").replace("è", "e").replace("ê", "e").replace("ë", "e").replace("í", "i").replace("ì", "i").replace("ï", "i").replace("ó", "o").replace("ò", "o").replace("ô", "o").replace("õ", "o").replace("ö", "o").replace("ú", "u").replace("ù", "u").replace("ü", "u").replace("ñ", "n").replace("ç", "c").replace("Á", "a").replace("À", "a").replace("Â", "a").replace("Ã", "a").replace("Ä", "a").replace("É", "e").replace("È", "e").replace("Ê", "e").replace("Ë", "e").replace("Í", "i").replace("Ì", "i").replace("Ï", "i").replace("Ó", "o").replace("Ò", "o").replace("Ô", "o").replace("Õ", "o").replace("Ö", "o").replace("Ú", "u").replace("Ù", "u").replace("Ü", "u").replace("Ñ", "n").replace("Ç", "c")
+              .split(" ").filter(w, w != "")
       - type: sql
         name: select-people
         settings:
           connector: db
-          query: SELECT id, name, nickname, relation, birthday, proximity FROM person WHERE oidc_subject = $1
+          # Facts arrive joined on the unit separator, which sealed text — base64
+          # behind `enc1:` — never holds; the sql step returns no lists.
+          query: |
+            SELECT p.id, p.name, p.nickname, p.relation, p.birthday, p.notes, p.proximity,
+                   coalesce(string_agg(f.fact, chr(31) ORDER BY f.created_at), '') AS facts
+            FROM person p
+            LEFT JOIN person_fact f ON f.person_id = p.id AND f.oidc_subject = p.oidc_subject
+            WHERE p.oidc_subject = $1
+            GROUP BY p.id
           args:
             - vars.subject
       - type: set-variable
@@ -336,21 +362,106 @@ flows:
               "nickname": r.nickname.startsWith("enc1:") ? string(fromAes(base64.decode(r.nickname.substring(5)), base64.decode(vars.dataKey))) : r.nickname,
               "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
               "birthday": r.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(r.birthday.substring(5)), base64.decode(vars.dataKey))) : r.birthday,
-              "proximity": r.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(r.proximity.substring(5)), base64.decode(vars.dataKey))) : r.proximity
-            })
+              "notes": r.notes.startsWith("enc1:") ? string(fromAes(base64.decode(r.notes.substring(5)), base64.decode(vars.dataKey))) : r.notes,
+              "proximity": r.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(r.proximity.substring(5)), base64.decode(vars.dataKey))) : r.proximity,
+              "facts": r.facts.split("\u001f").filter(f, f != "").map(f, f.startsWith("enc1:") ? string(fromAes(base64.decode(f.substring(5)), base64.decode(vars.dataKey))) : f)
+            }).sortBy(p, p.name.lowerAscii())
+      # Index for index with vars.opened.
+      - type: set-variable
+        name: fold-people
+        settings:
+          name: folded
+          value: >
+            vars.opened.map(p, (p.name + " " + p.nickname + " " + p.relation + " " + p.notes + " " + p.facts.join(" ")).lowerAscii()
+              .replace("á", "a").replace("à", "a").replace("â", "a").replace("ã", "a").replace("ä", "a").replace("é", "e").replace("è", "e").replace("ê", "e").replace("ë", "e").replace("í", "i").replace("ì", "i").replace("ï", "i").replace("ó", "o").replace("ò", "o").replace("ô", "o").replace("õ", "o").replace("ö", "o").replace("ú", "u").replace("ù", "u").replace("ü", "u").replace("ñ", "n").replace("ç", "c").replace("Á", "a").replace("À", "a").replace("Â", "a").replace("Ã", "a").replace("Ä", "a").replace("É", "e").replace("È", "e").replace("Ê", "e").replace("Ë", "e").replace("Í", "i").replace("Ì", "i").replace("Ï", "i").replace("Ó", "o").replace("Ò", "o").replace("Ô", "o").replace("Õ", "o").replace("Ö", "o").replace("Ú", "u").replace("Ù", "u").replace("Ü", "u").replace("Ñ", "n").replace("Ç", "c"))
+      # Set first, so every path where nothing is ranked needs no branch.
+      - type: set-variable
+        name: nothing-related
+        settings: { name: related, value: '[]' }
+      - type: if
+        name: by-meaning
+        condition: 'size(vars.words) > 0 && size(vars.opened) > 0'
+        then:
+          process:
+            # What is embedded: a line saying who each person is, their notes,
+            # and each fact, every one tagged with whose it is.
+            - type: set-variable
+              name: build-corpus
+              settings:
+                name: corpus
+                value: >
+                  vars.opened.map(p, [{"id": p.id, "text": p.name + (p.nickname != "" ? " (" + p.nickname + ")" : "") + (p.relation != "" ? ", " + p.relation : "")}]
+                      + (p.notes.trim() != "" ? [{"id": p.id, "text": p.notes}] : [])
+                      + p.facts.filter(f, f.trim() != "").map(f, {"id": p.id, "text": f}))
+                    .flatten()
+            - type: handle-errors
+              name: rank-if-we-can
+              process:
+                # One call: the query first, then the corpus in order.
+                - type: ai-embed
+                  name: embed-circle
+                  settings:
+                    connector: router
+                    model: ${EMBEDDING_MODEL}
+                    dimensions: 1024
+                    text: '[vars.query] + vars.corpus.map(c, c.text)'
+                    resultVar: vectors
+                # Postgres as a calculator, because CEL has no vector math: only
+                # positions and vectors reach it, never the text, and nothing is
+                # written — the distance is computed and dropped. Each person is
+                # ranked by their closest line. This holds only while the
+                # database does not log bound parameters (log_statement none,
+                # log_min_duration_statement -1, the defaults).
+                - type: sql
+                  name: rank-circle
+                  settings:
+                    connector: db
+                    query: |
+                      SELECT n, distance FROM (
+                        SELECT DISTINCT ON (c->>'id') (c->>'n')::int AS n,
+                               ((c->'v')::text)::vector <=> $1::vector AS distance
+                        FROM jsonb_array_elements($2::jsonb) AS c
+                        ORDER BY c->>'id', distance
+                      ) best
+                      ORDER BY distance
+                      LIMIT $3
+                    args:
+                      - 'toJson(vars.vectors[0])'
+                      - >
+                        toJson(lists.range(size(vars.corpus)).map(i, {
+                          "n": i, "id": vars.corpus[i].id, "v": vars.vectors[i + 1]
+                        }))
+                      - '5'
+                - type: set-variable
+                  name: hold-related
+                  settings:
+                    name: related
+                    value: >
+                      body.map(r, {"person": vars.opened.filter(p, p.id == vars.corpus[r.n].id)[0],
+                                   "because": vars.corpus[r.n].text,
+                                   "distance": r.distance})
+              error:
+                - type: set-variable
+                  settings: { name: related, value: '[]' }
+      # Matches carry every fact, since they are few; the roster carries only
+      # how many, since it is everyone.
       - type: set-payload
         name: found
         settings:
           value: >
-            {"people": vars.opened.filter(p, vars.needle == ""
-                || p.name.lowerAscii().contains(vars.needle)
-                || p.nickname.lowerAscii().contains(vars.needle)
-                || p.relation.lowerAscii().contains(vars.needle))
-              .sortBy(p, p.name.lowerAscii())
-              .map(p, {
-                "id": p.id, "name": p.name, "nickname": p.nickname, "relation": p.relation, "birthday": p.birthday,
-                "proximity": p.proximity.matches("^[0-9]+$") ? dyn(int(p.proximity)) : null
-              })}
+            {"people": lists.range(size(vars.opened))
+                .filter(i, vars.words.all(w, vars.folded[i].contains(w)))
+                .map(i, vars.opened[i])
+                .map(p, {
+                  "id": p.id, "name": p.name, "nickname": p.nickname, "relation": p.relation,
+                  "birthday": p.birthday, "notes": p.notes,
+                  "proximity": p.proximity.matches("^[0-9]+$") ? dyn(int(p.proximity)) : null,
+                  "facts": size(vars.words) > 0 ? dyn(p.facts) : dyn(size(p.facts))
+                }),
+             "related": vars.related.map(r, {
+                  "id": r.person.id, "name": r.person.name, "nickname": r.person.nickname,
+                  "relation": r.person.relation, "because": r.because, "distance": r.distance
+                })}
 
   # One person, opened, with everything known about them.
   - name: person-read
@@ -480,36 +591,102 @@ flows:
               - type: set-payload
                 settings:
                   value: '{"saved": false, "reason": "a name is needed to add someone"}'
+          # Someone new is refused while anyone already there could be them: the
+          # same first name, a first name that is somebody's nickname, or the
+          # same nickname, ignoring case and Spanish and Portuguese accents. The
+          # model either uses the id it is shown or says `distinct` — two Juans
+          # are allowed, they just have to be added on purpose.
           - when: "true"
             process:
               - type: set-variable
-                name: seal-all
+                name: hold-args
+                settings: { name: args, value: body }
+              - type: set-variable
+                name: fold-args
                 settings:
-                  name: sealed
+                  name: given
                   value: >
-                    {"name": "enc1:" + base64.encode(toAes(body.name, base64.decode(vars.dataKey))),
-                     "nickname": "enc1:" + base64.encode(toAes(has(body.nickname) ? body.nickname : "", base64.decode(vars.dataKey))),
-                     "relation": "enc1:" + base64.encode(toAes(has(body.relation) ? body.relation : "", base64.decode(vars.dataKey))),
-                     "birthday": "enc1:" + base64.encode(toAes(has(body.birthday) ? body.birthday : "", base64.decode(vars.dataKey))),
-                     "notes": "enc1:" + base64.encode(toAes(has(body.notes) ? body.notes : "", base64.decode(vars.dataKey))),
-                     "proximity": "enc1:" + base64.encode(toAes(has(body.proximity) ? string(int(body.proximity)) : "", base64.decode(vars.dataKey)))}
+                    (body.name.trim().split(" ")[0] + "\u001f" + (has(body.nickname) ? body.nickname.trim() : "")).lowerAscii()
+                      .replace("á", "a").replace("à", "a").replace("â", "a").replace("ã", "a").replace("ä", "a").replace("é", "e").replace("è", "e").replace("ê", "e").replace("ë", "e").replace("í", "i").replace("ì", "i").replace("ï", "i").replace("ó", "o").replace("ò", "o").replace("ô", "o").replace("õ", "o").replace("ö", "o").replace("ú", "u").replace("ù", "u").replace("ü", "u").replace("ñ", "n").replace("ç", "c").replace("Á", "a").replace("À", "a").replace("Â", "a").replace("Ã", "a").replace("Ä", "a").replace("É", "e").replace("È", "e").replace("Ê", "e").replace("Ë", "e").replace("Í", "i").replace("Ì", "i").replace("Ï", "i").replace("Ó", "o").replace("Ò", "o").replace("Ô", "o").replace("Õ", "o").replace("Ö", "o").replace("Ú", "u").replace("Ù", "u").replace("Ü", "u").replace("Ñ", "n").replace("Ç", "c")
+                      .split("\u001f")
               - type: sql
-                name: insert-person
+                name: select-circle
                 settings:
                   connector: db
-                  query: |
-                    INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity, nickname)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    RETURNING id, name, proximity
+                  query: SELECT id, name, nickname, relation FROM person WHERE oidc_subject = $1
                   args:
                     - vars.subject
-                    - vars.sealed.name
-                    - vars.sealed.relation
-                    - vars.sealed.birthday
-                    - vars.sealed.notes
-                    - vars.sealed.proximity
-                    - vars.sealed.nickname
-                  single: true
+              - type: set-variable
+                name: open-circle
+                settings:
+                  name: circle
+                  value: >
+                    body.map(r, {
+                      "id": r.id,
+                      "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
+                      "nickname": r.nickname.startsWith("enc1:") ? string(fromAes(base64.decode(r.nickname.substring(5)), base64.decode(vars.dataKey))) : r.nickname,
+                      "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation
+                    })
+              # [first name, nickname] per person, folded like the arguments.
+              - type: set-variable
+                name: fold-circle
+                settings:
+                  name: keys
+                  value: >
+                    vars.circle.map(p, (p.name.trim().split(" ")[0] + "\u001f" + p.nickname.trim()).lowerAscii()
+                      .replace("á", "a").replace("à", "a").replace("â", "a").replace("ã", "a").replace("ä", "a").replace("é", "e").replace("è", "e").replace("ê", "e").replace("ë", "e").replace("í", "i").replace("ì", "i").replace("ï", "i").replace("ó", "o").replace("ò", "o").replace("ô", "o").replace("õ", "o").replace("ö", "o").replace("ú", "u").replace("ù", "u").replace("ü", "u").replace("ñ", "n").replace("ç", "c").replace("Á", "a").replace("À", "a").replace("Â", "a").replace("Ã", "a").replace("Ä", "a").replace("É", "e").replace("È", "e").replace("Ê", "e").replace("Ë", "e").replace("Í", "i").replace("Ì", "i").replace("Ï", "i").replace("Ó", "o").replace("Ò", "o").replace("Ô", "o").replace("Õ", "o").replace("Ö", "o").replace("Ú", "u").replace("Ù", "u").replace("Ü", "u").replace("Ñ", "n").replace("Ç", "c")
+                      .split("\u001f"))
+              - type: set-variable
+                name: find-namesakes
+                settings:
+                  name: namesakes
+                  value: >
+                    lists.range(size(vars.circle)).filter(i,
+                        vars.given[0] == vars.keys[i][0]
+                        || (vars.keys[i][1] != "" && vars.given[0] == vars.keys[i][1])
+                        || (vars.given[1] != "" && (vars.given[1] == vars.keys[i][1] || vars.given[1] == vars.keys[i][0])))
+                      .map(i, vars.circle[i])
+              - type: if
+                name: check-namesakes
+                condition: 'size(vars.namesakes) > 0 && !(has(vars.args.distinct) && vars.args.distinct == true)'
+                then:
+                  process:
+                    - type: set-payload
+                      settings:
+                        value: >
+                          {"saved": false,
+                           "reason": "someone already in their people could be this person; if it is one of them, pass their id instead; if it is somebody else, call again with distinct: true and a nickname that tells them apart",
+                           "namesakes": vars.namesakes}
+                else:
+                  process:
+                    - type: set-variable
+                      name: seal-all
+                      settings:
+                        name: sealed
+                        value: >
+                          {"name": "enc1:" + base64.encode(toAes(vars.args.name, base64.decode(vars.dataKey))),
+                           "nickname": "enc1:" + base64.encode(toAes(has(vars.args.nickname) ? vars.args.nickname : "", base64.decode(vars.dataKey))),
+                           "relation": "enc1:" + base64.encode(toAes(has(vars.args.relation) ? vars.args.relation : "", base64.decode(vars.dataKey))),
+                           "birthday": "enc1:" + base64.encode(toAes(has(vars.args.birthday) ? vars.args.birthday : "", base64.decode(vars.dataKey))),
+                           "notes": "enc1:" + base64.encode(toAes(has(vars.args.notes) ? vars.args.notes : "", base64.decode(vars.dataKey))),
+                           "proximity": "enc1:" + base64.encode(toAes(has(vars.args.proximity) ? string(int(vars.args.proximity)) : "", base64.decode(vars.dataKey)))}
+                    - type: sql
+                      name: insert-person
+                      settings:
+                        connector: db
+                        query: |
+                          INSERT INTO person (oidc_subject, name, relation, birthday, notes, proximity, nickname)
+                          VALUES ($1, $2, $3, $4, $5, $6, $7)
+                          RETURNING id, name, proximity
+                        args:
+                          - vars.subject
+                          - vars.sealed.name
+                          - vars.sealed.relation
+                          - vars.sealed.birthday
+                          - vars.sealed.notes
+                          - vars.sealed.proximity
+                          - vars.sealed.nickname
+                        single: true
       # A refusal above already answered; anything else is the row written, or
       # null for an id that named nobody of theirs. Who was saved is named back
       # with their proximity as it now stands.
@@ -593,6 +770,169 @@ flows:
         name: done
         settings:
           value: '{"forgotten": body != null}'
+
+  # Forget someone, and every fact with them. Asked twice on purpose: without
+  # `confirm` nothing is deleted, and the answer names who would go and how much
+  # with them, so the person can be asked first.
+  - name: person-forget
+    process:
+      - type: switch
+        name: asked-or-confirmed
+        cases:
+          - when: 'has(body.confirm) && body.confirm == true'
+            process:
+              # Facts go through the foreign key.
+              - type: sql
+                name: delete-person
+                settings:
+                  connector: db
+                  query: |
+                    DELETE FROM person WHERE oidc_subject = $1 AND id::text = lower($2)
+                    RETURNING id, name
+                  args:
+                    - vars.subject
+                    - body.id
+                  single: true
+              - type: set-payload
+                name: forgotten
+                settings:
+                  value: >
+                    body == null
+                      ? {"forgotten": false, "reason": "there is no one with that id; look them up with find_people"}
+                      : {"forgotten": true, "id": body.id,
+                         "name": body.name.startsWith("enc1:") ? string(fromAes(base64.decode(body.name.substring(5)), base64.decode(vars.dataKey))) : body.name}
+          - when: "true"
+            process:
+              - type: sql
+                name: select-person
+                settings:
+                  connector: db
+                  query: |
+                    SELECT p.id, p.name, p.relation,
+                           (SELECT count(*) FROM person_fact f
+                            WHERE f.oidc_subject = p.oidc_subject AND f.person_id = p.id) AS facts
+                    FROM person p
+                    WHERE p.oidc_subject = $1 AND p.id::text = lower($2)
+                  args:
+                    - vars.subject
+                    - body.id
+                  single: true
+              - type: set-payload
+                name: would-forget
+                settings:
+                  value: >
+                    body == null
+                      ? {"forgotten": false, "reason": "there is no one with that id; look them up with find_people"}
+                      : {"forgotten": false, "id": body.id,
+                         "name": body.name.startsWith("enc1:") ? string(fromAes(base64.decode(body.name.substring(5)), base64.decode(vars.dataKey))) : body.name,
+                         "relation": body.relation.startsWith("enc1:") ? string(fromAes(base64.decode(body.relation.substring(5)), base64.decode(vars.dataKey))) : body.relation,
+                         "facts": body.facts,
+                         "reason": "nothing was deleted; ask them whether to forget this person and everything known about them, and call again with confirm: true only if they say yes"}
+
+  # Fold a duplicate into the person who stays: every fact moves across, then
+  # the duplicate is deleted. Asked twice, like forgetting.
+  #
+  # Only facts move. What the duplicate's own fields said comes back opened as
+  # `left`, for the caller to carry over whatever the one kept is missing; for
+  # now nothing here judges which of two notes or birthdays is right.
+  - name: people-merge
+    process:
+      - type: set-variable
+        name: hold-args
+        settings: { name: args, value: body }
+      - type: switch
+        name: asked-or-confirmed
+        cases:
+          - when: 'body.keepId.lowerAscii() == body.mergeId.lowerAscii()'
+            process:
+              - type: set-payload
+                settings:
+                  value: '{"merged": false, "reason": "keepId and mergeId are the same person"}'
+
+          - when: 'has(body.confirm) && body.confirm == true'
+            process:
+              # Moves nothing unless the one kept is theirs too.
+              - type: sql
+                name: move-facts
+                settings:
+                  connector: db
+                  query: |
+                    UPDATE person_fact f SET person_id = k.id
+                    FROM person k
+                    WHERE k.oidc_subject = $1 AND k.id::text = lower($2)
+                      AND f.oidc_subject = $1 AND f.person_id::text = lower($3)
+                    RETURNING f.id
+                  args:
+                    - vars.subject
+                    - body.keepId
+                    - body.mergeId
+              - type: set-variable
+                name: hold-moved
+                settings: { name: moved, value: size(body) }
+              - type: sql
+                name: delete-duplicate
+                settings:
+                  connector: db
+                  query: |
+                    DELETE FROM person g
+                    WHERE g.oidc_subject = $1 AND g.id::text = lower($3)
+                      AND EXISTS (SELECT 1 FROM person k WHERE k.oidc_subject = $1 AND k.id::text = lower($2))
+                    RETURNING g.name, g.nickname, g.relation, g.birthday, g.notes, g.proximity
+                  args:
+                    - vars.subject
+                    - vars.args.keepId
+                    - vars.args.mergeId
+                  single: true
+              - type: set-payload
+                name: merged
+                settings:
+                  value: >
+                    body == null
+                      ? {"merged": false, "reason": "one of those ids names no one of theirs; look them up with find_people"}
+                      : {"merged": true, "moved": vars.moved,
+                         "left": {
+                           "name": body.name.startsWith("enc1:") ? string(fromAes(base64.decode(body.name.substring(5)), base64.decode(vars.dataKey))) : body.name,
+                           "nickname": body.nickname.startsWith("enc1:") ? string(fromAes(base64.decode(body.nickname.substring(5)), base64.decode(vars.dataKey))) : body.nickname,
+                           "relation": body.relation.startsWith("enc1:") ? string(fromAes(base64.decode(body.relation.substring(5)), base64.decode(vars.dataKey))) : body.relation,
+                           "birthday": body.birthday.startsWith("enc1:") ? string(fromAes(base64.decode(body.birthday.substring(5)), base64.decode(vars.dataKey))) : body.birthday,
+                           "notes": body.notes.startsWith("enc1:") ? string(fromAes(base64.decode(body.notes.substring(5)), base64.decode(vars.dataKey))) : body.notes,
+                           "proximity": body.proximity.startsWith("enc1:") ? string(fromAes(base64.decode(body.proximity.substring(5)), base64.decode(vars.dataKey))) : body.proximity}}
+
+          - when: "true"
+            process:
+              - type: sql
+                name: select-pair
+                settings:
+                  connector: db
+                  query: |
+                    SELECT p.id, p.name, p.relation,
+                           (SELECT count(*) FROM person_fact f
+                            WHERE f.oidc_subject = p.oidc_subject AND f.person_id = p.id) AS facts
+                    FROM person p
+                    WHERE p.oidc_subject = $1 AND p.id::text IN (lower($2), lower($3))
+                  args:
+                    - vars.subject
+                    - body.keepId
+                    - body.mergeId
+              - type: set-variable
+                name: open-pair
+                settings:
+                  name: pair
+                  value: >
+                    body.map(r, {"id": r.id,
+                      "name": r.name.startsWith("enc1:") ? string(fromAes(base64.decode(r.name.substring(5)), base64.decode(vars.dataKey))) : r.name,
+                      "relation": r.relation.startsWith("enc1:") ? string(fromAes(base64.decode(r.relation.substring(5)), base64.decode(vars.dataKey))) : r.relation,
+                      "facts": r.facts})
+              - type: set-payload
+                name: would-merge
+                settings:
+                  value: >
+                    size(vars.pair) < 2
+                      ? {"merged": false, "reason": "one of those ids names no one of theirs; look them up with find_people"}
+                      : {"merged": false,
+                         "keep": vars.pair.filter(p, p.id == vars.args.keepId.lowerAscii())[0],
+                         "merge": vars.pair.filter(p, p.id == vars.args.mergeId.lowerAscii())[0],
+                         "reason": "nothing was merged; ask them whether these are the same person, and call again with confirm: true only if they say yes"}
 
   # The birthdays coming up, soonest first, counted from the reader's today.
   #

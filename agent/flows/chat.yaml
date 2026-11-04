@@ -352,7 +352,8 @@ flows:
           already there with remember_fact, and change who they are with
           remember_person and their id. When somebody comes up by name, look
           them up with find_people and read_person before asking something
-          they already told you. Do it quietly, the way you keep the note —
+          they already told you. If you notice one person written down twice,
+          say so and offer to put them together with merge_people. Do it quietly, the way you keep the note —
           never narrate it. Set how close someone is when they tell you, or
           when it is plain from what they said — a partner, a parent they talk
           to every day; otherwise leave it for them to set. It can change as
@@ -639,12 +640,19 @@ flows:
 
           - name: find_people
             description: >
-              The people in their life: each one's name, what they are called
-              day to day (nickname), who they are to them, their birthday and
-              how close they are (proximity, 5 the innermost circle, 1 distant,
-              null when not known). With a query, only the people whose name,
-              nickname or relation holds it. Look here before adding
-              someone, and when somebody comes up by name.
+              The people in their life. Without a query, everyone: name, what
+              they are called day to day (nickname), who they are to them,
+              their birthday, how close they are (proximity, 5 the innermost
+              circle, 1 distant, null when not known), their notes and how many
+              facts are kept — enough to tell two people apart. With a query,
+              `people` is everyone whose name, nickname, relation, notes or
+              facts hold every word of it, accents and case aside, each with
+              their facts; and `related` is up to five people closest to it in
+              meaning, each with the line that put them there ("because") and a
+              distance, smaller closer. related is a lead, not a match: judge
+              it. Look here before adding someone, and when somebody comes up
+              by name or by something about them ("my sister's husband", "the
+              one who bakes").
             inputSchema: |
               {
                 "type": "object",
@@ -687,12 +695,19 @@ flows:
               circle and 1 someone distant; leave it out when you do not know.
               notes is a few lines of context and replaces the notes
               there, so read_person first and keep what is still true; a single
-              thing worth knowing goes in remember_fact instead.
+              thing worth knowing goes in remember_fact instead. To rename
+              someone, pass their id and the new name. Adding someone is
+              refused while anyone already there shares their first name or
+              nickname, and the answer lists them as namesakes: if one of them
+              is this person, use their id; only if they are plainly somebody
+              else, call again with distinct: true and a nickname that tells
+              them apart.
             inputSchema: |
               {
                 "type": "object",
                 "properties": {
                   "id": { "type": "string" },
+                  "distinct": { "type": "boolean" },
                   "name": { "type": "string" },
                   "nickname": { "type": "string" },
                   "relation": { "type": "string" },
@@ -740,6 +755,52 @@ flows:
               - type: flow-ref
                 name: forget-fact
                 settings: { flow: person-fact-forget }
+
+          - name: forget_person
+            description: >
+              Forget someone entirely, with every fact about them, by the id
+              find_people gave you — only when they ask you to. Without
+              confirm it deletes nothing and tells you who would go and how
+              many facts with them: put that to them in plain words, and call
+              again with confirm: true only once they say yes. Never confirm
+              in the same turn you first ask.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "confirm": { "type": "boolean" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: forget-person
+                settings: { flow: person-forget }
+
+          - name: merge_people
+            description: >
+              Two entries that are one person: fold mergeId into keepId. Every
+              fact moves to keepId and mergeId is deleted; what mergeId's own
+              fields said comes back as "left", so carry over with
+              remember_person whatever keepId is missing and is still true.
+              Without confirm nothing changes and you are shown both: ask them
+              whether these are the same person, and call again with confirm:
+              true only once they say yes.
+            inputSchema: |
+              {
+                "type": "object",
+                "required": ["keepId", "mergeId"],
+                "properties": {
+                  "keepId": { "type": "string" },
+                  "mergeId": { "type": "string" },
+                  "confirm": { "type": "boolean" }
+                }
+              }
+            process:
+              - type: flow-ref
+                name: merge-people
+                settings: { flow: people-merge }
 
           - name: upcoming_birthdays
             description: >

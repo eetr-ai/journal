@@ -1,0 +1,70 @@
+# See people_test.yaml. This suite owns merge_people, which folds a duplicate
+# into the one kept only on the second ask. In `dolphin-people-merge`, Rocío
+# and Rocio are only asked about; Checho is merged into Sergio; Tomás is the
+# duplicate named against somebody else's person, and keeps his fact.
+flow: people-merge
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: asking first merges nothing, and shows both
+    input:
+      data: { keepId: eeeeeeee-0000-4000-8000-000000000601, mergeId: eeeeeeee-0000-4000-8000-000000000602 }
+      vars: { subject: dolphin-people-merge, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.merged == false
+        - body.keep.name == "Rocío"
+        - body.keep.facts == 0
+        - body.merge.name == "Rocio"
+        - body.merge.facts == 2
+        - body.reason.contains("confirm")
+
+  - name: confirmed, the facts move and what the duplicate said comes back
+    input:
+      data: { keepId: eeeeeeee-0000-4000-8000-000000000603, mergeId: EEEEEEEE-0000-4000-8000-000000000604, confirm: true }
+      vars: { subject: dolphin-people-merge, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.merged == true
+        - body.moved == 2
+        - body.left.name == "Checho"
+        - body.left.notes == "Lives in Córdoba."
+        - body.left.birthday == "05-01"
+        - body.left.relation == "climbing"
+
+  - name: one person cannot be merged into themselves
+    input:
+      data: { keepId: eeeeeeee-0000-4000-8000-000000000601, mergeId: EEEEEEEE-0000-4000-8000-000000000601, confirm: true }
+      vars: { subject: dolphin-people-merge, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.merged == false
+        - body.reason.contains("same person")
+
+  # The case that matters most: a keepId from another circle must neither take
+  # the facts nor let the duplicate be deleted.
+  - name: nothing moves into somebody else's person
+    input:
+      data: { keepId: ffffffff-0000-4000-8000-000000000001, mergeId: eeeeeeee-0000-4000-8000-000000000605, confirm: true }
+      vars: { subject: dolphin-people-merge, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.merged == false
+        - body.reason.contains("find_people")
+    spies:
+      people-merge.asked-or-confirmed[1].move-facts:
+        records:
+          - output:
+              that:
+                - body == []
+
+  - name: asking about an id that names nobody says so
+    input:
+      data: { keepId: eeeeeeee-0000-4000-8000-000000000601, mergeId: eeeeeeee-0000-4000-8000-0000000006ff }
+      vars: { subject: dolphin-people-merge, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.merged == false
+        - body.reason.contains("find_people")
