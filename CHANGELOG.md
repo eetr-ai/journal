@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.20](https://github.com/eetr-ai/journal/compare/v0.0.19...v0.0.20) (2026-11-04)
+
+
+### Features
+
+* search feedback, lyrics that fit, and richer constellations ([#78](https://github.com/eetr-ai/journal/issues/78)) ([d0ed063](https://github.com/eetr-ai/journal/commit/d0ed0633e848da98126ba501155e8b90246ab5a8))
+
 ## [0.0.19](https://github.com/eetr-ai/journal/compare/v0.0.18...v0.0.19) (2026-10-24)
 
 
