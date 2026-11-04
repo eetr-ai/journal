@@ -55,7 +55,7 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
       }
     >
       <h3 className="font-serif text-base">{lyrics.title}</h3>
-      <p className="font-serif text-sm whitespace-pre-line italic leading-relaxed">
+      <p className="font-serif text-sm wrap-break-word whitespace-pre-line italic leading-relaxed">
         {lyrics.lines.join("\n")}
         {lyrics.cut ? "\n…" : ""}
       </p>

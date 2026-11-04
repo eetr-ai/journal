@@ -34,7 +34,8 @@ const FIT = "mx-auto w-fit max-w-full";
  * The card every widget is drawn in.
  *
  * `not-prose` because it sits inside rendered markdown and is not markdown:
- * the reply's typography would otherwise restyle every line of it.
+ * the reply's typography would otherwise restyle every line of it. The label
+ * keeps the top-right corner clear for a control laid over the card.
  */
 export default function WidgetFrame(options: WidgetFrameOptions) {
   return (
@@ -42,7 +43,7 @@ export default function WidgetFrame(options: WidgetFrameOptions) {
       className={`not-prose my-3 flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 ${options.fit ? FIT : ""}`}
       data-fit={options.fit ? "" : undefined}
     >
-      <p className="flex items-center gap-1.5 text-xs text-muted">
+      <p className="flex items-center gap-1.5 pr-6 text-xs text-muted">
         {options.icon}
         <span className="min-w-0">{options.label}</span>
       </p>
