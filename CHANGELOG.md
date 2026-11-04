@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.21](https://github.com/eetr-ai/journal/compare/v0.0.20...v0.0.21) (2026-11-04)
+
+
+### Features
+
+* **agent:** find people by what is known about them, and forget or merge them ([#80](https://github.com/eetr-ai/journal/issues/80)) ([69d3d27](https://github.com/eetr-ai/journal/commit/69d3d277b1d52bd2d85f38851681561d4f2d7fb7))
+* quote and song cards go straight into the entry ([#82](https://github.com/eetr-ai/journal/issues/82)) ([f3f7c0c](https://github.com/eetr-ai/journal/commit/f3f7c0c3ba26f6a2dc0f96d16b3b9512bb156bc5))
+* sort the people list by birthday, name or closeness ([#81](https://github.com/eetr-ai/journal/issues/81)) ([f3a5361](https://github.com/eetr-ai/journal/commit/f3a53612c3589ecba62ecc8992f164733cb4339a))
+
 ## [0.0.20](https://github.com/eetr-ai/journal/compare/v0.0.19...v0.0.20) (2026-11-04)
 
 
