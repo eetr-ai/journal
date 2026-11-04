@@ -1,4 +1,5 @@
 import {
+  ArrowsMergeIcon,
   BarbellIcon,
   BookBookmarkIcon,
   BookOpenTextIcon,
@@ -18,6 +19,7 @@ import {
   SparkleIcon,
   UserCircleIcon,
   UserIcon,
+  UserMinusIcon,
   UserPlusIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
@@ -56,6 +58,8 @@ const ICONS: Record<ToolName, Icon> = {
   remember_person: UserPlusIcon,
   remember_fact: UserIcon,
   forget_fact: UserIcon,
+  forget_person: UserMinusIcon,
+  merge_people: ArrowsMergeIcon,
   upcoming_birthdays: CakeIcon,
 };
 

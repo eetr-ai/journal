@@ -117,6 +117,16 @@ const tools = {
     done: "Let that go",
     failed: "Could not let that go",
   },
+  forget_person: {
+    running: "Going over your people...",
+    done: "Went over your people",
+    failed: "Could not go over your people",
+  },
+  merge_people: {
+    running: "Going over who is who...",
+    done: "Went over who is who",
+    failed: "Could not go over who is who",
+  },
   upcoming_birthdays: {
     running: "Checking for birthdays...",
     done: "Checked for birthdays",

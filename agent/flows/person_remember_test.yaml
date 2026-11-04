@@ -17,7 +17,7 @@ cases:
         - body.name == "Marta"
         - body.proximity == 2
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         records:
           - input:
               that:
@@ -38,7 +38,7 @@ cases:
         - body.saved == true
         - body.name == "Camila Pérez"
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         records:
           - input:
               that:
@@ -53,7 +53,7 @@ cases:
         - body.saved == true
         - body.proximity == null
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         records:
           - input:
               that:
@@ -68,7 +68,7 @@ cases:
         - body.saved == false
         - body.reason.contains("name")
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 0
 
   - name: a name of only spaces is no name
@@ -168,7 +168,7 @@ cases:
         - body.saved == false
         - body.reason.contains("YYYY-MM-DD")
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 0
 
   - name: a day past the end of its month is refused
@@ -180,7 +180,7 @@ cases:
         - body.saved == false
         - body.reason.contains("YYYY-MM-DD")
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 0
 
   - name: a thirteenth month is refused
@@ -191,7 +191,7 @@ cases:
       that:
         - body.saved == false
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 0
 
   - name: 29 February of a year that is not a leap year is refused
@@ -202,7 +202,7 @@ cases:
       that:
         - body.saved == false
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 0
 
   # Divisible by 4 and by 100 but not by 400.
@@ -214,7 +214,7 @@ cases:
       that:
         - body.saved == false
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 0
 
   - name: an impossible birthday is not written over someone known
@@ -237,19 +237,21 @@ cases:
       that:
         - body.saved == true
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         records:
           - input:
               that:
                 - string(fromAes(base64.decode(vars.sealed.birthday.substring(5)), base64.decode(vars.dataKey))) == "2024-02-29"
 
+  # Named apart from the case above: the two run at once, and a second Leap
+  # would be refused as the first one's namesake.
   - name: 29 February with no year is kept
     input:
-      data: { name: Leap, birthday: "02-29" }
+      data: { name: Bisiesto, birthday: "02-29" }
       vars: { subject: dolphin-people-write, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
     expect:
       that:
         - body.saved == true
     spies:
-      person-remember.new-or-known[3].insert-person:
+      person-remember.new-or-known[3].check-namesakes[else].insert-person:
         count: 1

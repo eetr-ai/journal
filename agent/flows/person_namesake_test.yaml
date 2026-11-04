@@ -1,0 +1,82 @@
+# See people_test.yaml. This suite owns remember_person's refusal to add
+# someone who may already be there. `dolphin-people-namesake` holds Camila
+# Pérez, called Cami, and Martín; the cases that save write a row each, under
+# names no other case reaches for.
+flow: person-remember
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: a first name already there is refused, with who it could be
+    input:
+      data: { name: Camila }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.namesakes.exists(p, p.id == "eeeeeeee-0000-4000-8000-000000000401" && p.nickname == "Cami" && p.relation == "my cousin")
+        - body.reason.contains("distinct")
+
+  - name: a different surname is still the same first name
+    input:
+      data: { name: camila gómez }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.namesakes.exists(p, p.name == "Camila Pérez")
+
+  - name: a name that is somebody's nickname is refused
+    input:
+      data: { name: Cami }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.namesakes.exists(p, p.name == "Camila Pérez")
+
+  - name: a nickname somebody already goes by is refused
+    input:
+      data: { name: Valeria, nickname: CAMI }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.namesakes.exists(p, p.name == "Camila Pérez")
+
+  - name: accents do not hide a namesake
+    input:
+      data: { name: Martin Suárez }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == false
+        - body.namesakes.exists(p, p.id == "eeeeeeee-0000-4000-8000-000000000402")
+
+  - name: somebody else with the same name is added when it is said on purpose
+    input:
+      data: { name: Camila Rojas, nickname: Cami R, distinct: true }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.name == "Camila Rojas"
+
+  - name: nobody like them is added without being asked twice
+    input:
+      data: { name: Zoe Ibarra, relation: new climbing partner }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.name == "Zoe Ibarra"
+
+  - name: changing someone by id is never refused as their own namesake
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000402, name: Martín López }
+      vars: { subject: dolphin-people-namesake, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.saved == true
+        - body.name == "Martín López"

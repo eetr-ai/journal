@@ -436,3 +436,63 @@ VALUES
   (UUID 'fa000000-0000-4000-8000-0000000000e4', UUID 'eeeeeeee-0000-4000-8000-000000000022', 'dolphin-people-delete',
    'enc1:zc9usdgC7nNVKoHLucfzyeRB/85LLXGaDReEVsKbVXY+kZuRH2qDzuWy0ns=',
    TIMESTAMPTZ '2026-02-03 10:00:00Z');
+
+-- People for the suites that find, forget and merge. Unmarked, so every value
+-- reads as itself and a case can be read without the key.
+--
+-- `dolphin-people-search` is only ever read, and its corpus order — by name,
+-- then who-line, notes, facts — is what people_related_test.yaml's vectors
+-- line up with. `dolphin-people-namesake` is written by the create cases;
+-- `-forget` and `-merge` give each confirming case a row of its own.
+INSERT INTO user_profile (oidc_subject, email, name, config)
+VALUES
+  ('dolphin-people-search',   'people-s@example.com', 'People Search',   '{}'::jsonb),
+  ('dolphin-people-namesake', 'people-n@example.com', 'People Namesake', '{}'::jsonb),
+  ('dolphin-people-forget',   'people-f@example.com', 'People Forget',   '{}'::jsonb),
+  ('dolphin-people-merge',    'people-m@example.com', 'People Merge',    '{}'::jsonb)
+ON CONFLICT (oidc_subject) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name;
+
+INSERT INTO person (id, oidc_subject, name, nickname, relation, notes)
+VALUES
+  (UUID 'eeeeeeee-0000-4000-8000-000000000301', 'dolphin-people-search', 'Marta',  '', 'my friend',  ''),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000302', 'dolphin-people-search', 'Mónica', '', 'my boss',    'Runs the Tuesday meeting.'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000303', 'dolphin-people-search', 'Nico',   '', 'my brother', ''),
+
+  (UUID 'eeeeeeee-0000-4000-8000-000000000401', 'dolphin-people-namesake', 'Camila Pérez', 'Cami', 'my cousin', ''),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000402', 'dolphin-people-namesake', 'Martín',       '',     'coworker',  ''),
+
+  (UUID 'eeeeeeee-0000-4000-8000-000000000501', 'dolphin-people-forget', 'Olga',   '', 'my aunt',   ''),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000502', 'dolphin-people-forget', 'Pablo',  '', 'ex-boss',   ''),
+
+  (UUID 'eeeeeeee-0000-4000-8000-000000000601', 'dolphin-people-merge', 'Rocío',  '', 'my friend', ''),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000602', 'dolphin-people-merge', 'Rocio',  'Ro', 'yoga friend', 'Met at yoga.'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000603', 'dolphin-people-merge', 'Sergio', '', 'my friend', ''),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000604', 'dolphin-people-merge', 'Checho', '', 'climbing',  'Lives in Córdoba.'),
+  (UUID 'eeeeeeee-0000-4000-8000-000000000605', 'dolphin-people-merge', 'Tomás',  '', 'neighbour', '');
+
+UPDATE person SET birthday = '05-01' WHERE id = UUID 'eeeeeeee-0000-4000-8000-000000000604';
+
+INSERT INTO person_fact (id, person_id, oidc_subject, fact, created_at)
+VALUES
+  (UUID 'fa000000-0000-4000-8000-000000000301', UUID 'eeeeeeee-0000-4000-8000-000000000301', 'dolphin-people-search',
+   'Bakes sourdough every Sunday.', TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+
+  (UUID 'fa000000-0000-4000-8000-000000000501', UUID 'eeeeeeee-0000-4000-8000-000000000501', 'dolphin-people-forget',
+   'Hates surprises.', TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000502', UUID 'eeeeeeee-0000-4000-8000-000000000501', 'dolphin-people-forget',
+   'Grows tomatoes.', TIMESTAMPTZ '2026-02-02 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000503', UUID 'eeeeeeee-0000-4000-8000-000000000502', 'dolphin-people-forget',
+   'Moved to Madrid.', TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+
+  (UUID 'fa000000-0000-4000-8000-000000000601', UUID 'eeeeeeee-0000-4000-8000-000000000602', 'dolphin-people-merge',
+   'Teaches yoga on Thursdays.', TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000602', UUID 'eeeeeeee-0000-4000-8000-000000000602', 'dolphin-people-merge',
+   'Has a dog called Luna.', TIMESTAMPTZ '2026-02-02 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000603', UUID 'eeeeeeee-0000-4000-8000-000000000603', 'dolphin-people-merge',
+   'Fixes bikes.', TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000604', UUID 'eeeeeeee-0000-4000-8000-000000000604', 'dolphin-people-merge',
+   'Climbs on Saturdays.', TIMESTAMPTZ '2026-02-01 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000605', UUID 'eeeeeeee-0000-4000-8000-000000000604', 'dolphin-people-merge',
+   'Is afraid of heights, oddly.', TIMESTAMPTZ '2026-02-02 10:00:00Z'),
+  (UUID 'fa000000-0000-4000-8000-000000000606', UUID 'eeeeeeee-0000-4000-8000-000000000605', 'dolphin-people-merge',
+   'Plays the drums at night.', TIMESTAMPTZ '2026-02-01 10:00:00Z');
