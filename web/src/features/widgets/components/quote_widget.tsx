@@ -1,6 +1,7 @@
 "use client";
 
 import AddButton from "./add_button";
+import { quoteDirective } from "../directives";
 import { startOf } from "../taps";
 import WidgetFrame, { SourceLink } from "./widget_frame";
 import type { Place, Widget } from "../rules";
@@ -11,6 +12,8 @@ export interface QuoteWidgetOptions {
   t: Dictionary;
   /** In an entry the words are already kept, so there is nothing to add them to. */
   place?: Place;
+  /** Still streaming, so not yet whole enough to add. */
+  live?: boolean;
 }
 
 /** A line worth keeping, who said it, and where. */
@@ -26,8 +29,11 @@ export default function QuoteWidget(options: QuoteWidgetOptions) {
           <>
             {adding ? (
               <AddButton
+                added={t.added}
+                live={options.live ?? false}
                 label={t.add}
                 sent={t.sent}
+                source={quoteDirective(quote)}
                 tap={{
                   widget: "quote",
                   act: "add",

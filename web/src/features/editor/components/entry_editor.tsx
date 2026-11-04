@@ -29,6 +29,7 @@ import { markdownOf } from "../extensions/slots";
 import { useAgentKey } from "@/features/chat/use_agent_key";
 import { useEntryTiptap, useLoadedWords } from "../use_entry_tiptap";
 import { useIncoming } from "../use_incoming";
+import { useInsertTarget } from "../entry_inserts";
 import { useShortcuts } from "../use_shortcuts";
 
 export interface EntryEditorOptions {
@@ -170,6 +171,7 @@ function EditorBody(options: EntryEditorOptions) {
   );
 
   useIncoming(options.entry, options.opened);
+  useInsertTarget(editor);
   useLoadedWords(editor, state.present, state.revision);
   useChangedBlocks(editor, {
     before: options.changedFrom,

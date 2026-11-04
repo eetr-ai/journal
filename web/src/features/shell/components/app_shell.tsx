@@ -5,6 +5,7 @@ import ShellHeader from "./shell_header";
 import ShellPanels from "./shell_panels";
 import ShellProvider from "./shell_provider";
 import EntriesProvider from "@/features/entries/components/entries_provider";
+import { EntryInsertsProvider } from "@/features/editor/entry_inserts";
 import { BirthdaysProvider } from "@/features/people/birthdays_provider";
 import SearchProvider from "@/features/entries/components/search_provider";
 import type { Dictionary } from "@/i18n/en";
@@ -62,17 +63,19 @@ export default function AppShell(options: AppShellOptions) {
             />
             <ImagesConfigProvider view={options.images}>
               <BirthdaysProvider facts={options.profile.facts} subject={options.profile.subject}>
-                <ShellPanels
-                  conversations={options.conversations}
-                  locale={options.locale}
-                  subject={options.profile.subject}
-                  t={options.t}
-                  threadId={options.threadId}
-                  timezone={options.profile.config.timezone}
-                  todayWidth={options.profile.config.todayWidth}
-                  turns={options.turns}
-                  unavailable={options.unavailable}
-                />
+                <EntryInsertsProvider>
+                  <ShellPanels
+                    conversations={options.conversations}
+                    locale={options.locale}
+                    subject={options.profile.subject}
+                    t={options.t}
+                    threadId={options.threadId}
+                    timezone={options.profile.config.timezone}
+                    todayWidth={options.profile.config.todayWidth}
+                    turns={options.turns}
+                    unavailable={options.unavailable}
+                  />
+                </EntryInsertsProvider>
               </BirthdaysProvider>
             </ImagesConfigProvider>
           </EntriesProvider>

@@ -16,6 +16,8 @@ export interface ChatWidgetOptions {
   locale: Locale;
   /** Where it is drawn. In an entry a card is something to reread, not to act on. */
   place?: Place;
+  /** Still being written: a card's body may not have all its words yet. */
+  live?: boolean;
 }
 
 function decoded(encoded: string): Widget | null {
@@ -37,9 +39,9 @@ export default function ChatWidget(options: ChatWidgetOptions) {
     case "search":
       return <SearchWidget locale={options.locale} search={widget} t={options.t} />;
     case "quote":
-      return <QuoteWidget place={place} quote={widget} t={options.t} />;
+      return <QuoteWidget live={options.live} place={place} quote={widget} t={options.t} />;
     case "lyrics":
-      return <LyricsWidget lyrics={widget} place={place} t={options.t} />;
+      return <LyricsWidget live={options.live} lyrics={widget} place={place} t={options.t} />;
     case "constellation":
       return <ConstellationWidget constellation={widget} t={options.t} />;
     default:

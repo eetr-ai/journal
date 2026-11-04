@@ -145,10 +145,10 @@ interface JournalTurnOptions {
 
 function JournalTurn(options: JournalTurnOptions) {
   const turn = options.turn;
-  const { locale, t } = options;
+  const { locale, t, live } = options;
   const drawWidget = useCallback(
-    (encoded: string) => <ChatWidget encoded={encoded} locale={locale} t={t} />,
-    [locale, t],
+    (encoded: string) => <ChatWidget encoded={encoded} live={live} locale={locale} t={t} />,
+    [live, locale, t],
   );
 
   return (

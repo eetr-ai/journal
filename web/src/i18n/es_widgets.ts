@@ -15,12 +15,14 @@ const widgets: WidgetsDictionary = {
     label: "Cita",
     add: "Agregar a la entrada",
     sent: "Enviado ✓",
+    added: "Agregado ✓",
     source: "Abrir fuente",
   },
   lyrics: {
     label: "Canción",
     add: "Agregar a la entrada",
     sent: "Enviado ✓",
+    added: "Agregado ✓",
     source: "Letra completa",
   },
   constellation: {

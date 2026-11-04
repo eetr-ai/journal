@@ -1,6 +1,7 @@
 "use client";
 
 import AddButton from "./add_button";
+import { lyricsDirective } from "../directives";
 import { startOf } from "../taps";
 import WidgetFrame, { SourceLink } from "./widget_frame";
 import type { Place, Widget } from "../rules";
@@ -11,6 +12,8 @@ export interface LyricsWidgetOptions {
   t: Dictionary;
   /** In an entry the words are already kept, so there is nothing to add them to. */
   place?: Place;
+  /** Still streaming, so not yet whole enough to add. */
+  live?: boolean;
 }
 
 /**
@@ -31,8 +34,11 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
           <>
             {adding ? (
               <AddButton
+                added={t.added}
+                live={options.live ?? false}
                 label={t.add}
                 sent={t.sent}
+                source={lyricsDirective(lyrics)}
                 tap={{
                   widget: "lyrics",
                   act: "add",
