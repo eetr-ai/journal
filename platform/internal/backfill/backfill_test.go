@@ -162,16 +162,30 @@ func (noopEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error
 }
 
 // A store that never runs dry: every pass takes a full batch, so the worker
-// never reaches the idle branch.
+// never reaches the idle branch. started closes on the first pass. Like a real
+// query, it fails once the context is cancelled, which is how the worker stops.
 type endlessStore struct {
 	fakeStore
-	mu    sync.Mutex
-	given int
+	mu      sync.Mutex
+	given   int
+	started chan struct{}
 }
 
-func (e *endlessStore) PendingVectors(_ context.Context, limit int) ([]store.Pending, error) {
+func newEndlessStore() *endlessStore {
+	return &endlessStore{started: make(chan struct{})}
+}
+
+func (e *endlessStore) PendingVectors(ctx context.Context, limit int) ([]store.Pending, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.given == 0 {
+		close(e.started)
+	}
 
 	e.given++
 
@@ -186,51 +200,84 @@ func (e *endlessStore) PendingVectors(_ context.Context, limit int) ([]store.Pen
 
 func (e *endlessStore) SetVector(context.Context, store.Pending, []float32) error { return nil }
 
+func (e *endlessStore) passes() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.given
+}
+
 // An offered row is the only copy: the sweep cannot read a sealed row, so an
 // offer that is never taken is a turn that never becomes searchable. A busy
 // database must not be able to starve it.
+//
+// Measured in passes, not wall time: an offer made while pass k is underway is
+// taken before pass k+2 begins. The deadline only stops a broken worker hanging
+// the suite.
 func TestOfferedRowsAreNotStarvedByABusySweep(t *testing.T) {
-	rows := &endlessStore{}
-	taken := make(chan string, 1)
+	const offered = "offered while the sweep is busy"
 
-	worker := backfill.New(rows, takingEmbedder{taken: taken}, quiet())
+	rows := newEndlessStore()
+	embedder := newWatchingEmbedder(offered, rows.passes)
+	worker := backfill.New(rows, embedder, quiet())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	stopped := make(chan struct{})
 
-	go worker.Run(ctx)
+	go func() {
+		worker.Run(ctx)
+		close(stopped)
+	}()
 
-	worker.Offer([]store.Pending{{Kind: "turn", Text: "offered while the sweep is busy"}})
+	defer func() {
+		cancel()
+		<-stopped
+	}()
 
-	for {
-		select {
-		case text := <-taken:
-			if text == "offered while the sweep is busy" {
-				return
-			}
-		case <-ctx.Done():
-			t.Fatal("the offered row was never embedded, so a busy sweep starves it")
-		}
+	<-rows.started
+
+	worker.Offer([]store.Pending{{Kind: "turn", Text: offered}})
+	offeredDuring := rows.passes()
+
+	select {
+	case <-embedder.found:
+	case <-ctx.Done():
+		t.Fatal("the offered row was never embedded, so a busy sweep starves it")
+	}
+
+	if waited := embedder.passesWhenFound - offeredDuring; waited > 1 {
+		t.Fatalf("the offered row waited behind %d sweep passes; it should take at most one", waited)
 	}
 }
 
-// Reports every text it is asked to embed, so a test can watch what the worker
-// actually reached for.
-type takingEmbedder struct {
-	taken chan string
+// Watches for one text and closes found the first time it is asked to embed
+// it, noting how many sweep passes had begun by then. Nothing it sees is
+// dropped, however busy the sweep keeps it.
+type watchingEmbedder struct {
+	want            string
+	passes          func() int
+	found           chan struct{}
+	once            *sync.Once
+	passesWhenFound int
 }
 
-func (takingEmbedder) Semantic() bool { return true }
+func newWatchingEmbedder(want string, passes func() int) *watchingEmbedder {
+	return &watchingEmbedder{want: want, passes: passes, found: make(chan struct{}), once: &sync.Once{}}
+}
 
-func (e takingEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
+func (*watchingEmbedder) Semantic() bool { return true }
+
+func (e *watchingEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
 	ret := make([][]float32, len(texts))
 
 	for i, text := range texts {
 		ret[i] = []float32{0.1}
 
-		select {
-		case e.taken <- text:
-		default:
+		if text == e.want {
+			e.once.Do(func() {
+				e.passesWhenFound = e.passes()
+				close(e.found)
+			})
 		}
 	}
 
