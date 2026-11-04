@@ -61,6 +61,7 @@ shows at most eight lines, and `href` is where the rest is. Take the link from
     me -- Pablo (4): climbing partner
     Pablo -- Sofi
     Tomás (2)
+    Ana: why she is on this map
     :::
 
 A map of the people around them: they are in the middle, each person sits as
@@ -88,6 +89,13 @@ anyone whose details you need.
   one. Circles are yours to draw from what they told you; leave them out rather
   than sort people into made-up ones.
 - A name alone on a line, `Tomás (2)`, puts somebody in without a link.
+- `Ana: diabetes since her forties` is a note: why Ana is on *this* map, in a
+  few words, drawn under her name. Use it for what the map is about — the
+  illness on a map of family health, the project on a map of work — and keep
+  the link label for the relation alone (`me -- Ana: sister`, not
+  `sister (diabetes)`). A note only describes somebody already on the map,
+  never adds them; one per person. Only what they told you or what is kept;
+  leave it out when there is nothing particular to say.
 - `title` is optional; `focus` picks out one person when the conversation is
   about them. One link per line. Up to 40 people and 80 links; a drawing needs at
   least two people and one link.

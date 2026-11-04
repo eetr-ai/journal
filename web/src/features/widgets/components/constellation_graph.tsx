@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { groupFill } from "./constellation_style";
+import { LABEL_PX, SMALL_TEXT, TEXT_HALO, groupFill } from "./constellation_style";
+import StarName from "./constellation_name";
 import { NEAREST, type Constellation } from "../constellation";
 import { strokeBetween, type Layout, type Point } from "../constellation_layout";
 import { isSpoke, nameOf, personText } from "../constellation_text";
@@ -27,7 +28,6 @@ export interface ConstellationGraphOptions {
 // many of the picture's units make one of those pixels.
 const CARD_SCALE = 2.6;
 const LARGE_SCALE = 1.3;
-const LABEL_PX = 10;
 const DOT_PX = 2.6;
 const DOT_PER_LINK_PX = 0.6;
 const MOST_LINKS_COUNTED = 6;
@@ -38,10 +38,6 @@ const LINE_PX = 1;
 const RING_PX = 0.75;
 const CURVE_PX = 1.5;
 const RING_DASH = "4 6";
-// Ring names and link labels are a size down from people's names.
-const SMALL_TEXT = 0.8;
-// A band of the card's colour around text, so lines under it do not cut it.
-const TEXT_HALO = 0.2;
 const RING_NAME_LIFT_PX = 5;
 const DIAMETER_PER_RADIUS = 2;
 // Past this many people the card names only the innermost circle until hovered.
@@ -218,16 +214,13 @@ function Star(options: StarOptions) {
         />
       ) : null}
       {named(drawn, person) ? (
-        <text
-          className={`stroke-surface ${who.me || constellation.focus === person ? "fill-foreground font-semibold" : "fill-foreground"}`}
-          fontSize={LABEL_PX * px}
-          paintOrder="stroke"
-          strokeWidth={LABEL_PX * px * TEXT_HALO}
-          textAnchor="middle"
+        <StarName
+          name={nameOf(constellation, person, t)}
+          note={large ? who.note : ""}
+          px={px}
+          strong={who.me || constellation.focus === person}
           y={radius * HALO + LABEL_PX * px * SMALL_TEXT}
-        >
-          {nameOf(constellation, person, t)}
-        </text>
+        />
       ) : null}
     </g>
   );

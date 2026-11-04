@@ -5,10 +5,11 @@
  *     # family                  a group, for the people who first appear under it
  *     me -- Ana (5): sister     a link; closeness 1–5 after a name, a label after a colon
  *     Pablo (3)                 somebody on their own
+ *     Ana: diabetes since 40    a note on why somebody already named is here
  *
  * `me` (or `yo`) is the reader: the centre, never grouped, never given a
  * closeness. A person keeps the first group and the first closeness they were
- * given. A line that reads as none of the above is skipped, and anything past
+ * given, and the first note; a note never adds anyone. A line that reads as none of the above is skipped, and anything past
  * the caps is left out rather than squeezed in.
  */
 
@@ -19,6 +20,8 @@ export interface Person {
   group: number | null;
   /** 5 is the innermost circle, 1 the most distant; null when not known. */
   near: number | null;
+  /** Why they are in this constellation in particular; empty when not said. */
+  note: string;
 }
 
 /** Undirected: `from` and `to` are indexes into the people. */
@@ -47,6 +50,7 @@ const MAX_TIES = 80;
 const MAX_GROUPS = 6;
 const MAX_NAME_CHARS = 60;
 const MAX_LABEL_CHARS = 60;
+const MAX_NOTE_CHARS = 60;
 const MAX_TITLE_CHARS = 80;
 const MIN_PEOPLE = 2;
 // The two ends of a link.
@@ -69,6 +73,8 @@ interface Drawing {
   tied: Set<string>;
   groups: string[];
   group: number | null;
+  /** Lower-cased name to note, applied once everybody is known. */
+  notes: Map<string, string>;
 }
 
 interface Named {
@@ -140,6 +146,7 @@ function personAt(drawing: Drawing, person: Named): number {
       me,
       group: me ? null : drawing.group,
       near: person.near,
+      note: "",
     }) - 1
   );
 }
@@ -150,11 +157,32 @@ function hasRoom(drawing: Drawing, people: Named[]): boolean {
   return drawing.people.length + added.size <= MAX_PEOPLE;
 }
 
+// Somebody on their own, or with a colon, a note on somebody.
 function lone(drawing: Drawing, text: string): void {
-  const person = text.includes(":") ? null : named(text);
+  const colon = text.indexOf(":");
+  const person = named(colon < 0 ? text : text.slice(0, colon));
+  const note = colon < 0 ? "" : tidy(text.slice(colon + 1), MAX_NOTE_CHARS);
 
-  if (person && hasRoom(drawing, [person])) {
+  if (!person) {
+    return;
+  }
+
+  if (colon >= 0) {
+    if (note !== "" && !drawing.notes.has(person.key)) {
+      drawing.notes.set(person.key, note);
+    }
+  } else if (hasRoom(drawing, [person])) {
     personAt(drawing, person);
+  }
+}
+
+function withNotes(drawing: Drawing): void {
+  for (const [key, note] of drawing.notes) {
+    const at = drawing.keys.get(key);
+
+    if (at !== undefined) {
+      drawing.people[at].note = note;
+    }
   }
 }
 
@@ -227,11 +255,14 @@ export function constellationFrom(written: WrittenConstellation): Constellation 
     tied: new Set(),
     groups: [],
     group: null,
+    notes: new Map(),
   };
 
   for (const line of written.body.split("\n")) {
     read(drawing, line);
   }
+
+  withNotes(drawing);
 
   if (drawing.people.length < MIN_PEOPLE || drawing.ties.length === 0) {
     return null;

@@ -40,7 +40,7 @@ export function personText(constellation: Constellation, at: number, t: Words): 
       ? t.unknown
       : format(t.closeness, { near: String(person.near), of: String(NEAREST) });
 
-  return [person.name, relation, group, closeness].filter(Boolean).join(SEPARATOR);
+  return [person.name, relation, person.note, group, closeness].filter(Boolean).join(SEPARATOR);
 }
 
 export function tieText(constellation: Constellation, tie: Tie, t: Words): string {
