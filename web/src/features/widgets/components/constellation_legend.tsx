@@ -2,6 +2,7 @@
 
 import { groupSwatch } from "./constellation_style";
 import type { Constellation } from "../constellation";
+import { scaleOf } from "../constellation_text";
 import type { WidgetsDictionary } from "@/i18n/en_widgets";
 
 export interface ConstellationLegendOptions {
@@ -19,7 +20,8 @@ export default function ConstellationLegend(options: ConstellationLegendOptions)
     ...constellation.groups.map((group, at) => ({ name: group, group: at as number | null })),
     ...(loose ? [{ name: t.others, group: null }] : []),
   ];
-  const meanings = options.large ? [t.nearer, t.colour, t.size] : [t.nearer];
+  const scale = scaleOf(constellation, t);
+  const meanings = (options.large ? [scale, t.colour, t.size] : [scale]).filter(Boolean);
 
   return (
     <div className="flex flex-col gap-1 text-xs text-muted">
@@ -33,7 +35,7 @@ export default function ConstellationLegend(options: ConstellationLegendOptions)
           ))}
         </ul>
       ) : null}
-      <p>{meanings.join(" · ")}</p>
+      {meanings.length > 0 ? <p>{meanings.join(" · ")}</p> : null}
     </div>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { groupFill } from "./constellation_style";
+import { LABEL_PX, SMALL_TEXT, TEXT_HALO, groupFill } from "./constellation_style";
+import StarName from "./constellation_name";
 import { NEAREST, type Constellation } from "../constellation";
 import { strokeBetween, type Layout, type Point } from "../constellation_layout";
-import { isSpoke, nameOf, personText } from "../constellation_text";
+import { isSpoke, nameOf, personText, ringName } from "../constellation_text";
 import type { WidgetsDictionary } from "@/i18n/en_widgets";
 
 type Words = WidgetsDictionary["constellation"];
@@ -27,7 +28,6 @@ export interface ConstellationGraphOptions {
 // many of the picture's units make one of those pixels.
 const CARD_SCALE = 2.6;
 const LARGE_SCALE = 1.3;
-const LABEL_PX = 10;
 const DOT_PX = 2.6;
 const DOT_PER_LINK_PX = 0.6;
 const MOST_LINKS_COUNTED = 6;
@@ -38,14 +38,12 @@ const LINE_PX = 1;
 const RING_PX = 0.75;
 const CURVE_PX = 1.5;
 const RING_DASH = "4 6";
-// Ring names and link labels are a size down from people's names.
-const SMALL_TEXT = 0.8;
-// A band of the card's colour around text, so lines under it do not cut it.
-const TEXT_HALO = 0.2;
 const RING_NAME_LIFT_PX = 5;
 const DIAMETER_PER_RADIUS = 2;
-// Past this many people the card names only the innermost circle until hovered.
-const CARD_NAMES_ALL = 8;
+// Lines of name-sized text a label can take below its star's halo: the name and
+// its descenders on the card; the name, the note and theirs expanded.
+const CARD_LABEL_LINES = 1.4;
+const LARGE_LABEL_LINES = 2.8;
 // Up to this many links, the expanded picture labels every one of them.
 const LARGE_LABELS_ALL = 24;
 const DIMMED = "opacity-15";
@@ -80,7 +78,7 @@ function litAround(constellation: Constellation, picked: number | null): Set<num
 }
 
 function Orbits(options: { drawn: Drawn }) {
-  const { layout, large, px, t } = options.drawn;
+  const { constellation, layout, large, px, t } = options.drawn;
 
   return (
     <g aria-hidden className="fill-none stroke-border opacity-70">
@@ -98,7 +96,7 @@ function Orbits(options: { drawn: Drawn }) {
               textAnchor="middle"
               y={-radius - RING_NAME_LIFT_PX * px}
             >
-              {t.rings[ring]}
+              {ringName(constellation, ring, t)}
             </text>
           ) : null}
         </g>
@@ -167,25 +165,24 @@ interface StarOptions {
   onPick: (person: number | null) => void;
 }
 
+/**
+ * How far past the layout's own padding the picture reaches downwards, so a
+ * name under a star on the outer ring is not cut off. Sized for the largest star.
+ */
+function overhang(drawn: Drawn): number {
+  const { layout, large, px } = drawn;
+  const halo = (DOT_PX + MOST_LINKS_COUNTED * DOT_PER_LINK_PX) * px * HALO;
+  const label = LABEL_PX * px * (SMALL_TEXT + (large ? LARGE_LABEL_LINES : CARD_LABEL_LINES));
+  const padding = layout.extent - (layout.rings.at(-1) ?? 0);
+
+  return Math.max(halo + label - padding, 0);
+}
+
 function radiusOf(drawn: Drawn, person: number): number {
   const links = Math.min(drawn.layout.degree[person], MOST_LINKS_COUNTED);
 
   return (
     (drawn.constellation.people[person].me ? ME_PX : DOT_PX + links * DOT_PER_LINK_PX) * drawn.px
-  );
-}
-
-function named(drawn: Drawn, person: number): boolean {
-  const { constellation, large, lit } = drawn;
-  const who = constellation.people[person];
-
-  return (
-    large ||
-    who.me ||
-    who.near === NEAREST ||
-    constellation.focus === person ||
-    constellation.people.length <= CARD_NAMES_ALL ||
-    Boolean(lit?.has(person))
   );
 }
 
@@ -217,18 +214,16 @@ function Star(options: StarOptions) {
           strokeWidth={LINE_PX * px * HALO}
         />
       ) : null}
-      {named(drawn, person) ? (
-        <text
-          className={`stroke-surface ${who.me || constellation.focus === person ? "fill-foreground font-semibold" : "fill-foreground"}`}
-          fontSize={LABEL_PX * px}
-          paintOrder="stroke"
-          strokeWidth={LABEL_PX * px * TEXT_HALO}
-          textAnchor="middle"
-          y={radius * HALO + LABEL_PX * px * SMALL_TEXT}
-        >
-          {nameOf(constellation, person, t)}
-        </text>
-      ) : null}
+      <StarName
+        extent={drawn.layout.extent}
+        name={nameOf(constellation, person, t)}
+        note={large ? who.note : ""}
+        px={px}
+        small={!large}
+        strong={who.me || constellation.focus === person}
+        x={at[person].x}
+        y={radius * HALO + LABEL_PX * px * SMALL_TEXT}
+      />
     </g>
   );
 }
@@ -251,6 +246,7 @@ export default function ConstellationGraph(options: ConstellationGraphOptions) {
     lit: litAround(constellation, picked),
   };
   const side = layout.extent * DIAMETER_PER_RADIUS;
+  const tall = side + overhang(drawn);
 
   return (
     <div className="relative h-full w-full">
@@ -258,7 +254,7 @@ export default function ConstellationGraph(options: ConstellationGraphOptions) {
         aria-label={options.label}
         className="h-full w-full select-none"
         role={large ? "group" : "img"}
-        viewBox={`${-layout.extent} ${-layout.extent} ${side} ${side}`}
+        viewBox={`${-layout.extent} ${-layout.extent} ${side} ${tall}`}
       >
         <g transform={options.view}>
           <Orbits drawn={drawn} />

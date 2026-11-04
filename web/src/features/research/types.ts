@@ -32,4 +32,8 @@ export interface ResearchHit {
   detail: string;
 }
 
-export type ResearchOutcome = { kind: "found"; hits: ResearchHit[] } | { kind: "failed" };
+/** `slow` is the search running out of time, told apart so the reader knows to retry rather than rephrase. */
+export type ResearchOutcome =
+  | { kind: "found"; hits: ResearchHit[] }
+  | { kind: "slow" }
+  | { kind: "failed" };

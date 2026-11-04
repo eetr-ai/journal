@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import {
+  MusicNotesIcon,
+  QuotesIcon,
+  SpinnerGapIcon,
+  XIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { useContextNullSafe } from "@eetr/react-reducer-utils";
 import type { ResearchHit } from "@/features/research/types";
@@ -13,6 +19,7 @@ import { chosen, useSearchSlot, type SearchSlot } from "../use_search_slot";
 
 const ICON_SIZE = 16;
 const KINDS: SearchKind[] = ["quotes", "songs"];
+const KIND_ICONS: Record<SearchKind, Icon> = { quotes: QuotesIcon, songs: MusicNotesIcon };
 
 /**
  * A quote or a song looked for on the web, in place. The one picked becomes
@@ -81,9 +88,7 @@ function SearchBar(options: SearchBarOptions) {
 
   return (
     <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-      <span className="text-muted">
-        <MagnifyingGlassIcon size={ICON_SIZE} />
-      </span>
+      <KindSwitch kind={options.kind} labels={labels} onKind={options.onKind} />
       <input
         aria-label={options.kind === "quotes" ? labels.findQuote : labels.findSong}
         className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
@@ -93,17 +98,6 @@ function SearchBar(options: SearchBarOptions) {
         ref={field}
         value={options.slot.state.query}
       />
-      {KINDS.map((each) => (
-        <button
-          aria-pressed={each === options.kind}
-          className={`rounded px-2 py-0.5 text-xs ${each === options.kind ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"}`}
-          key={each}
-          onClick={() => options.onKind(each)}
-          type="button"
-        >
-          {labels[each]}
-        </button>
-      ))}
       <button
         aria-label={options.t.editor.remove}
         className="rounded p-1 text-muted hover:text-accent"
@@ -114,6 +108,37 @@ function SearchBar(options: SearchBarOptions) {
         <XIcon size={ICON_SIZE} />
       </button>
     </div>
+  );
+}
+
+interface KindSwitchOptions {
+  kind: SearchKind;
+  labels: Dictionary["editor"]["slots"];
+  onKind: (kind: SearchKind) => void;
+}
+
+// Leads the bar, so what the field looks for is read before what is typed into it.
+function KindSwitch(options: KindSwitchOptions) {
+  return (
+    <fieldset className="flex shrink-0 rounded-md border border-border p-0.5">
+      {KINDS.map((each) => {
+        const KindIcon = KIND_ICONS[each];
+        const on = each === options.kind;
+
+        return (
+          <button
+            aria-pressed={on}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs ${on ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"}`}
+            key={each}
+            onClick={() => options.onKind(each)}
+            type="button"
+          >
+            <KindIcon size={ICON_SIZE} weight={on ? "fill" : "regular"} />
+            {options.labels[each]}
+          </button>
+        );
+      })}
+    </fieldset>
   );
 }
 
@@ -156,9 +181,13 @@ interface ResultsOptions {
 function Results(options: ResultsOptions) {
   const { state } = options.slot;
   const labels = options.labels;
+  if (state.status === "searching") {
+    return <Waiting labels={labels} startedAt={state.startedAt} />;
+  }
+
   const line = {
     idle: labels.hint,
-    searching: labels.searching,
+    slow: labels.slow,
     failed: labels.failed,
     found: state.hits.length === 0 ? labels.none : null,
   }[state.status];
@@ -184,5 +213,41 @@ function Results(options: ResultsOptions) {
         </li>
       ))}
     </ul>
+  );
+}
+
+// When the waiting line moves on: a web search and a model reading it can take most of a minute.
+const LONGER_AFTER_MS = 8000;
+const LONGEST_AFTER_MS = 25_000;
+const TICK_MS = 1000;
+
+interface WaitingOptions {
+  labels: Dictionary["editor"]["slots"];
+  startedAt: number;
+}
+
+function waitingLine(labels: WaitingOptions["labels"], waited: number): string {
+  if (waited >= LONGEST_AFTER_MS) {
+    return labels.searchingLongest;
+  }
+
+  return waited >= LONGER_AFTER_MS ? labels.searchingLonger : labels.searching;
+}
+
+// A search out, said to be one, and said again as it goes on.
+function Waiting(options: WaitingOptions) {
+  const [now, setNow] = useState(options.startedAt);
+
+  useEffect(() => {
+    const ticking = setInterval(() => setNow(Date.now()), TICK_MS);
+
+    return () => clearInterval(ticking);
+  }, []);
+
+  return (
+    <div aria-live="polite" className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted">
+      <SpinnerGapIcon className="animate-spin" size={ICON_SIZE} />
+      <span>{waitingLine(options.labels, now - options.startedAt)}</span>
+    </div>
   );
 }

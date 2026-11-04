@@ -5,10 +5,14 @@
  *     # family                  a group, for the people who first appear under it
  *     me -- Ana (5): sister     a link; closeness 1–5 after a name, a label after a colon
  *     Pablo (3)                 somebody on their own
+ *     Ana: diabetes since 40    a note on why somebody already named is here
+ *
+ * `rings="a|b|…"` renames the rings innermost first, the sixth being the ring
+ * for people not placed; `scale` says what being nearer the centre means then.
  *
  * `me` (or `yo`) is the reader: the centre, never grouped, never given a
  * closeness. A person keeps the first group and the first closeness they were
- * given. A line that reads as none of the above is skipped, and anything past
+ * given, and the first note; a note never adds anyone. A line that reads as none of the above is skipped, and anything past
  * the caps is left out rather than squeezed in.
  */
 
@@ -19,6 +23,8 @@ export interface Person {
   group: number | null;
   /** 5 is the innermost circle, 1 the most distant; null when not known. */
   near: number | null;
+  /** Why they are in this constellation in particular; empty when not said. */
+  note: string;
 }
 
 /** Undirected: `from` and `to` are indexes into the people. */
@@ -37,6 +43,10 @@ export interface Constellation {
   groups: string[];
   /** The one person to pick out, when the agent named one. */
   focus: number | null;
+  /** Ring names innermost first, as given; an empty or missing one keeps its default. */
+  rings: string[];
+  /** What nearer the centre means; empty when the agent said nothing. */
+  scale: string;
 }
 
 export const NEAREST = 5;
@@ -47,7 +57,13 @@ const MAX_TIES = 80;
 const MAX_GROUPS = 6;
 const MAX_NAME_CHARS = 60;
 const MAX_LABEL_CHARS = 60;
+const MAX_NOTE_CHARS = 60;
 const MAX_TITLE_CHARS = 80;
+const MAX_RING_CHARS = 30;
+const MAX_SCALE_CHARS = 80;
+// The five closenesses and the ring for people not placed yet.
+const RING_COUNT = 6;
+const RING_SEPARATOR = "|";
 const MIN_PEOPLE = 2;
 // The two ends of a link.
 const ENDS = 2;
@@ -69,6 +85,8 @@ interface Drawing {
   tied: Set<string>;
   groups: string[];
   group: number | null;
+  /** Lower-cased name to note, applied once everybody is known. */
+  notes: Map<string, string>;
 }
 
 interface Named {
@@ -140,6 +158,7 @@ function personAt(drawing: Drawing, person: Named): number {
       me,
       group: me ? null : drawing.group,
       near: person.near,
+      note: "",
     }) - 1
   );
 }
@@ -150,11 +169,32 @@ function hasRoom(drawing: Drawing, people: Named[]): boolean {
   return drawing.people.length + added.size <= MAX_PEOPLE;
 }
 
+// Somebody on their own, or with a colon, a note on somebody.
 function lone(drawing: Drawing, text: string): void {
-  const person = text.includes(":") ? null : named(text);
+  const colon = text.indexOf(":");
+  const person = named(colon < 0 ? text : text.slice(0, colon));
+  const note = colon < 0 ? "" : tidy(text.slice(colon + 1), MAX_NOTE_CHARS);
 
-  if (person && hasRoom(drawing, [person])) {
+  if (!person) {
+    return;
+  }
+
+  if (colon >= 0) {
+    if (note !== "" && !drawing.notes.has(person.key)) {
+      drawing.notes.set(person.key, note);
+    }
+  } else if (hasRoom(drawing, [person])) {
     personAt(drawing, person);
+  }
+}
+
+function withNotes(drawing: Drawing): void {
+  for (const [key, note] of drawing.notes) {
+    const at = drawing.keys.get(key);
+
+    if (at !== undefined) {
+      drawing.people[at].note = note;
+    }
   }
 }
 
@@ -213,6 +253,15 @@ function withoutEmptyGroups(drawing: Drawing): { people: Person[]; groups: strin
   return { people, groups: used };
 }
 
+function ringsFrom(written: string | null | undefined): string[] {
+  const names = (written ?? "")
+    .split(RING_SEPARATOR)
+    .slice(0, RING_COUNT)
+    .map((name) => tidy(name, MAX_RING_CHARS));
+
+  return names.some((name) => name !== "") ? names : [];
+}
+
 export interface WrittenConstellation {
   attributes: Record<string, string | null | undefined>;
   body: string;
@@ -227,11 +276,14 @@ export function constellationFrom(written: WrittenConstellation): Constellation 
     tied: new Set(),
     groups: [],
     group: null,
+    notes: new Map(),
   };
 
   for (const line of written.body.split("\n")) {
     read(drawing, line);
   }
+
+  withNotes(drawing);
 
   if (drawing.people.length < MIN_PEOPLE || drawing.ties.length === 0) {
     return null;
@@ -245,5 +297,7 @@ export function constellationFrom(written: WrittenConstellation): Constellation 
     ...withoutEmptyGroups(drawing),
     ties: drawing.ties,
     focus: focus ?? null,
+    rings: ringsFrom(written.attributes.rings),
+    scale: tidy(written.attributes.scale, MAX_SCALE_CHARS),
   };
 }

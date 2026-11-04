@@ -67,7 +67,7 @@ flows:
       - type: ai-mapping
         name: pick-quotes
         settings:
-          connector: router
+          connector: picker
           prompt: >
             Someone writing in their journal is looking for a quote: `asked` is
             what they typed. `found` is what a web search returned.
@@ -124,7 +124,7 @@ flows:
       - type: ai-mapping
         name: pick-songs
         settings:
-          connector: router
+          connector: picker
           prompt: >
             Someone writing in their journal is looking for a song: `asked` is
             a title, an artist, or a line they remember. `found` is what a web

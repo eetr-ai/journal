@@ -21,6 +21,8 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
   const { lyrics } = options;
   const t = options.t.widgets.lyrics;
   const adding = options.place !== "entry";
+  // Kept in an entry, a verse reads as an epigraph: no wider than its longest line.
+  const fit = options.place === "entry";
 
   return (
     <WidgetFrame
@@ -44,6 +46,7 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
           </>
         ) : undefined
       }
+      fit={fit}
       label={
         <>
           <span className="font-semibold text-brand-strong">{t.label}</span>
@@ -52,7 +55,7 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
       }
     >
       <h3 className="font-serif text-base">{lyrics.title}</h3>
-      <p className="font-serif text-sm whitespace-pre-line italic leading-relaxed">
+      <p className="font-serif text-sm wrap-break-word whitespace-pre-line italic leading-relaxed">
         {lyrics.lines.join("\n")}
         {lyrics.cut ? "\n…" : ""}
       </p>
