@@ -6,6 +6,15 @@ flow: people-find
 
 env:
   POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+  OPENROUTER_API_KEY: dolphin-not-a-key
+
+# Word matching is what this suite proves, so ranking by meaning fails here and
+# every answer is matches alone. people_related_test.yaml owns the ranking.
+mocks:
+  people-find.by-meaning[then].rank-if-we-can[process].embed-circle:
+    cases:
+      - when: "true"
+        error: no embedding provider here
 
 cases:
   # "carla" is written in lower case, so a sort that is not case-insensitive
@@ -23,15 +32,48 @@ cases:
         - body.people[2].birthday == ""
         # A number where it is known; null where it is sealed empty or unmarked.
         - body.people.map(p, p.proximity) == [5, 3, null, 1, null, null]
+        # The roster counts facts rather than carrying them, and keeps the notes
+        # that tell people apart.
+        - body.people[0].facts == 2
+        - body.people[1].facts == 0
+        - body.people[0].notes == "Lives in Rosario."
+        - body.related == []
 
-  - name: a query finds names and relations that hold it, in any case
+  - name: a query finds whatever holds it, in any case
     input:
       data: { query: AR }
       vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
     expect:
       that:
-        # Bruno by his relation, climbing partner; carla by her name.
-        - body.people.map(p, p.name) == ["Bruno", "carla"]
+        # Ana by her notes and facts, Rosario and the library; Bruno by his
+        # relation, climbing partner; carla by her name.
+        - body.people.map(p, p.name) == ["Ana Torres", "Bruno", "carla"]
+        # A match carries its facts, opened, rather than a count.
+        - body.people[0].facts == ["Allergic to cats.", "Started a new job at the library."]
+
+  - name: every word of a query has to be somewhere, in any order
+    input:
+      data: { query: "  cats   ALLERGIC " }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.people.map(p, p.name) == ["Ana Torres"]
+
+  - name: one word that is nowhere is enough to rule someone out
+    input:
+      data: { query: allergic dogs }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.people == []
+
+  - name: accents are folded on both sides
+    input:
+      data: { query: ROSÁRIO }
+      vars: { subject: dolphin-people, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.people.map(p, p.name) == ["Ana Torres"]
 
   - name: a query finds someone by what they are called
     input:
@@ -49,6 +91,7 @@ cases:
     expect:
       body:
         people: []
+        related: []
 
   - name: nobody from somebody else's circle is found
     input:
@@ -57,3 +100,4 @@ cases:
     expect:
       body:
         people: []
+        related: []

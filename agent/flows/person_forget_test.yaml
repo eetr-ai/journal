@@ -1,0 +1,56 @@
+# See people_test.yaml. This suite owns forget_person, which deletes only on
+# the second ask. `dolphin-people-forget` holds Olga, with two facts, who is
+# only ever asked about, and Pablo, who is forgotten.
+flow: person-forget
+
+env:
+  POSTGRES_DSN: postgres://journal:journal@localhost:5432/journal?sslmode=disable
+
+cases:
+  - name: asking first deletes nothing, and says who and how much would go
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000501 }
+      vars: { subject: dolphin-people-forget, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.forgotten == false
+        - body.name == "Olga"
+        - body.relation == "my aunt"
+        - body.facts == 2
+        - body.reason.contains("confirm")
+
+  - name: confirm false is still only asking
+    input:
+      data: { id: EEEEEEEE-0000-4000-8000-000000000501, confirm: false }
+      vars: { subject: dolphin-people-forget, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.forgotten == false
+        - body.facts == 2
+
+  - name: confirmed, they are forgotten and named back
+    input:
+      data: { id: eeeeeeee-0000-4000-8000-000000000502, confirm: true }
+      vars: { subject: dolphin-people-forget, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.forgotten == true
+        - body.name == "Pablo"
+
+  - name: somebody else's person cannot be forgotten, confirmed or not
+    input:
+      data: { id: ffffffff-0000-4000-8000-000000000001, confirm: true }
+      vars: { subject: dolphin-people-forget, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.forgotten == false
+        - body.reason.contains("find_people")
+
+  - name: an id that is not a uuid names nobody
+    input:
+      data: { id: not-an-id }
+      vars: { subject: dolphin-people-forget, dataKey: ZG9scGhpbi1lbnRyaWVzLWZpeHR1cmUta2V5LTMyYiE= }
+    expect:
+      that:
+        - body.forgotten == false
+        - body.reason.contains("find_people")
