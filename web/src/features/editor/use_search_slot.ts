@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { researchAction } from "@/features/research/actions";
-import type { ResearchHit } from "@/features/research/types";
+import type { ResearchHit, ResearchOutcome } from "@/features/research/types";
 import type { Locale } from "@/i18n/config";
 import type { SearchKind } from "./extensions/slots";
 
@@ -12,7 +11,7 @@ import type { SearchKind } from "./extensions/slots";
  * lands only if the block still asks for that.
  */
 
-export type SearchStatus = "idle" | "searching" | "found" | "failed";
+export type SearchStatus = "idle" | "searching" | "found" | "slow" | "failed";
 
 export interface SearchSlotState {
   query: string;
@@ -21,9 +20,38 @@ export interface SearchSlotState {
   index: number;
   /** The query and kind `hits` answer, so Enter on them adds rather than searches again. */
   answered: string;
+  /** When the search out now started, so the wait can be told apart as it grows. */
+  startedAt: number;
 }
 
-const START: SearchSlotState = { query: "", status: "idle", hits: [], index: 0, answered: "" };
+const START: SearchSlotState = {
+  query: "",
+  status: "idle",
+  hits: [],
+  index: 0,
+  answered: "",
+  startedAt: 0,
+};
+
+const FAILED: ResearchOutcome = { kind: "failed" };
+
+// Any answer that is not an outcome is a failure; an abandoned search is never shown.
+async function lookUp(ask: object, signal: AbortSignal): Promise<ResearchOutcome> {
+  const response = await fetch("/api/research", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(ask),
+    signal,
+  });
+
+  return response.ok ? ((await response.json()) as ResearchOutcome) : FAILED;
+}
+
+function landed(now: SearchSlotState, outcome: ResearchOutcome): SearchSlotState {
+  return outcome.kind === "found"
+    ? { ...now, status: "found", hits: outcome.hits }
+    : { ...now, status: outcome.kind };
+}
 
 export interface SearchSlot {
   state: SearchSlotState;
@@ -44,27 +72,38 @@ export function useSearchSlot(kind: SearchKind, locale: Locale): SearchSlot {
     latest.current = state;
   });
 
-  const search = useCallback(() => {
-    const question = asked(kind, latest.current.query);
+  const out = useRef<AbortController | null>(null);
 
-    if (latest.current.query.trim() === "") {
+  // A block taken out abandons its search with it.
+  useEffect(() => () => out.current?.abort(), []);
+
+  const search = useCallback(() => {
+    const { query } = latest.current;
+    const question = asked(kind, query);
+
+    if (query.trim() === "") {
       return;
     }
 
-    setState((now) => ({ ...now, status: "searching", hits: [], index: 0, answered: question }));
-    void researchAction(kind, latest.current.query, locale)
-      .catch(() => ({ kind: "failed" }) as const)
-      .then((outcome) =>
-        setState((now) => {
-          if (now.answered !== question) {
-            return now;
-          }
+    out.current?.abort();
+    const controller = new AbortController();
+    out.current = controller;
 
-          return outcome.kind === "found"
-            ? { ...now, status: "found", hits: outcome.hits }
-            : { ...now, status: "failed" };
-        }),
-      );
+    setState((now) => ({
+      ...now,
+      status: "searching",
+      hits: [],
+      index: 0,
+      answered: question,
+      startedAt: Date.now(),
+    }));
+    void lookUp({ kind, query, locale }, controller.signal)
+      .catch(() => FAILED)
+      .then((outcome) => {
+        if (!controller.signal.aborted) {
+          setState((now) => (now.answered === question ? landed(now, outcome) : now));
+        }
+      });
   }, [kind, locale]);
 
   const type = useCallback((query: string) => setState((now) => ({ ...now, query })), []);

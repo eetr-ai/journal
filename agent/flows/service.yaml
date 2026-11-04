@@ -61,6 +61,17 @@ connectors:
       maxTokens: 4096
       appName: eetr-journal
 
+  # The same model with reasoning switched off, for copying out of what a search
+  # found: there is nothing to think through, and thinking is most of the wait.
+  - name: picker
+    type: llm-openrouter
+    settings:
+      apiKey: ${OPENROUTER_API_KEY}
+      model: ${CHAT_MODEL}
+      reasoning: none
+      maxTokens: 4096
+      appName: eetr-journal
+
   # OpenRouter's public model catalogue, for asking what CHAT_MODEL reads. No
   # credential: the catalogue is public. Cached, because the answer changes
   # when the model does and not between requests.
