@@ -26,6 +26,8 @@ export default function VerbatimView(params: ReactNodeViewProps) {
     <NodeViewWrapper
       className={`group my-2 rounded ${params.selected ? "editor-selected" : ""}`}
       contentEditable={false}
+      // A card's hidden words are not the writer's to correct.
+      spellCheck={false}
     >
       {/* Shrinks to a card that fits its content, so the way out stays on the card. */}
       <div className="relative mx-auto max-w-full has-[[data-fit]]:w-fit">

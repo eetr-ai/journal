@@ -10,6 +10,8 @@ export interface StarNameOptions {
   /** Why they are here; nothing is drawn for it when empty. */
   note: string;
   strong: boolean;
+  /** On the card, where every name is drawn, a size down so they fit beside each other. */
+  small: boolean;
   /** One screen pixel, in the picture's units. */
   px: number;
   /** The name's baseline, below the star's centre. */
@@ -18,7 +20,7 @@ export interface StarNameOptions {
 
 /** A person's name under their star, and beneath it, smaller, why they are here. */
 export default function StarName(options: StarNameOptions) {
-  const size = LABEL_PX * options.px;
+  const size = LABEL_PX * options.px * (options.small ? SMALL_TEXT : 1);
 
   return (
     <text

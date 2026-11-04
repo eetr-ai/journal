@@ -12,6 +12,32 @@ type Words = WidgetsDictionary["constellation"];
 
 const SEPARATOR = " — ";
 
+/** The ring's name, the agent's when it gave one. Ring 0 is the innermost. */
+export function ringName(constellation: Constellation, ring: number, t: Words): string {
+  return constellation.rings[ring] || t.rings[ring];
+}
+
+/** What distance from the centre means, or empty when renamed rings leave it unsaid. */
+export function scaleOf(constellation: Constellation, t: Words): string {
+  if (constellation.scale !== "") {
+    return constellation.scale;
+  }
+
+  return constellation.rings.length === 0 ? t.nearer : "";
+}
+
+function closenessOf(constellation: Constellation, at: number, t: Words): string {
+  const { near } = constellation.people[at];
+
+  if (constellation.rings.length > 0) {
+    return ringName(constellation, near === null ? NEAREST : NEAREST - near, t);
+  }
+
+  return near === null
+    ? t.unknown
+    : format(t.closeness, { near: String(near), of: String(NEAREST) });
+}
+
 export function nameOf(constellation: Constellation, at: number, t: Words): string {
   const person = constellation.people[at];
 
@@ -35,10 +61,7 @@ export function personText(constellation: Constellation, at: number, t: Words): 
   const person = constellation.people[at];
   const relation = constellation.ties.find((tie) => spokeTo(constellation, tie) === at)?.label;
   const group = person.group === null ? undefined : constellation.groups[person.group];
-  const closeness =
-    person.near === null
-      ? t.unknown
-      : format(t.closeness, { near: String(person.near), of: String(NEAREST) });
+  const closeness = closenessOf(constellation, at, t);
 
   return [person.name, relation, person.note, group, closeness].filter(Boolean).join(SEPARATOR);
 }

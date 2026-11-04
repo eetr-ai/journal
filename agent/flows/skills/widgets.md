@@ -64,45 +64,75 @@ shows at most eight lines, and `href` is where the rest is. Take the link from
     Ana: why she is on this map
     :::
 
-A map of the people around them: they are in the middle, each person sits as
-far out as they are from them, and people in the same circle share a colour.
-Draw one when they ask to see their people or how the people in their life
-connect, or when a conversation is about several people and how they relate to
-each other — not every time somebody is mentioned.
+A map of the people around them: they are in the middle, each person sits on a
+ring, and people in the same circle share a colour. Draw one when they ask to
+see their people or how the people in their life connect, or when a
+conversation is about several people and how they relate to each other — not
+every time somebody is mentioned.
 
 Build it only from what is kept. Call `find_people` first, and `read_person` for
-anyone whose details you need.
+anyone whose details you need. **Never invent** a person, a link, a closeness
+or a note.
 
-- `me` is them, and is always in the middle. `me -- Ana: sister` links them to
-  Ana; the label is who Ana is to them, her relation in a few words.
-- `(5)` after a name is how close that person is: their proximity as
-  `find_people` and `read_person` give it, 5 the innermost circle, 1 the most
-  distant. Put it the first time the person appears. When no proximity is kept,
-  leave it out — they are drawn on an outer ring for people not placed yet.
-  Never guess one.
-- `Ana -- Luis: her husband` links two other people. Draw a link between two
-  people only when they told you how those two are connected, in the
-  conversation or in what is kept about them. **Never invent a relationship.**
-- `# family` starts a circle — family, work, climbing, a group of friends — and
-  colours it. Each person takes the circle they first appear under; at most six
-  circles. Leave someone outside every circle by putting them before the first
-  one. Circles are yours to draw from what they told you; leave them out rather
-  than sort people into made-up ones.
-- A name alone on a line, `Tomás (2)`, puts somebody in without a link.
-- `Ana: diabetes since her forties` is a note: why Ana is on *this* map, in a
-  few words, drawn under her name. Use it for what the map is about — the
-  illness on a map of family health, the project on a map of work — and keep
-  the link label for the relation alone (`me -- Ana: sister`, not
-  `sister (diabetes)`). A note only describes somebody already on the map,
-  never adds them; one per person. Only what they told you or what is kept;
-  leave it out when there is nothing particular to say.
-- `title` is optional; `focus` picks out one person when the conversation is
-  about them. One link per line. Up to 40 people and 80 links; a drawing needs at
-  least two people and one link.
+### Lines
 
-The reader sees the map as a card they can expand, with the names and labels, so
-do not list the people again in prose. Say what you notice — who is at the
-centre of things, a circle that is thin — in a sentence or two, if at all.
+- `me` is them, always in the middle. `me -- Ana: sister` links them to Ana;
+  the label is who Ana is to them, in a few words.
+- `Ana -- Luis: her husband` links two other people. Only when they told you
+  how those two are connected, in the conversation or in what is kept.
+- `(5)` after a name puts them on a ring, 5 the innermost, 1 the outermost.
+  Put it the first time the person appears. Without it they go on an outer
+  ring for people not placed yet.
+- `Tomás (2)` alone on a line puts somebody in without a link.
+- `Ana: diabetes since her forties` is a note: why Ana is on *this* map,
+  drawn under her name. A note describes somebody already on the map and
+  never adds them; one per person, a few words.
+- `# family` starts a circle — family, work, climbing — and colours it. Each
+  person takes the circle they first appear under; at most six. Put someone
+  before the first one to leave them outside every circle. Leave circles out
+  rather than sort people into made-up ones.
+
+Up to 40 people and 80 links; a map needs at least two people and one link.
+
+### Labels, notes and circles each say one thing
+
+Keep the link label to the relation alone, and put everything else where it
+belongs: `me -- Ana: sister` and `Ana: diabetes since her forties`, never
+`me -- Ana: sister (diabetes since her forties)`. A note is for what the map is
+about — the illness on a map of family health, the project on a map of work —
+so leave it out when there is nothing particular to say about that person here.
+
+### What the rings mean
+
+By default the rings are closeness: their proximity as `find_people` and
+`read_person` give it, and the reader sees the rings named from closest to
+distant. Never guess a proximity.
+
+When the map is about something else, the rings can measure that instead:
+rename them with `rings`, innermost first, separated by `|`, and say what being
+nearer the centre means with `scale`.
+
+    :::constellation{title="Illness in my father's family" rings="diagnosed|being tested|symptoms|at risk|no signs|not known" scale="closer to the centre is more affected"}
+
+- Up to six names: the five rings `(5)` to `(1)`, then the ring for people not
+  placed. Leave one empty (`a||c`) to keep its usual name.
+- Write the ring names and `scale` in the language you are talking in.
+- Always give `scale` with `rings`. Without it the reader is told nothing about
+  what distance means.
+- The numbers then follow the new meaning — `(5)` is the innermost ring,
+  `diagnosed` above — not how close the person is to them. Place someone only
+  from what they told you or what is kept; leave the number out otherwise.
+- Do not rename the rings to say closeness in other words. Use them when the
+  map's question is not closeness.
+
+### Around the card
+
+`title` is optional, and says what the map is for when it is not simply their
+people. `focus` picks out one person when the conversation is about them.
+
+The reader sees the map as a card they can expand, with the names, labels and
+notes, so do not list the people again in prose. Say what you notice — who is
+at the centre of things, a circle that is thin — in a sentence or two, if at all.
 
 ## Cards in an entry
 
