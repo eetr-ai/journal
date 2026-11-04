@@ -24,21 +24,24 @@ export default function VerbatimView(params: ReactNodeViewProps) {
 
   return (
     <NodeViewWrapper
-      className={`group relative my-2 rounded ${params.selected ? "editor-selected" : ""}`}
+      className={`group my-2 rounded ${params.selected ? "editor-selected" : ""}`}
       contentEditable={false}
     >
-      <button
-        aria-label={t.editor.remove}
-        className="absolute top-1 right-1 z-10 rounded bg-surface p-1 text-muted opacity-0 shadow-sm group-hover:opacity-100 hover:text-accent focus:opacity-100"
-        onClick={() => params.deleteNode()}
-        title={t.editor.remove}
-        type="button"
-      >
-        <XIcon size={ICON_SIZE} />
-      </button>
-      <Markdown place="entry" widget={draw}>
-        {String(params.node.attrs.source)}
-      </Markdown>
+      {/* Shrinks to a card that fits its content, so the way out stays on the card. */}
+      <div className="relative mx-auto max-w-full has-[[data-fit]]:w-fit">
+        <button
+          aria-label={t.editor.remove}
+          className="absolute top-1 right-1 z-10 rounded bg-surface p-1 text-muted opacity-0 shadow-sm group-hover:opacity-100 hover:text-accent focus:opacity-100"
+          onClick={() => params.deleteNode()}
+          title={t.editor.remove}
+          type="button"
+        >
+          <XIcon size={ICON_SIZE} />
+        </button>
+        <Markdown place="entry" widget={draw}>
+          {String(params.node.attrs.source)}
+        </Markdown>
+      </div>
     </NodeViewWrapper>
   );
 }

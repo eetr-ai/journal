@@ -21,7 +21,14 @@ export interface WidgetFrameOptions {
   children: ReactNode;
   /** The buttons along the bottom, when the card has any. */
   actions?: ReactNode;
+  /**
+   * As wide as its content and centred, up to the column, wrapping only then.
+   * Marked `data-fit` so whatever holds the card can shrink to it as well.
+   */
+  fit?: boolean;
 }
+
+const FIT = "mx-auto w-fit max-w-full";
 
 /**
  * The card every widget is drawn in.
@@ -31,7 +38,10 @@ export interface WidgetFrameOptions {
  */
 export default function WidgetFrame(options: WidgetFrameOptions) {
   return (
-    <article className="not-prose my-3 flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+    <article
+      className={`not-prose my-3 flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 ${options.fit ? FIT : ""}`}
+      data-fit={options.fit ? "" : undefined}
+    >
       <p className="flex items-center gap-1.5 text-xs text-muted">
         {options.icon}
         <span className="min-w-0">{options.label}</span>
