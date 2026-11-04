@@ -1,6 +1,7 @@
 "use client";
 
 import AddButton from "./add_button";
+import { lyricsDirective } from "../directives";
 import { startOf } from "../taps";
 import WidgetFrame, { SourceLink } from "./widget_frame";
 import type { Place, Widget } from "../rules";
@@ -31,8 +32,10 @@ export default function LyricsWidget(options: LyricsWidgetOptions) {
           <>
             {adding ? (
               <AddButton
+                added={t.added}
                 label={t.add}
                 sent={t.sent}
+                source={lyricsDirective(lyrics)}
                 tap={{
                   widget: "lyrics",
                   act: "add",

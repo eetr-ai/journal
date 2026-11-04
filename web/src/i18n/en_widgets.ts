@@ -15,12 +15,14 @@ const widgets = {
     label: "Quote",
     add: "Add to entry",
     sent: "Sent ✓",
+    added: "Added ✓",
     source: "Open source",
   },
   lyrics: {
     label: "Song",
     add: "Add to entry",
     sent: "Sent ✓",
+    added: "Added ✓",
     source: "Full lyrics",
   },
   constellation: {

@@ -1,6 +1,7 @@
 "use client";
 
 import AddButton from "./add_button";
+import { quoteDirective } from "../directives";
 import { startOf } from "../taps";
 import WidgetFrame, { SourceLink } from "./widget_frame";
 import type { Place, Widget } from "../rules";
@@ -26,8 +27,10 @@ export default function QuoteWidget(options: QuoteWidgetOptions) {
           <>
             {adding ? (
               <AddButton
+                added={t.added}
                 label={t.add}
                 sent={t.sent}
+                source={quoteDirective(quote)}
                 tap={{
                   widget: "quote",
                   act: "add",
