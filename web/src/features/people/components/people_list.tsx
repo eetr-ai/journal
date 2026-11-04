@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  ArrowsDownUpIcon,
   CaretLeftIcon,
   CaretRightIcon,
   MagnifyingGlassIcon,
@@ -10,7 +11,8 @@ import {
 import { momentFor } from "@/features/chat/now";
 import { OverlayBody, OverlayFooter } from "@/components/overlay_dialog";
 import PersonRow from "./person_row";
-import { daysUntil, soonestFirst, type Placed } from "../birthdays";
+import { daysUntil, type Placed } from "../birthdays";
+import { isPeopleOrder, ordered, PEOPLE_ORDERS, PeopleOrder } from "../people_order";
 import { NEW_PERSON, PeopleActionType, usePeople, type PeopleUiState } from "../people_state";
 import { format } from "@/i18n/format";
 import type { Dictionary } from "@/i18n/en";
@@ -34,8 +36,7 @@ function placed(state: PeopleUiState, today: string): Placed[] {
       const opened = state.opened[person.id];
 
       return { id: person.id, person: opened, days: daysUntil(opened.birthday, today) };
-    })
-    .toSorted(soonestFirst);
+    });
 }
 
 // Case and accents aside, so "jose" finds José.
@@ -56,16 +57,17 @@ function matching(rows: Placed[], query: string): Placed[] {
       );
 }
 
-/** Soonest birthday first, a page at a time, narrowed by what is typed. */
+/** Soonest birthday first unless asked otherwise, a page at a time, narrowed by what is typed. */
 export default function PeopleList(options: PeopleListOptions) {
   const { state } = usePeople();
   const [query, setQuery] = useState("");
+  const [order, setOrder] = useState(PeopleOrder.Birthday);
   const [page, setPage] = useState(0);
   const t = options.t;
   // The reader's day, not the server's: near midnight the two are different
   // days, and a birthday is the reader's to count.
   const today = useMemo(() => momentFor(options.timezone).date, [options.timezone]);
-  const rows = matching(placed(state, today), query);
+  const rows = matching(ordered(placed(state, today), order, options.locale), query);
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   // A narrower search can leave the page past the end.
   const at = Math.min(page, pages - 1);
@@ -76,10 +78,15 @@ export default function PeopleList(options: PeopleListOptions) {
       <OverlayBody>
         <div className="flex flex-col gap-4">
           <Toolbar
+            onOrder={(value) => {
+              setOrder(value);
+              setPage(0);
+            }}
             onQuery={(value) => {
               setQuery(value);
               setPage(0);
             }}
+            order={order}
             query={query}
             t={t}
           />
@@ -98,6 +105,8 @@ export default function PeopleList(options: PeopleListOptions) {
 interface ToolbarOptions {
   query: string;
   onQuery: (query: string) => void;
+  order: PeopleOrder;
+  onOrder: (order: PeopleOrder) => void;
   t: Dictionary;
 }
 
@@ -118,6 +127,7 @@ function Toolbar(options: ToolbarOptions) {
           value={options.query}
         />
       </label>
+      <OrderPicker onOrder={options.onOrder} order={options.order} t={options.t} />
       <button
         className="flex shrink-0 items-center gap-2 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-on-brand transition hover:bg-brand-strong"
         onClick={() => dispatch({ type: PeopleActionType.Select, data: NEW_PERSON })}
@@ -127,6 +137,38 @@ function Toolbar(options: ToolbarOptions) {
         <span className="hidden sm:inline">{t.add}</span>
       </button>
     </div>
+  );
+}
+
+interface OrderPickerOptions {
+  order: PeopleOrder;
+  onOrder: (order: PeopleOrder) => void;
+  t: Dictionary;
+}
+
+function OrderPicker(options: OrderPickerOptions) {
+  const t = options.t.people;
+
+  return (
+    <label className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 text-muted focus-within:border-brand">
+      <ArrowsDownUpIcon className="shrink-0" size={ICON_SIZE} />
+      <select
+        aria-label={t.sortBy}
+        className="max-w-32 bg-transparent text-base text-foreground outline-none sm:max-w-none md:text-sm"
+        onChange={(event) => {
+          if (isPeopleOrder(event.target.value)) {
+            options.onOrder(event.target.value);
+          }
+        }}
+        value={options.order}
+      >
+        {PEOPLE_ORDERS.map((order) => (
+          <option key={order} value={order}>
+            {t.orders[order]}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
