@@ -13,6 +13,12 @@ const people = {
   add: "Add someone",
   search: "Search by name, nickname or who they are",
   noMatch: "Nobody matches that.",
+  sortBy: "Sort by",
+  orders: {
+    birthday: "Soonest birthday",
+    name: "Name",
+    closeness: "Closest first",
+  },
   page: "{from}–{to} of {total}",
   previousPage: "Previous",
   nextPage: "Next",
